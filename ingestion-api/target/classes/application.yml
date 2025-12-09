@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ingestion-api
+
+  # --- CONFIGURAÇÃO CONFLUENT CLOUD (KAFKA) ---
+  kafka:
+    # Coloque o endereço que você pegou em Cluster Settings
+    bootstrap-servers: pkc-921jm.us-east-2.aws.confluent.cloud:9092
+    
+    properties:
+      # Segurança padrão para Confluent Cloud
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      # Substitua API_KEY e API_SECRET pelos que você gerou
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="PA57SZCCZEALKVXR" password="cfltajgqBg76kNMVtyBpFhl59XMZeJIPT7il3f3CE69xQNR+Wh8F9eJyUPQBI9Qw;
+      
+      # Otimizações de Rede para Nuvem
+      session.timeout.ms: 45000
+      request.timeout.ms: 30000
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all           # Garante persistência na nuvem
+        retries: 3          # Tenta de novo se a rede piscar
+
+# Configuração S3 (Mantido Local no MinIO por enquanto)
+aws:
+  s3:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket-name: knowledge-base
+    region: us-east-1
