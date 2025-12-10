@@ -15,7 +15,7 @@ spring:
       security.protocol: SASL_SSL
       sasl.mechanism: PLAIN
       # Substitua API_KEY e API_SECRET pelos que você gerou
-      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="PA57SZCCZEALKVXR" password="cfltajgqBg76kNMVtyBpFhl59XMZeJIPT7il3f3CE69xQNR+Wh8F9eJyUPQBI9Qw;
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="PA57SZCCZEALKVXR" password="cfltajgqBg76kNMVtyBpFhl59XMZeJIPT7il3f3CE69xQNR+Wh8F9eJyUPQBI9Qw";
       
       # Otimizações de Rede para Nuvem
       session.timeout.ms: 45000
