@@ -14,8 +14,7 @@ services:
       APP_USER_PASSWORD: apppassword
     volumes:
       - oracle_data:/opt/oracle/oradata
-    # Limitamos memória para não travar seu PC
-    mem_limit: 1g
+    mem_limit: 2.5g # <--- AUMENTAMOS DE 1g PARA 2.5g
 
   # --- 2. MinIO (S3 Local) ---
   # Mantemos local para upload rápido de imagens

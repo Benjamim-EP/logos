@@ -4,3 +4,4 @@ ai-processor/src/main/resources/application.yml
 # Ignorar tudo que for gerado pelo build
 ai-processor/target/
 target/
+ai-processor/ia.txt
