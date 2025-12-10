@@ -21,8 +21,8 @@ import java.time.Duration;
 public class ProcessorService {
 
     private final BookAssistant bookAssistant;
-    private final StringRedisTemplate redisTemplate; // Redis Client
-    private final S3Client s3Client; // Cliente S3 Síncrono (Mais fácil para Workers)
+    private final StringRedisTemplate redisTemplate;
+    private final S3Client s3Client;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
@@ -30,7 +30,7 @@ public class ProcessorService {
     public void processDocument(IngestionEvent event) {
         String cacheKey = "doc_analysis:" + event.fileHash();
 
-        // 1. FinOps Check: Já gastamos dinheiro processando isso antes?
+        // 1. FinOps Check
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
             log.info("💰 CACHE HIT: Documento já processado. Recuperando do Redis.");
             String cachedResult = redisTemplate.opsForValue().get(cacheKey);
@@ -41,25 +41,31 @@ public class ProcessorService {
         log.info("🤖 CACHE MISS: Iniciando processamento de IA para hash: {}", event.fileHash());
 
         try {
-            // 2. Baixar texto do MinIO
+            // 2. Verifica se é Texto antes de tentar ler (Lógica Sênior)
+            // Se for PDF ou Imagem no futuro, teremos outra estratégia.
+            if (isBinaryFile(event.originalName())) {
+                log.warn("⚠️ Arquivo binário detectado (PDF/Imagem). Ignorando processamento de texto simples: {}", event.originalName());
+                return;
+            }
+
+            // 3. Baixar texto do MinIO
             String content = downloadTextFromS3(event.s3Key());
             
-            // Corte de segurança (Para não estourar tokens da demo)
+            // 4. Corte de segurança (Tokens)
             if (content.length() > 2000) {
                 content = content.substring(0, 2000); 
             }
 
-            // 3. Chamada à OpenAI (Pode demorar alguns segundos)
+            // 5. Chamada à OpenAI
             String analysisResult = bookAssistant.analyzeText(content);
 
-            // 4. Salvar no Redis (TTL de 24 horas)
+            // 6. Salvar no Redis
             redisTemplate.opsForValue().set(cacheKey, analysisResult, Duration.ofHours(24));
             
             log.info("✅ Sucesso IA: {}", analysisResult);
 
         } catch (Exception e) {
             log.error("❌ Erro ao processar documento", e);
-            // Aqui futuramente entra o Dead Letter Queue (DLQ)
         }
     }
 
@@ -69,6 +75,16 @@ public class ProcessorService {
                 .bucket(bucketName)
                 .key(key)
                 .build());
-        return objectBytes.asString(StandardCharsets.UTF_8);
+        
+        // CORREÇÃO AQUI: 
+        // Usamos o construtor de String do Java em vez de objectBytes.asString().
+        // O Java substitui caracteres inválidos () em vez de lançar erro fatal.
+        return new String(objectBytes.asByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private boolean isBinaryFile(String filename) {
+        if (filename == null) return false;
+        String lower = filename.toLowerCase();
+        return lower.endsWith(".pdf") || lower.endsWith(".jpg") || lower.endsWith(".png") || lower.endsWith(".jpeg");
     }
 }
