@@ -1,1 +1,6 @@
 com\ai\organizer\processor\AiProcessorApplication.class
+com\ai\organizer\processor\config\S3Config.class
+com\ai\organizer\processor\service\ProcessorService.class
+com\ai\organizer\processor\IngestionEvent.class
+com\ai\organizer\processor\ai\BookAssistant.class
+com\ai\organizer\processor\kafka\DocumentConsumer.class

@@ -1,2 +1,6 @@
+D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\ai\BookAssistant.java
 D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\AiProcessorApplication.java
+D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\config\S3Config.java
 D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\IngestionEvent.java
+D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\kafka\DocumentConsumer.java
+D:\Projetos\logos\ai-processor\src\main\java\com\ai\organizer\processor\service\ProcessorService.java
