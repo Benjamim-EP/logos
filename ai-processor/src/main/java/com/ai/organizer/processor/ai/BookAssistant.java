@@ -4,7 +4,6 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.spring.AiService;
 
-@AiService // A Mágica do Spring: Ele injeta o ChatModel aqui
 public interface BookAssistant {
 
     @SystemMessage("""
