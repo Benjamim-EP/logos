@@ -5,51 +5,41 @@ import { select } from "d3-selection"
 export function useGalaxyZoom() {
   const containerRef = useRef<HTMLDivElement>(null)
   const universeRef = useRef<HTMLDivElement>(null)
-  
-  // Estado para controlar LOD (Level of Detail) no React
   const [zoomLevel, setZoomLevel] = useState(0.4)
 
   useEffect(() => {
     if (!containerRef.current || !universeRef.current) return
 
-    // Configuração do Comportamento de Zoom/Pan
     const zoomBehavior = d3.zoom<HTMLDivElement, unknown>()
-      .scaleExtent([0.1, 8]) // Zoom Mínimo (0.1x) e Máximo (8x)
-      // Limites do universo (para o usuário não se perder no infinito)
-      .translateExtent([[-6000, -6000], [6000, 6000]]) 
+      .scaleExtent([0.1, 12]) // Aumentei um pouco o limite máximo
+      .translateExtent([[-6000, -6000], [6000, 6000]])
       .on("zoom", (event) => {
-        // --- PERFORMANCE SÊNIOR ---
-        // Atualizamos o DOM diretamente via style.transform.
-        // Isso roda fora do ciclo de renderização do React (evita re-renders pesados).
         if (universeRef.current) {
           const { x, y, k } = event.transform
           universeRef.current.style.transform = `translate(${x}px, ${y}px) scale(${k})`
         }
         
-        // Atualizamos o estado React apenas para lógica de UI (mostrar/esconder textos)
-        // O requestAnimationFrame garante que isso não trave a animação
+        // Otimização: Request Animation Frame para não travar a UI
         requestAnimationFrame(() => {
           setZoomLevel(event.transform.k)
         })
       })
 
-    // Aplica o comportamento ao container pai
     const selection = select(containerRef.current)
     selection.call(zoomBehavior)
+    
+    // --- CORREÇÃO 1: Desabilitar Zoom no Duplo Clique ---
+    selection.on("dblclick.zoom", null) 
 
-    // Centraliza a câmera inicialmente (X=0, Y=0 do universo no centro da tela)
-    // Precisamos pegar o tamanho da tela para calcular o centro
+    // Centraliza
     const width = containerRef.current.clientWidth
     const height = containerRef.current.clientHeight
     
     selection.call(
       zoomBehavior.transform,
-      d3.zoomIdentity
-        .translate(width / 2, height / 2) // Move 0,0 para o meio da tela
-        .scale(0.4) // Zoom inicial afastado
+      d3.zoomIdentity.translate(width / 2, height / 2).scale(0.4)
     )
 
-    // Cleanup
     return () => {
       selection.on(".zoom", null)
     }

@@ -1,5 +1,6 @@
 import type { Note } from "@/types/galaxy"
 import { motion } from "framer-motion"
+import { useSelectionStore } from "@/stores/selectionStore"
 
 interface StarNodeProps {
   note: Note
@@ -7,57 +8,63 @@ interface StarNodeProps {
 }
 
 export function StarNode({ note, zoomLevel }: StarNodeProps) {
-  // LOD: Se estiver muito longe, não renderiza para economizar GPU
-  if (zoomLevel < 0.2) return null
+  const setSelectedNote = useSelectionStore((state) => state.setSelectedNote)
 
-  // --- FÓRMULA MÁGICA DE ESCALA ---
-  // Tamanho Base: Multiplicamos pelo Z (importância da nota)
-  // Divisor: Usamos Math.pow(zoomLevel, 0.7).
-  // Isso significa: Quando o zoom aumenta, a estrela cresce, mas MENOS que o resto do universo.
-  // Isso cria a ilusão de que ela é um ponto de luz distante e não um objeto físico crescendo.
-  const size = (12 * note.z) / Math.pow(zoomLevel, 0.7)
+  // LOD: Esconde se estiver muito longe (Zoom Out total) para limpar a visão
+  if (zoomLevel < 0.25) return null
 
-  // Opacidade do texto (só aparece quando chega perto)
-  const showText = zoomLevel > 1.8
+  // --- AJUSTE 1: Tamanho Menor ---
+  // Reduzi o multiplicador de 12 para 6.
+  // Elas ficarão mais delicadas de longe.
+  const baseSize = (6 * note.z) / Math.pow(zoomLevel, 0.5)
+
+  // --- AJUSTE 2: Brilho Dinâmico ---
+  // O brilho agora depende do zoom.
+  // Longe (Zoom < 1): Quase sem brilho (opacity 0.1)
+  // Perto (Zoom > 2): Brilho mais forte
+  const glowOpacity = zoomLevel > 1.5 ? 0.4 : 0.1
+  const glowSize = zoomLevel > 1.5 ? 2 : 1
+
+  const handleStarClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedNote(note)
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       className="absolute rounded-full cursor-pointer group flex items-center justify-center"
+      onClick={handleStarClick}
       style={{
         left: note.x,
         top: note.y,
-        width: `${size}px`,
-        height: `${size}px`,
-        // Centraliza o elemento na coordenada exata
+        width: `${baseSize}px`,
+        height: `${baseSize}px`,
         transform: 'translate(-50%, -50%)',
         backgroundColor: '#FFFFFF',
-        // Glow (Brilho) dinâmico
-        boxShadow: `0 0 ${size * 1.5}px ${size * 0.5}px rgba(255, 255, 255, 0.6)`,
+        // --- AJUSTE 3: Sombra Suave ---
+        // Usamos a opacidade dinâmica calculada acima.
+        // Isso evita o "borrão branco" quando tem muitas juntas.
+        boxShadow: `0 0 ${baseSize * glowSize}px ${baseSize * 0.5}px rgba(255, 255, 255, ${glowOpacity})`,
         zIndex: 20
       }}
       whileHover={{ 
-        scale: 1.5, 
+        scale: 2.5, // Cresce mais no hover para facilitar o clique
         zIndex: 50,
-        boxShadow: `0 0 ${size * 3}px ${size}px rgba(100, 200, 255, 0.8)` // Brilho azul ao passar o mouse
+        boxShadow: `0 0 ${baseSize * 4}px ${baseSize}px rgba(100, 200, 255, 0.6)` // Azul ao passar o mouse
       }}
     >
-      {/* Tooltip Hover (Sempre disponível no hover) */}
-      <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-        <div className="bg-black/80 backdrop-blur-md border border-white/20 px-3 py-2 rounded-lg text-xs text-white whitespace-nowrap shadow-2xl">
-          <p className="font-bold text-blue-300 text-sm">{note.title}</p>
-          <p className="text-gray-400 text-[10px] uppercase tracking-wider">{note.tags[0]}</p>
-        </div>
-      </div>
-
-      {/* Label Permanente (Só aparece com muito zoom) */}
-      {showText && (
+      {/* Tooltip Hover (Só aparece de perto) */}
+      {zoomLevel > 0.8 && (
         <div 
-          className="absolute top-full mt-2 text-[4px] text-white/50 pointer-events-none whitespace-nowrap text-center font-mono"
-          style={{ fontSize: `${12 / zoomLevel}px` }} // O texto mantém tamanho legível
+          className="absolute bottom-full mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 origin-bottom"
+          style={{ transform: `scale(${1 / zoomLevel})` }}
         >
-          {note.title.substring(0, 15)}...
+          <div className="bg-black/90 backdrop-blur-md border border-white/20 px-3 py-2 rounded shadow-2xl whitespace-nowrap">
+            <p className="font-bold text-blue-300 text-sm">{note.title}</p>
+          </div>
         </div>
       )}
     </motion.div>
