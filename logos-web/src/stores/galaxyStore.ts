@@ -6,29 +6,25 @@ interface GalaxyState {
   notes: Note[]
   clusters: Cluster[]
   isLoading: boolean
+  focusNode: Note | null // <--- NOVO ESTADO: Nó focado (Double Click)
   
-  // Actions
   initializeGalaxy: (count?: number) => void
+  setFocusNode: (note: Note | null) => void // <--- NOVA ACTION
 }
 
 export const useGalaxyStore = create<GalaxyState>((set) => ({
   notes: [],
   clusters: [],
   isLoading: false,
+  focusNode: null,
 
-  initializeGalaxy: (count = 1500) => {
+  initializeGalaxy: (count = 800) => {
     set({ isLoading: true })
-    
-    // Pequeno delay para simular cálculo/fetch
     setTimeout(() => {
       const { clusters, notes } = generateUniverse(count)
-      console.log(`🌌 Universo gerado com ${notes.length} notas em ${clusters.length} clusters.`)
-      
-      set({ 
-        clusters, 
-        notes, 
-        isLoading: false 
-      })
+      set({ clusters, notes, isLoading: false })
     }, 800)
-  }
+  },
+
+  setFocusNode: (note) => set({ focusNode: note })
 }))

@@ -1,10 +1,8 @@
-// src/types/galaxy.ts
-
 export interface Cluster {
   id: string
   label: string
   color: string
-  x: number // Centro do cluster no universo
+  x: number
   y: number
 }
 
@@ -17,11 +15,15 @@ export interface Note {
   tags: string[]
   createdAt: string
   
-  // Coordenadas Vetoriais (Simuladas)
+  // Coordenadas Vetoriais
   x: number
   y: number
-  z: number // Para efeito de profundidade/tamanho (3D fake)
+  z: number
   
   // Relacionamento
   clusterId: string
+
+  // --- CORREÇÃO AQUI ---
+  // Adicionamos como opcional (?) porque nem sempre a nota tem distância calculada
+  distance?: number 
 }
