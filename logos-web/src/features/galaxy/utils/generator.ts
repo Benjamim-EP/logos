@@ -26,9 +26,10 @@ function randomNormal(mean: number, stdDev: number) {
 
 export const generateUniverse = (count: number): { clusters: Cluster[], notes: Note[] } => {
   const clusters: Cluster[] = TOPICS.map((topic, index) => {
-    // Espalha os clusters em um círculo grande
     const angle = (index / TOPICS.length) * 2 * Math.PI
-    const radius = 2000 // Distância do centro do universo (0,0)
+    // REDUZIR O RAIO DO UNIVERSO (De 2000 para 1200)
+    // Isso traz os sistemas solares mais para perto um do outro
+    const radius = 1200 
     
     return {
       ...topic,
@@ -38,16 +39,15 @@ export const generateUniverse = (count: number): { clusters: Cluster[], notes: N
   })
 
   const notes: Note[] = Array.from({ length: count }).map((_, i) => {
-    // Escolhe um cluster aleatório para pertencer
     const cluster = clusters[Math.floor(Math.random() * clusters.length)]
     
-    // Gera posição próxima ao cluster (com dispersão)
-    // stdDev = 600 cria nuvens de tamanho médio
-    const x = randomNormal(cluster.x, 600)
-    const y = randomNormal(cluster.y, 600)
+    // REDUZIR A DISPERSÃO (De 600 para 250)
+    // Isso faz as estrelas ficarem "agarradinhas" no cluster
+    const x = randomNormal(cluster.x, 250)
+    const y = randomNormal(cluster.y, 250)
     
-    // Z determina o "tamanho" da estrela (0.5 a 1.5)
-    const z = Math.random() * 1 + 0.5 
+    // Aumentar o fator Z para elas variarem mais de tamanho (0.8 a 2.5)
+    const z = Math.random() * 1.7 + 0.8 
 
     const title = `${PREFIXES[i % PREFIXES.length]} ${cluster.label} ${SUFFIXES[i % SUFFIXES.length]}`
 
