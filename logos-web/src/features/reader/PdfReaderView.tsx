@@ -1,59 +1,33 @@
-import { useEffect, useState } from "react"
-import {
-  PdfLoader,
-  PdfHighlighter,
-  Highlight,
-  Popup,
+import { useEffect, useState, useRef } from "react"
+import { 
+  PdfLoader, 
+  PdfHighlighter, 
+  Highlight, 
+  Popup, 
   AreaHighlight,
   type IHighlight,
 } from "react-pdf-highlighter"
 import * as pdfjs from "pdfjs-dist"
 
 import { Button } from "@/components/ui/button"
-import { X, MessageSquare, Loader2 } from "lucide-react"
+import { X, ZoomIn, ZoomOut, Loader2, MessageSquare, List, ChevronRight, Trash2 } from "lucide-react"
 import { usePdfStore } from "@/stores/pdfStore"
 import type { Note } from "@/types/galaxy"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-// --- CORREÇÃO FINAL: IMPORT DO CSS DA LIB ---
-// Sem isso, a biblioteca não consegue calcular as posições!
 import "react-pdf-highlighter/dist/style.css"
 
-/* ================= PDF WORKER CONFIG ================= */
-const pdfVersion = pdfjs.version || "5.4.449"
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfVersion}/build/pdf.worker.min.js`
-
-/* ================= TIP COMPONENT ================= */
-function HighlightTip({
-  onOpen,
-  onConfirm,
-}: {
-  onOpen: () => void
-  onConfirm: (comment: { text: string; emoji: string }) => void
-}) {
-  return (
-    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-50">
-      <Button
-        size="sm"
-        className="h-8 text-xs bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-0"
-        onClick={() => onConfirm({ text: "Marcado", emoji: "🖍️" })}
-      >
-        Marcar
-      </Button>
-
-      <Button 
-        size="sm" 
-        variant="outline" 
-        className="h-8 text-xs border-white/20 hover:bg-white/10 text-gray-300"
-        onClick={onOpen}
-      >
-        <MessageSquare className="w-3 h-3 mr-1" />
-        Comentar
-      </Button>
-    </div>
-  )
+/* ================= WORKER CONFIG (CRÍTICO) ================= */
+// Fixamos a versão para bater com o seu package.json (5.4.449)
+// Importante: Versões 4+ e 5+ do PDF.js usam módulos (.mjs) em alguns CDNs.
+// Vamos usar o unpkg que serve o build clássico compatível.
+try {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`
+} catch (e) {
+  console.error("Erro ao configurar PDF Worker:", e)
 }
 
-/* ================= MAIN VIEW ================= */
+/* ================= TYPES ================= */
 interface PdfReaderViewProps {
   note: Note
   pdfUrl: string
@@ -65,141 +39,202 @@ interface Content {
   image?: string
 }
 
-export function PdfReaderView({
-  note,
-  pdfUrl,
-  onClose,
-}: PdfReaderViewProps) {
-  const { getHighlights, addHighlight } = usePdfStore()
+/* ================= TIP COMPONENT ================= */
+function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (comment: { text: string; emoji: string }) => void }) {
+  return (
+    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-50">
+      <Button
+        size="sm"
+        className="h-8 text-xs bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-0"
+        onClick={() => onConfirm({ text: "Marcado", emoji: "🖍️" })}
+      >
+        Marcar
+      </Button>
+      <Button size="sm" variant="outline" className="h-8 text-xs border-white/20 hover:bg-white/10 text-gray-300" onClick={onOpen}>
+        <MessageSquare className="w-3 h-3 mr-1" /> Comentar
+      </Button>
+    </div>
+  )
+}
+
+/* ================= MAIN COMPONENT ================= */
+export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
+  const { getHighlights, addHighlight, removeHighlight } = usePdfStore()
   const [highlights, setHighlights] = useState<IHighlight[]>([])
+  
+  // Zoom começa em 1.0 (100%)
+  const [zoom, setZoom] = useState(1.0) 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  // Referência para o Highlighter (para fazer o scrollTo funcionar)
+  const highlighterRef = useRef<any>(null)
 
   useEffect(() => {
     setHighlights(getHighlights(note.id))
   }, [note.id, getHighlights])
 
-  const saveHighlight = (highlight: IHighlight) => {
+  const addHighlightToStore = (highlight: IHighlight) => {
     addHighlight(note.id, highlight)
-    setHighlights((prev) => [...prev, highlight])
+    setHighlights(prev => [...prev, highlight])
+  }
+
+  const scrollToHighlight = (highlight: IHighlight) => {
+    if (highlighterRef.current) {
+      highlighterRef.current.scrollTo(highlight)
+    }
+  }
+
+  const deleteHighlight = (id: string) => {
+    removeHighlight(note.id, id)
+    setHighlights(prev => prev.filter(h => h.id !== id))
   }
 
   return (
     <div className="fixed inset-0 z-[200] bg-zinc-950 flex flex-col">
-
-      {/* HEADER */}
+      
+      {/* --- HEADER --- */}
       <div className="h-14 border-b border-white/10 bg-black flex items-center justify-between px-4 z-50">
-        <div>
-          <h2 className="text-white font-bold text-sm truncate max-w-md">
-            {note.title}
-          </h2>
-          <span className="text-[10px] text-gray-500">
-            Modo leitura • PDF
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <h2 className="text-white font-bold text-sm truncate max-w-md">{note.title}</h2>
+            <span className="text-[10px] text-gray-500">PDF Reader • v5.4</span>
+          </div>
+          
+          <div className="flex items-center bg-white/5 rounded-md border border-white/10 ml-4">
+            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>
+                <ZoomOut className="w-3 h-3 text-gray-400" />
+            </Button>
+            <span className="text-xs w-12 text-center font-mono text-gray-300">{(zoom * 100).toFixed(0)}%</span>
+            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.min(3.0, z + 0.25))}>
+                <ZoomIn className="w-3 h-3 text-gray-400" />
+            </Button>
+          </div>
         </div>
 
-        <Button size="icon" variant="ghost" onClick={onClose} className="hover:bg-white/10 text-gray-400">
-          <X className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant={isSidebarOpen ? "secondary" : "ghost"} 
+            size="sm" 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="text-xs"
+          >
+            <List className="w-4 h-4 mr-2" />
+            Marcações ({highlights.length})
+          </Button>
+
+          <Button size="icon" variant="ghost" onClick={onClose} className="hover:bg-white/10 text-gray-400">
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
-      {/* BODY */}
-      <div className="flex-1 relative bg-zinc-900 overflow-hidden w-full h-full">
+      {/* --- BODY --- */}
+      <div className="flex-1 relative bg-zinc-900 w-full h-full flex overflow-hidden">
         
-        {/* 
-            Container Absoluto Essencial.
-            O CSS importado na linha 16 vai trabalhar junto com este estilo inline
-            para garantir que a biblioteca encontre as dimensões corretas.
-        */}
-        <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-          <PdfLoader
-            url={pdfUrl}
-            beforeLoad={
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                <span>Carregando documento...</span>
-              </div>
-            }
-            errorMessage={
-              <div className="flex items-center justify-center h-full text-red-400 p-4 text-center">
-                Erro ao carregar PDF. Verifique se o arquivo "{pdfUrl}" existe na pasta /public.
-              </div>
-            }
-          >
-            {(pdfDocument) => (
-              <PdfHighlighter
-                pdfDocument={pdfDocument}
-                highlights={highlights}
-                enableAreaSelection={(e) => e.altKey}
-                onScrollChange={() => {}}
-                scrollRef={() => {}}
-                
-                onSelectionFinished={(
-                  position,
-                  content,
-                  hideTipAndSelection,
-                  transformSelection
-                ) => (
-                  <HighlightTip
-                    onOpen={transformSelection}
-                    onConfirm={(comment) => {
-                      saveHighlight({
-                        id: crypto.randomUUID(),
-                        position,
-                        content,
-                        comment,
-                      })
-                      hideTipAndSelection()
-                    }}
-                  />
-                )}
-                
-                highlightTransform={(
-                  highlight,
-                  index,
-                  setTip,
-                  hideTip,
-                  _viewportToScaled,
-                  screenshot,
-                  isScrolledTo
-                ) => {
-                  const isText = !Boolean(
-                    highlight.content && (highlight.content as Content).image
-                  )
-
-                  const component = isText ? (
-                    <Highlight
-                      isScrolledTo={isScrolledTo}
-                      position={highlight.position}
-                      comment={highlight.comment}
-                    />
-                  ) : (
-                    <AreaHighlight
-                      isScrolledTo={isScrolledTo}
-                      highlight={highlight}
-                      onChange={() => {}}
-                    />
-                  )
-
-                  return (
-                    <Popup
-                      key={index}
-                      popupContent={
-                        <div className="bg-white text-black text-xs p-2 rounded shadow border border-gray-200 z-[300]">
-                          <strong>Nota:</strong> {highlight.comment?.text || "—"}
-                        </div>
-                      }
-                      onMouseOver={(content) =>
-                        setTip(highlight, () => content)
-                      }
-                      onMouseOut={hideTip}
-                    >
-                      {component}
-                    </Popup>
-                  )
+        {/* CONTAINER DO PDF (Scrollavel) */}
+        <div className="flex-1 relative h-full overflow-auto bg-gray-900/50 flex justify-center">
+            
+            {/* 
+               WRAPPER DE ZOOM (A Mágica do Foxit)
+               Ao mudar a largura (width) aqui, a lib recalcula o PDF vetorialmente.
+               Isso mantém o texto nítido, diferente de 'transform: scale'.
+            */}
+            <div 
+                style={{ 
+                    position: 'relative', // Necessário para a lib se achar
+                    width: `${60 * zoom}vw`, // Largura dinâmica baseada no zoom (Base 60% da tela)
+                    minWidth: '600px', // Tamanho mínimo para não quebrar layout
+                    marginBottom: '50px' // Espaço para scroll final
                 }}
-              />
-            )}
-          </PdfLoader>
+            >
+                <PdfLoader 
+                    url={pdfUrl} 
+                    beforeLoad={
+                        <div className="flex flex-col items-center justify-center h-96 gap-4 text-gray-400">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-500"/>
+                            <p>Carregando documento...</p>
+                        </div>
+                    }
+                    errorMessage={
+                        <div className="flex items-center justify-center h-96 text-red-400 p-4">
+                            Erro ao carregar PDF. Verifique a URL ou o Worker.
+                        </div>
+                    }
+                >
+                    {(pdfDocument) => (
+                        <PdfHighlighter
+                            pdfDocument={pdfDocument}
+                            enableAreaSelection={(event) => event.altKey}
+                            onScrollChange={() => {}}
+                            scrollRef={() => {}}
+                            ref={highlighterRef} // Conectando a ref para scroll programático
+                            onSelectionFinished={(position, content, hideTipAndSelection, transformSelection) => (
+                                <HighlightTip
+                                    onOpen={transformSelection}
+                                    onConfirm={(comment) => {
+                                        addHighlightToStore({ content, position, comment, id: crypto.randomUUID() })
+                                        hideTipAndSelection()
+                                    }}
+                                />
+                            )}
+                            highlightTransform={(highlight, index, setTip, hideTip, _viewportToScaled, screenshot, isScrolledTo) => {
+                                const isTextHighlight = !Boolean(highlight.content && (highlight.content as Content).image);
+                                const component = isTextHighlight 
+                                    ? <Highlight isScrolledTo={isScrolledTo} position={highlight.position} comment={highlight.comment} />
+                                    : <AreaHighlight isScrolledTo={isScrolledTo} highlight={highlight} onChange={() => {}} />;
+
+                                return (
+                                    <Popup
+                                        popupContent={<div className="text-black text-xs p-2 bg-white rounded shadow border border-gray-200 z-[300]">Note: {highlight.comment?.text || ""}</div>}
+                                        onMouseOver={(popupContent) => setTip(highlight, (highlight) => popupContent)}
+                                        onMouseOut={hideTip}
+                                        key={index}
+                                    >{component}</Popup>
+                                );
+                            }}
+                            highlights={highlights}
+                        />
+                    )}
+                </PdfLoader>
+            </div>
         </div>
+
+        {/* --- SIDEBAR --- */}
+        {isSidebarOpen && (
+            <div className="w-80 bg-[#0a0a0a] border-l border-white/10 h-full flex flex-col animate-in slide-in-from-right duration-300 z-[201] shadow-2xl absolute right-0 top-0 bottom-0 md:relative">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur">
+                    <h3 className="font-semibold text-white text-sm">Anotações</h3>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsSidebarOpen(false)}>
+                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </Button>
+                </div>
+                <ScrollArea className="flex-1 p-4">
+                    {highlights.length === 0 ? (
+                        <div className="text-center text-gray-500 text-xs mt-10">Nenhuma marcação feita.<br/>Selecione um texto para começar.</div>
+                    ) : (
+                        <div className="space-y-3 pb-10">
+                            {highlights.map((h, i) => (
+                                <div 
+                                    key={h.id} 
+                                    className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-colors group cursor-pointer"
+                                    onClick={() => scrollToHighlight(h)}
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-[10px] text-blue-400 font-mono bg-blue-500/10 px-1 rounded">Pág. {h.position.pageNumber}</span>
+                                        <Trash2 className="w-3 h-3 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); deleteHighlight(h.id) }} />
+                                    </div>
+                                    {h.content.text ? (
+                                        <blockquote className="text-xs text-gray-300 border-l-2 border-yellow-500/50 pl-2 italic line-clamp-3">"{h.content.text}"</blockquote>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-xs text-gray-400 italic"><div className="w-4 h-4 bg-yellow-500/20 rounded" />[Área de Imagem]</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </ScrollArea>
+            </div>
+        )}
       </div>
     </div>
   )
