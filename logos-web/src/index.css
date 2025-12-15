@@ -72,3 +72,36 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Estilos para o Highlight do PDF */
+.Highlight__part {
+  background: rgba(255, 226, 143, 0.5); /* Amarelo Marca-texto */
+  cursor: pointer;
+}
+
+.Highlight__part:hover {
+  background: rgba(255, 226, 143, 0.8);
+}
+
+.Highlight__popup {
+  background: black;
+  color: white;
+  border: 1px solid #333;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.PdfHighlighter {
+  position: absolute !important;
+  inset: 0;
+}
+
+.PdfHighlighter__viewer {
+  position: absolute !important;
+  inset: 0;
+}
+
+.PdfHighlighter__pdfViewer {
+  position: absolute !important;
+}
