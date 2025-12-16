@@ -4,8 +4,9 @@ import type { Cluster, Note } from '@/types/galaxy'
 import { generateUniverse } from '@/features/galaxy/utils/generator'
 
 // CORREÇÃO 2: Definir o tipo explicitamente
-export type ViewMode = 'galaxy' | 'shelf'
+export type ViewMode = 'galaxy' | 'shelf' | 'profile' 
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
+
 
 interface GalaxyState {
   allNotes: Note[]
