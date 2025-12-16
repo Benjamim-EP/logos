@@ -7,48 +7,48 @@ import { LibrarySheet } from "@/features/library/LibrarySheet"
 import { NoteReaderModal } from "@/features/library/NoteReaderModal"
 import { ConstellationMode } from "@/features/galaxy/ConstellationMode"
 import { BookShelf } from "@/features/library/BookShelf"
+import { GalaxyControls } from "@/features/galaxy/components/GalaxyControls"
 import { Button } from "@/components/ui/button"
 import { Loader2, MousePointer2, ZoomIn, Book, LayoutGrid } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion" // <--- Import Novo
+import { motion, AnimatePresence } from "framer-motion"
 
 export function GalaxyCanvas() {
   const { 
-    notes, 
-    clusters, 
+    getVisibleData,
     initializeGalaxy, 
     isLoading, 
     focusNode, 
     viewMode, 
-    setViewMode 
+    setViewMode,
+    allNotes 
   } = useGalaxyStore()
   
   const { containerRef, universeRef, zoomLevel } = useGalaxyZoom()
 
+  const { visibleNotes, visibleClusters } = getVisibleData()
+
   useEffect(() => {
-    if (notes.length === 0) {
-      initializeGalaxy(800)
+    if (allNotes.length === 0) {
+      initializeGalaxy(1500)
     }
   }, [])
 
   return (
     <div className="w-full h-screen bg-[#050505] overflow-hidden relative selection:bg-purple-500/30">
       
-      {/* 
-          === CAMADA 1: A GALÁXIA (Fica sempre no fundo) === 
-          Se a biblioteca estiver aberta, aplicamos um filtro de Blur e Escurecimento
-          para dar foco no conteúdo da frente.
-      */}
+      {/* CAMADA DA GALÁXIA */}
       <motion.div 
         className="w-full h-full absolute inset-0"
+        // CORREÇÃO: Removemos propriedades inválidas e mantemos apenas o necessário
         animate={{ 
           filter: viewMode === 'shelf' ? "blur(10px) brightness(0.3)" : "blur(0px) brightness(1)",
           scale: viewMode === 'shelf' ? 0.95 : 1
         }}
         transition={{ duration: 0.5 }}
       >
-        {/* UI Overlay da Galáxia */}
+        {/* HUD */}
         <div className={`absolute top-6 left-6 z-40 pointer-events-none transition-opacity duration-300 ${viewMode === 'shelf' ? 'opacity-0' : 'opacity-100'}`}>
-          <div className="bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl space-y-3 pointer-events-auto min-w-[200px]">
+          <div className="bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl space-y-3 pointer-events-auto min-w-[220px]">
             <h1 className="text-white font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
               Logos Galaxy
             </h1>
@@ -60,12 +60,13 @@ export function GalaxyCanvas() {
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <MousePointer2 className="w-3 h-3" />
-                <span>Notas: <span className="text-white font-mono">{notes.length}</span></span>
+                <span>Visíveis: <span className="text-white font-mono">{visibleNotes.length}</span></span>
               </div>
             </div>
+            
+            <GalaxyControls />
 
-            {/* Switcher de Visualização */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <Button 
                 size="sm" 
                 variant="secondary" 
@@ -79,7 +80,7 @@ export function GalaxyCanvas() {
                 className="h-7 text-[10px] hover:bg-white/10 text-gray-400 hover:text-white border border-transparent hover:border-white/10"
                 onClick={() => setViewMode('shelf')}
               >
-                <Book className="w-3 h-3 mr-1.5" /> Livros
+                <Book className="w-3 h-3 mr-1.5" /> Biblioteca
               </Button>
             </div>
 
@@ -92,7 +93,7 @@ export function GalaxyCanvas() {
           </div>
         </div>
 
-        {/* D3 Canvas Container */}
+        {/* D3 CANVAS */}
         <div 
           ref={containerRef} 
           className="w-full h-full cursor-grab active:cursor-grabbing outline-none"
@@ -101,26 +102,24 @@ export function GalaxyCanvas() {
             ref={universeRef} 
             className="absolute top-0 left-0 w-full h-full origin-top-left will-change-transform"
           >
-            {clusters.map(cluster => (
+            {visibleClusters.map(cluster => (
               <ClusterNode key={cluster.id} cluster={cluster} zoomLevel={zoomLevel} />
             ))}
-            {zoomLevel >= 0.3 && notes.map(note => (
+
+            {zoomLevel >= 0.3 && visibleNotes.map(note => (
               <StarNode key={note.id} note={note} zoomLevel={zoomLevel} />
             ))}
           </div>
         </div>
 
-        <LibrarySheet allNotes={notes} clusters={clusters} />
+        <LibrarySheet allNotes={visibleNotes} clusters={visibleClusters} />
         
         <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 text-white/20 text-xs pointer-events-none transition-opacity ${viewMode === 'shelf' ? 'opacity-0' : 'opacity-100'}`}>
           Use scroll para zoom • Arraste para navegar • Duplo clique para Deep Dive
         </div>
       </motion.div>
 
-      {/* 
-          === CAMADA 2: A BIBLIOTECA (Overlay) === 
-          Entra deslizando de baixo para cima ou com Fade In
-      */}
+      {/* CAMADA DA ESTANTE (OVERLAY) */}
       <AnimatePresence>
         {viewMode === 'shelf' && (
           <motion.div
@@ -128,17 +127,15 @@ export function GalaxyCanvas() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.4, type: "spring", bounce: 0 }}
-            className="absolute inset-0 z-50 bg-[#050505]/95 backdrop-blur-xl" // Fundo semi-transparente ou sólido
+            className="absolute inset-0 z-50 bg-[#050505]/95 backdrop-blur-xl"
           >
             <BookShelf />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Camadas Modais (Sempre no topo) */}
       {focusNode && <ConstellationMode />}
       <NoteReaderModal />
-
     </div>
   )
 }
