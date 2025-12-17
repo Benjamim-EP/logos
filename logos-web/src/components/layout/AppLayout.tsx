@@ -7,23 +7,18 @@ export function AppLayout() {
   const { logout, user } = useAuthStore()
   const location = useLocation()
 
-  // Lógica para identificar a rota ativa
-  // Para a galáxia, verificamos se começa com /universe, pois o ID muda dinamicamente
   const isGalaxyActive = location.pathname.startsWith('/universe')
-  
-  // Para outras rotas, verificamos a igualdade exata
   const isActive = (path: string) => location.pathname === path
-
-  // Define o link do universo baseado no ID do usuário logado (ou fallback)
   const userUniverseLink = `/universe/${user?.id || 'user-1'}`
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans">
+    // CORREÇÃO 1: h-screen (altura fixa da tela) + overflow-hidden
+    <div className="h-screen w-screen bg-[#050505] text-white flex flex-col overflow-hidden font-sans">
       
-      {/* --- HEADER GLOBAL FIXO --- */}
-      <header className="h-16 border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-[100] flex items-center justify-between px-6 transition-all">
+      {/* HEADER FIXO (h-16 = 64px) */}
+      <header className="h-16 shrink-0 border-b border-white/10 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-between px-6">
         
-        {/* 1. Logo & Branding */}
+        {/* Logo */}
         <Link to={userUniverseLink} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="p-2 bg-blue-600/20 rounded-lg border border-blue-500/20">
             <Atom className="w-5 h-5 text-blue-400" />
@@ -33,67 +28,43 @@ export function AppLayout() {
           </span>
         </Link>
 
-        {/* 2. Menu de Navegação (Pill Shape) */}
+        {/* Menu */}
         <nav className="flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5 shadow-lg">
-          
-          {/* Link Galáxia (Dinâmico) */}
           <Link to={userUniverseLink}>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`rounded-full px-4 transition-all duration-300 ${isGalaxyActive ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <LayoutGrid className="w-4 h-4 mr-2" /> 
-              Galáxia
+            <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isGalaxyActive ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              <LayoutGrid className="w-4 h-4 mr-2" /> Galáxia
             </Button>
           </Link>
-          
-          {/* Link Loja */}
           <Link to="/store">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`rounded-full px-4 transition-all duration-300 ${isActive('/store') ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <ShoppingBag className="w-4 h-4 mr-2" /> 
-              Loja
+            <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/store') ? 'bg-white/10 text-white' : 'text-gray-400'}`}>
+              <ShoppingBag className="w-4 h-4 mr-2" /> Loja
             </Button>
           </Link>
-
-          {/* Link Perfil */}
           <Link to="/profile">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`rounded-full px-4 transition-all duration-300 ${isActive('/profile') ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <User className="w-4 h-4 mr-2" /> 
-              Perfil
+            <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/profile') ? 'bg-white/10 text-white' : 'text-gray-400'}`}>
+              <User className="w-4 h-4 mr-2" /> Perfil
             </Button>
           </Link>
         </nav>
 
-        {/* 3. User & Logout */}
+        {/* User */}
         <div className="flex items-center gap-4">
           <div className="text-right hidden md:block">
             <p className="text-xs font-bold text-white">{user?.name || "Explorador"}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user?.role || "GUEST"}</p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={logout} 
-            className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            title="Sair do Sistema"
-          >
+          <Button variant="ghost" size="icon" onClick={logout} className="text-gray-400 hover:text-red-400 hover:bg-red-500/10">
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
-      {/* --- CONTEÚDO PRINCIPAL --- */}
-      {/* O Outlet renderiza a rota filha (Galaxy, Store, Profile) */}
-      <main className="flex-1 relative overflow-hidden flex flex-col">
+      {/* 
+          CORREÇÃO 2: Conteúdo Principal 
+          flex-1 garante que ocupe o resto da altura.
+          relative w-full h-full garante que o Canvas (filho) tenha dimensões para renderizar.
+      */}
+      <main className="flex-1 relative w-full h-full overflow-hidden">
         <Outlet />
       </main>
     </div>
