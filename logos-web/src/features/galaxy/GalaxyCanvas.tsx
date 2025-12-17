@@ -3,11 +3,12 @@ import { useGalaxyStore } from "@/stores/galaxyStore"
 import { useGalaxyZoom } from "@/features/galaxy/hooks/useGalaxyZoom"
 import { StarNode } from "./components/StarNode"
 import { ClusterNode } from "./components/ClusterNode"
+import { SolarSystemNode } from "./components/SolarSystemNode"
 import { LibrarySheet } from "@/features/library/LibrarySheet"
 import { NoteReaderModal } from "@/features/library/NoteReaderModal"
 import { ConstellationMode } from "@/features/galaxy/ConstellationMode"
 import { BookShelf } from "@/features/library/BookShelf"
-import { ProfilePage } from "@/features/profile/ProfilePage" // Nova Página
+import { ProfilePage } from "@/features/profile/ProfilePage"
 import { GalaxyControls } from "@/features/galaxy/components/GalaxyControls"
 import { Button } from "@/components/ui/button"
 import { Loader2, MousePointer2, ZoomIn, Book, LayoutGrid, User } from "lucide-react"
@@ -27,17 +28,17 @@ export function GalaxyCanvas() {
   // Hook de Física (D3.js)
   const { containerRef, universeRef, zoomLevel } = useGalaxyZoom()
 
-  // Dados filtrados pelos controles
-  const { visibleNotes, visibleClusters } = getVisibleData()
+  // Dados filtrados e processados (Clusters, SubClusters e Notas)
+  const { visibleNotes, visibleClusters, visibleSubClusters } = getVisibleData()
 
   // Inicializa o universo se estiver vazio
   useEffect(() => {
     if (allNotes.length === 0) {
-      initializeGalaxy(1500)
+      initializeGalaxy(1500) // Gera 1500 notas para o cenário inicial denso
     }
   }, [])
 
-  // Verifica se alguma sobreposição (overlay) está ativa para aplicar blur na galáxia
+  // Flag para aplicar blur no fundo se tiver alguma tela sobreposta
   const isOverlayActive = viewMode !== 'galaxy'
 
   return (
@@ -45,7 +46,7 @@ export function GalaxyCanvas() {
       
       {/* 
           === CAMADA 1: A GALÁXIA (Fundo) === 
-          Aplicamos animação de blur/scale quando o usuário entra em outras telas
+          Aplicamos animação de blur/scale quando o usuário entra em outras telas (Livros/Perfil)
       */}
       <motion.div 
         className="w-full h-full absolute inset-0"
@@ -56,14 +57,14 @@ export function GalaxyCanvas() {
         transition={{ duration: 0.5, ease: "circOut" }}
       >
         
-        {/* --- HUD (Interface de Controle) --- */}
+        {/* --- HUD (Interface de Controle Flutuante) --- */}
         <div className={`absolute top-6 left-6 z-40 pointer-events-none transition-all duration-300 ${isOverlayActive ? 'opacity-0 -translate-x-10' : 'opacity-100 translate-x-0'}`}>
           <div className="bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl space-y-3 pointer-events-auto min-w-[220px]">
             <h1 className="text-white font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
               Logos Galaxy
             </h1>
             
-            {/* Estatísticas */}
+            {/* Estatísticas em Tempo Real */}
             <div className="space-y-1 border-b border-white/5 pb-3">
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <ZoomIn className="w-3 h-3" />
@@ -75,10 +76,10 @@ export function GalaxyCanvas() {
               </div>
             </div>
             
-            {/* Controles de Filtro */}
+            {/* Controles de Filtro (Checkboxes e Ordenação) */}
             <GalaxyControls />
 
-            {/* Menu de Navegação */}
+            {/* Menu de Navegação Principal */}
             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-2">
               <Button 
                 size="sm" 
@@ -109,7 +110,7 @@ export function GalaxyCanvas() {
             {isLoading && (
               <div className="flex items-center gap-2 text-xs text-blue-400 animate-pulse pt-1 justify-center">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Calculando...</span>
+                <span>Calculando gravidade...</span>
               </div>
             )}
           </div>
@@ -124,7 +125,7 @@ export function GalaxyCanvas() {
             ref={universeRef} 
             className="absolute top-0 left-0 w-full h-full origin-top-left will-change-transform"
           >
-            {/* Renderiza Clusters (Títulos) */}
+            {/* 1. CLUSTERS (Galáxias de Fundo - Macro) */}
             {visibleClusters.map(cluster => (
               <ClusterNode 
                 key={cluster.id} 
@@ -133,7 +134,18 @@ export function GalaxyCanvas() {
               />
             ))}
 
-            {/* Renderiza Estrelas (Notas) */}
+            {/* 2. SUBCLUSTERS (Sistemas Solares - Meso) */}
+            {/* Esta camada dá a sensação de aglomeração e gravidade */}
+            {visibleSubClusters.map(sub => (
+              <SolarSystemNode
+                key={sub.id}
+                subCluster={sub}
+                zoomLevel={zoomLevel}
+              />
+            ))}
+
+            {/* 3. ESTRELAS (Notas Individuais - Micro) */}
+            {/* Level of Detail: Só renderiza se o zoom for >= 0.3 */}
             {zoomLevel >= 0.3 && visibleNotes.map(note => (
               <StarNode 
                 key={note.id} 
@@ -144,7 +156,7 @@ export function GalaxyCanvas() {
           </div>
         </div>
 
-        {/* Botão da Lista Lateral */}
+        {/* Botão da Lista Lateral (Drawer) */}
         <LibrarySheet allNotes={visibleNotes} clusters={visibleClusters} />
         
         {/* Dica de Rodapé */}
@@ -159,7 +171,7 @@ export function GalaxyCanvas() {
       */}
       <AnimatePresence>
         
-        {/* Modo Estante (Livros) */}
+        {/* Modo Estante (Livros/PDFs) */}
         {viewMode === 'shelf' && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -187,8 +199,9 @@ export function GalaxyCanvas() {
 
       </AnimatePresence>
 
-      {/* --- CAMADA 3: MODAIS DE CONTEXTO --- */}
-      {/* Deep Dive (Constelação) */}
+      {/* --- CAMADA 3: MODAIS DE CONTEXTO (Sempre no topo) --- */}
+      
+      {/* Deep Dive (Radar Constelação) */}
       {focusNode && <ConstellationMode />}
 
       {/* Leitor de Nota (Máximo Z-Index) */}

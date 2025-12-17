@@ -1,20 +1,17 @@
 import { create } from 'zustand'
-// CORREÇÃO 1: Adicionado 'type' na importação
-import type { Cluster, Note } from '@/types/galaxy'
+import type { Cluster, Note, SubCluster } from '@/types/galaxy' // <--- Add SubCluster
 import { generateUniverse } from '@/features/galaxy/utils/generator'
 
-// CORREÇÃO 2: Definir o tipo explicitamente
-export type ViewMode = 'galaxy' | 'shelf' | 'profile' 
+export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
-
 
 interface GalaxyState {
   allNotes: Note[]
   clusters: Cluster[]
+  subClusters: SubCluster[] // <--- NOVO
+  
   isLoading: boolean
   focusNode: Note | null
-  
-  // CORREÇÃO 3: Usar o tipo Union aqui
   viewMode: ViewMode
   
   activeClusterIds: string[]
@@ -27,15 +24,21 @@ interface GalaxyState {
   toggleCluster: (clusterId: string) => void
   setSortOrder: (order: SortOrder) => void
   
-  getVisibleData: () => { visibleNotes: Note[], visibleClusters: Cluster[] }
+  // Atualizar retorno do selector
+  getVisibleData: () => { 
+    visibleNotes: Note[], 
+    visibleClusters: Cluster[],
+    visibleSubClusters: SubCluster[] // <--- NOVO
+  }
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   allNotes: [],
   clusters: [],
+  subClusters: [], // <--- Inicializa vazio
   isLoading: false,
   focusNode: null,
-  viewMode: 'galaxy', // O TS agora sabe que isso é do tipo ViewMode
+  viewMode: 'galaxy',
   
   activeClusterIds: [],
   sortOrder: 'newest',
@@ -44,9 +47,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   initializeGalaxy: (count = 1500) => {
     set({ isLoading: true })
     setTimeout(() => {
-      const { clusters, notes } = generateUniverse(count)
+      // O gerador agora retorna subClusters também
+      const { clusters, subClusters, notes } = generateUniverse(count)
       set({ 
         clusters, 
+        subClusters, // <--- Salva no estado
         allNotes: notes, 
         activeClusterIds: clusters.map(c => c.id),
         isLoading: false 
@@ -70,10 +75,16 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   getVisibleData: () => {
     const state = get()
     
+    // 1. Filtrar Galáxias
     const visibleClusters = state.clusters.filter(c => state.activeClusterIds.includes(c.id))
     
+    // 2. Filtrar Sistemas Solares (Se a galáxia pai está visível, eles também estão)
+    const visibleSubClusters = state.subClusters.filter(sc => state.activeClusterIds.includes(sc.clusterId))
+    
+    // 3. Filtrar Notas
     let filteredNotes = state.allNotes.filter(n => state.activeClusterIds.includes(n.clusterId))
 
+    // Ordenação
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
@@ -82,8 +93,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return 0
     })
 
+    // Limite de Performance (Max 400)
     const visibleNotes = filteredNotes.slice(0, state.maxVisibleNotes)
 
-    return { visibleNotes, visibleClusters }
+    return { visibleNotes, visibleClusters, visibleSubClusters }
   }
 }))
