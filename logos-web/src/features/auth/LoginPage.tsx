@@ -38,13 +38,16 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true)
-    // Simula delay de rede
     await new Promise((resolve) => setTimeout(resolve, 1500))
     
-    login(data.email) // Atualiza o estado no Zustand
+    // O mock do login retorna um ID fixo '1', mas vamos simular um ID de universo
+    login(data.email) 
     
     setIsLoading(false)
-    navigate("/") // <--- AÇÃO CRÍTICA: Manda o usuário para a Galáxia
+    
+    // CORREÇÃO: Redireciona para uma URL única baseada no usuário
+    // Ex: /universe/user-1
+    navigate("/universe/user-1") 
   }
 
   return (

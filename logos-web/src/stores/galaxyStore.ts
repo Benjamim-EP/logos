@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Cluster, Note, SubCluster } from '@/types/galaxy' // <--- Add SubCluster
+import type { Cluster, Note, SubCluster } from '@/types/galaxy'
 import { generateUniverse } from '@/features/galaxy/utils/generator'
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
@@ -8,7 +8,7 @@ export type SortOrder = 'newest' | 'oldest' | 'relevance'
 interface GalaxyState {
   allNotes: Note[]
   clusters: Cluster[]
-  subClusters: SubCluster[] // <--- NOVO
+  subClusters: SubCluster[]
   
   isLoading: boolean
   focusNode: Note | null
@@ -24,18 +24,17 @@ interface GalaxyState {
   toggleCluster: (clusterId: string) => void
   setSortOrder: (order: SortOrder) => void
   
-  // Atualizar retorno do selector
   getVisibleData: () => { 
     visibleNotes: Note[], 
     visibleClusters: Cluster[],
-    visibleSubClusters: SubCluster[] // <--- NOVO
+    visibleSubClusters: SubCluster[] 
   }
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   allNotes: [],
   clusters: [],
-  subClusters: [], // <--- Inicializa vazio
+  subClusters: [],
   isLoading: false,
   focusNode: null,
   viewMode: 'galaxy',
@@ -45,18 +44,24 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   maxVisibleNotes: 400,
 
   initializeGalaxy: (count = 1500) => {
+    // Verifica se já tem dados para não recalcular à toa
+    if (get().allNotes.length > 0) return;
+
     set({ isLoading: true })
+    
+    // REDUZIMOS O DELAY: De 800ms para 10ms (Quase instantâneo, mas async para não travar a UI)
     setTimeout(() => {
-      // O gerador agora retorna subClusters também
       const { clusters, subClusters, notes } = generateUniverse(count)
+      
       set({ 
         clusters, 
-        subClusters, // <--- Salva no estado
+        subClusters,
         allNotes: notes, 
+        // TRUQUE: Já inicializa com todos os clusters ativos
         activeClusterIds: clusters.map(c => c.id),
         isLoading: false 
       })
-    }, 800)
+    }, 10)
   },
 
   setFocusNode: (note) => set({ focusNode: note }),
@@ -75,16 +80,21 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   getVisibleData: () => {
     const state = get()
     
-    // 1. Filtrar Galáxias
-    const visibleClusters = state.clusters.filter(c => state.activeClusterIds.includes(c.id))
+    // FALLBACK DE SEGURANÇA:
+    // Se a lista de ativos estiver vazia (bug de estado), considera TODOS os clusters.
+    // Isso evita a tela preta.
+    const effectiveClusterIds = (state.activeClusterIds && state.activeClusterIds.length > 0)
+      ? state.activeClusterIds 
+      : state.clusters.map(c => c.id)
     
-    // 2. Filtrar Sistemas Solares (Se a galáxia pai está visível, eles também estão)
-    const visibleSubClusters = state.subClusters.filter(sc => state.activeClusterIds.includes(sc.clusterId))
+    const visibleClusters = state.clusters.filter(c => effectiveClusterIds.includes(c.id))
     
-    // 3. Filtrar Notas
-    let filteredNotes = state.allNotes.filter(n => state.activeClusterIds.includes(n.clusterId))
+    // Filtra SubClusters (segurança extra: verifica se subClusters existe)
+    const subList = state.subClusters || []
+    const visibleSubClusters = subList.filter(sc => effectiveClusterIds.includes(sc.clusterId))
+    
+    let filteredNotes = state.allNotes.filter(n => effectiveClusterIds.includes(n.clusterId))
 
-    // Ordenação
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
@@ -93,7 +103,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return 0
     })
 
-    // Limite de Performance (Max 400)
     const visibleNotes = filteredNotes.slice(0, state.maxVisibleNotes)
 
     return { visibleNotes, visibleClusters, visibleSubClusters }
