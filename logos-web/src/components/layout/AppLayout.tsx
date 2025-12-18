@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom"
-import { Atom, ShoppingBag, User, LayoutGrid, LogOut } from "lucide-react"
+import { Atom, ShoppingBag, User, LayoutGrid, LogOut, Microscope } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -38,6 +38,17 @@ export function AppLayout() {
           <Link to="/store">
             <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/store') ? 'bg-white/10 text-white' : 'text-gray-400'}`}>
               <ShoppingBag className="w-4 h-4 mr-2" /> Loja
+            </Button>
+          </Link>
+          {/* NOVO LINK DE PESQUISA */}
+          <Link to="/research">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`rounded-full px-4 transition-all duration-300 ${isActive('/research') ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Microscope className="w-4 h-4 mr-2" /> 
+              Pesquisa
             </Button>
           </Link>
           <Link to="/profile">

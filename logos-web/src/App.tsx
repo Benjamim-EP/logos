@@ -6,6 +6,7 @@ import { LoginPage } from "@/features/auth/LoginPage"
 import { GalaxyCanvas } from "@/features/galaxy/GalaxyCanvas"
 import { ProfilePage } from "@/features/profile/ProfilePage"
 import { UniverseStorePage } from "@/features/store/UniverseStorePage"
+import { ResearchPage } from "./features/research/ResearchPage"
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -23,13 +24,12 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
-          {/* Rota Raiz agora redireciona para o Universo do Usuário */}
           <Route path="/" element={<Navigate to={defaultUniverse} replace />} />
           
-          {/* ROTA DINÂMICA: Aqui está a mágica */}
           <Route path="/universe/:universeId" element={<GalaxyCanvas />} />
           
           <Route path="/store" element={<UniverseStorePage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
