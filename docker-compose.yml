@@ -44,6 +44,17 @@ services:
   # Motivo: Estamos usando Confluent Cloud (SaaS)
   # Economia de RAM: ~1.5 GB
 
+  # --- 4. IDENTITY PROVIDER (Keycloak) ---
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8085:8080" # Porta 8085 para não conflitar com Ingestion (8080)
+    command: start-dev # Modo dev (não exige SSL/Banco externo)
+
 volumes:
   oracle_data:
   minio_data:

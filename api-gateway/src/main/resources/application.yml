@@ -1,0 +1,47 @@
+server:
+  port: 8000
+
+spring:
+  application:
+    name: api-gateway
+  
+  # Configuração de Segurança (Validar Token no Keycloak)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # URL do Keycloak que emite os tokens
+          issuer-uri: http://localhost:8085/realms/logos-realm
+          jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
+
+  # Roteamento Dinâmico
+  cloud:
+    gateway:
+      # Configuração Global de CORS (Para o Frontend não chorar)
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:5173" # Seu Frontend
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        # Rota 1: Library Service (Leitura)
+        # Frontend chama: localhost:8000/api/library/books
+        # Gateway encaminha para: localhost:8082/api/library/books
+        - id: library-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/library/**
+        
+        # Rota 2: Ingestion API (Escrita)
+        - id: ingestion-api
+          uri: http://localhost:8080
+          predicates:
+            - Path=/api/ingestion/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO

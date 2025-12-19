@@ -1,5 +1,6 @@
 # Ignorar application.yml da aplicação
 ai-processor/src/main/resources/application.yml
+library-service/src/main/resources/application.yml
 
 # Ignorar tudo que for gerado pelo build
 ai-processor/target/
@@ -7,3 +8,4 @@ target/
 ai-processor/ia.txt
 codigo_txt.py
 codigo_concatenado.txt
+library-service/src/main/resources/application.yml
