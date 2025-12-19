@@ -1,0 +1,27 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: library-service
+  
+  datasource:
+    # A MESMA URL QUE FUNCIONOU NO AI-PROCESSOR (Com SSL e ChannelBinding se necessário)
+    url: jdbc:postgresql://ep-round-mud-af0br44i-pooler.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require
+    username: neondb_owner
+    password: npg_AI1n4JKxGzut
+    driver-class-name: org.postgresql.Driver
+    
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+
+  jpa:
+    hibernate:
+      ddl-auto: update # Pode manter update para ele criar a tabela se não existir
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        temp.use_jdbc_metadata_defaults: false

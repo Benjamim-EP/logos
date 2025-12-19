@@ -5,3 +5,5 @@ ai-processor/src/main/resources/application.yml
 ai-processor/target/
 target/
 ai-processor/ia.txt
+codigo_txt.py
+codigo_concatenado.txt
