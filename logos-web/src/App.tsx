@@ -11,6 +11,7 @@ import { GalaxyCanvas } from "@/features/galaxy/GalaxyCanvas"
 import { ProfilePage } from "@/features/profile/ProfilePage"
 import { UniverseStorePage } from "@/features/store/UniverseStorePage"
 import { ResearchPage } from "@/features/research/ResearchPage"
+import { BookShelf } from "./features/library/BookShelf"
 
 /**
  * Componente de Guarda de Rota (Route Guard)
@@ -83,6 +84,8 @@ function App() {
           
           {/* O Canvas Principal (Galáxia) */}
           <Route path="/universe/:universeId" element={<GalaxyCanvas />} />
+
+          <Route path="/library" element={<BookShelf />} />
           
           {/* Módulos Adicionais */}
           <Route path="/store" element={<UniverseStorePage />} />

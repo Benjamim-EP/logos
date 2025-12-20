@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/library")
-@CrossOrigin(origins = "*") // Permite o Vite acessar (CORS)
+// @CrossOrigin(origins = "*") // Permite o Vite acessar (CORS)
 @RequiredArgsConstructor
 public class LibraryController {
 

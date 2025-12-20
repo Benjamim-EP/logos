@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom"
-import { Atom, ShoppingBag, User, LayoutGrid, LogOut, Microscope } from "lucide-react"
+import { Atom, ShoppingBag, User, LayoutGrid, LogOut, Microscope, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -33,6 +33,16 @@ export function AppLayout() {
           <Link to={userUniverseLink}>
             <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isGalaxyActive ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <LayoutGrid className="w-4 h-4 mr-2" /> Galáxia
+            </Button>
+          </Link>
+          <Link to="/library">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`rounded-full px-4 transition-all duration-300 ${isActive('/library') ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Library className="w-4 h-4 mr-2" /> 
+              Biblioteca
             </Button>
           </Link>
           <Link to="/store">
