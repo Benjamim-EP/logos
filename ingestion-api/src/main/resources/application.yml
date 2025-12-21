@@ -36,3 +36,12 @@ aws:
     secret-key: minioadmin
     bucket-name: knowledge-base
     region: us-east-1
+
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0 # Em produção seria 0.1, mas em Dev queremos ver TUDO
+  zipkin:
+    tracing:
+      endpoint: "http://localhost:9411/api/v2/spans"

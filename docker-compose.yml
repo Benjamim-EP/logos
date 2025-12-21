@@ -55,6 +55,13 @@ services:
       - "8085:8080" # Porta 8085 para não conflitar com Ingestion (8080)
     command: start-dev # Modo dev (não exige SSL/Banco externo)
 
+# --- 5. OBSERVABILITY (Zipkin) ---
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+
 volumes:
   oracle_data:
   minio_data:
