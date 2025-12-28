@@ -12,6 +12,7 @@ import { ProfilePage } from "@/features/profile/ProfilePage"
 import { UniverseStorePage } from "@/features/store/UniverseStorePage"
 import { ResearchPage } from "@/features/research/ResearchPage"
 import { BookShelf } from "./features/library/BookShelf"
+import { Toaster } from "./components/ui/sonner"
 
 /**
  * Componente de Guarda de Rota (Route Guard)
@@ -97,6 +98,7 @@ function App() {
         {/* Fallback 404 - Volta para o início */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster position="top-right" theme="dark" richColors />
     </BrowserRouter>
   )
 }

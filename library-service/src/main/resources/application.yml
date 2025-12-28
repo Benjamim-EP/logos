@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: library-service
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
   
   datasource:
     # A MESMA URL QUE FUNCIONOU NO AI-PROCESSOR (Com SSL e ChannelBinding se necessário)

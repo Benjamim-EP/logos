@@ -1,16 +1,15 @@
 import axios from "axios"
 import { useAuthStore } from "@/stores/authStore"
 
-// Aponta para o GATEWAY (Porta 8000), não para os microsserviços diretos
+// Aponta para o API GATEWAY (8000)
+// O Gateway vai rotear:
+// /api/library -> Library Service (8082)
+// /api/ingestion -> Ingestion API (8080)
 const api = axios.create({
   baseURL: "http://localhost:8000/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
 })
 
-// --- INTERCEPTOR DE REQUEST (Middleware) ---
-// Antes de sair qualquer requisição, pega o token da Store e cola no Header.
+// Interceptor: Injeta o Token JWT em TODAS as requisições
 api.interceptors.request.use((config) => {
   const user = useAuthStore.getState().user
   

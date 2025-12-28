@@ -3,6 +3,8 @@ package com.ai.organizer.ingestion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -18,10 +20,18 @@ public class IngestionController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<String> upload(@RequestPart("file") FilePart file, 
-                               @RequestHeader(value = "X-User-ID", defaultValue = "guest") String userId) {
+    public Mono<String> upload(
+            @RequestPart("file") FilePart file,
+            // CORREÇÃO SÊNIOR: Não lemos mais Header manual. Injetamos o JWT.
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        // Extraímos o ID real do usuário do token (campo 'sub' é o ID único)
+        // Se quiser o email/username, use jwt.getClaimAsString("preferred_username")
+        String userId = jwt.getClaimAsString("preferred_username"); 
         
-        // Retorna o Hash do arquivo como confirmação
+        // Logs de auditoria (opcional)
+        System.out.println("🔐 Upload autenticado por: " + userId);
+
         return service.processUpload(file, userId)
                 .doOnSuccess(hash -> System.out.println("✅ Upload concluído. Hash: " + hash))
                 .doOnError(e -> System.err.println("❌ Erro no upload: " + e.getMessage()));

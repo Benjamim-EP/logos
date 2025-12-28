@@ -5,6 +5,13 @@ spring:
   application:
     name: ingestion-api
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # URL pública do Keycloak para validar a assinatura do token
+          jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
+
   # --- CONFIGURAÇÃO CONFLUENT CLOUD (KAFKA) ---
   kafka:
     # Coloque o endereço que você pegou em Cluster Settings
