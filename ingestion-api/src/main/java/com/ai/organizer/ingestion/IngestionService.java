@@ -1,38 +1,36 @@
 package com.ai.organizer.ingestion;
 
-import com.fasterxml.jackson.databind.ObjectMapper; // <--- Import Novo
-import org.springframework.beans.factory.annotation.Value;
+import com.ai.organizer.ingestion.service.BlobStorageService; // <--- Nossa Interface Genérica
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.http.codec.multipart.FilePart;
 import reactor.core.publisher.Mono;
-import software.amazon.awssdk.core.async.AsyncRequestBody;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import reactor.core.scheduler.Schedulers;
 
 import java.security.MessageDigest;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class IngestionService {
 
-    private final S3AsyncClient s3Client;
-    private final KafkaTemplate<String, String> kafkaTemplate; // <--- Mudei para String, String
-    private final ObjectMapper objectMapper; // <--- Jackson
+    // Adeus S3AsyncClient! 👋
+    // Olá Interface Genérica! (Injeta o GoogleStorageService automaticamente)
+    private final BlobStorageService blobStorage; 
+    
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
-
-    public IngestionService(S3AsyncClient s3Client, 
-                            KafkaTemplate<String, String> kafkaTemplate, // <--- Ajuste aqui
-                            ObjectMapper objectMapper) { // <--- Injeção
-        this.s3Client = s3Client;
+    public IngestionService(BlobStorageService blobStorage, 
+                            KafkaTemplate<String, String> kafkaTemplate, 
+                            ObjectMapper objectMapper) {
+        this.blobStorage = blobStorage;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
 
     public Mono<String> processUpload(FilePart filePart, String userId) {
+        // 1. Carrega o arquivo para a memória
         return DataBufferUtils.join(filePart.content())
             .flatMap(dataBuffer -> {
                 try {
@@ -40,37 +38,39 @@ public class IngestionService {
                     dataBuffer.read(bytes);
                     DataBufferUtils.release(dataBuffer);
 
+                    // 2. Calcula Hash
                     MessageDigest digest = MessageDigest.getInstance("SHA-256");
                     byte[] hashBytes = digest.digest(bytes);
                     String hash = bytesToHex(hashBytes);
                     
-                    String s3Key = "uploads/" + hash + "/" + filePart.filename();
+                    // Nome do arquivo no Google Cloud
+                    String storageFilename = "uploads/" + hash + "/" + filePart.filename();
+                    String contentType = filePart.headers().getContentType().toString();
 
-                    CompletableFuture<Void> uploadFuture = s3Client.putObject(
-                        PutObjectRequest.builder()
-                            .bucket(bucketName)
-                            .key(s3Key)
-                            .contentType(filePart.headers().getContentType().toString())
-                            .build(),
-                        AsyncRequestBody.fromBytes(bytes)
-                    ).thenAccept(response -> {});
-
-                    return Mono.fromFuture(uploadFuture)
-                        .then(Mono.defer(() -> {
-                            try {
-                                IngestionEvent event = new IngestionEvent(
-                                    hash, s3Key, filePart.filename(), userId, System.currentTimeMillis()
-                                );
-                                
-                                // CORREÇÃO: Converte Objeto -> JSON String
-                                String jsonEvent = objectMapper.writeValueAsString(event);
-                                
-                                kafkaTemplate.send("document.ingestion", hash, jsonEvent);
-                                return Mono.just(hash);
-                            } catch (Exception e) {
-                                return Mono.error(e);
-                            }
-                        }));
+                    // 3. Upload para o Google Cloud (Bloqueante envolvido em Reactive)
+                    // Usamos publishOn(boundedElastic) porque o SDK do Google é bloqueante
+                    return Mono.fromRunnable(() -> {
+                        blobStorage.upload(storageFilename, bytes, contentType);
+                    }).subscribeOn(Schedulers.boundedElastic())
+                    .then(Mono.defer(() -> {
+                        try {
+                            // 4. Sucesso -> Envia evento Kafka
+                            IngestionEvent event = new IngestionEvent(
+                                hash, 
+                                storageFilename, // Agora é o caminho no GCS
+                                filePart.filename(), 
+                                userId, 
+                                System.currentTimeMillis()
+                            );
+                            
+                            String jsonEvent = objectMapper.writeValueAsString(event);
+                            kafkaTemplate.send("document.ingestion", hash, jsonEvent);
+                            
+                            return Mono.just(hash);
+                        } catch (Exception e) {
+                            return Mono.error(e);
+                        }
+                    }));
 
                 } catch (Exception e) {
                     return Mono.error(e);

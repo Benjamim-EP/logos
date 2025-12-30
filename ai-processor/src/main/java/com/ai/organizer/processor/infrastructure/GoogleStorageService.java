@@ -1,0 +1,64 @@
+package com.ai.organizer.processor.infrastructure;
+
+import com.ai.organizer.processor.service.BlobStorageService;
+import com.google.cloud.storage.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
+
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@Primary // Diz ao Spring: "Use esta implementação por padrão"
+// @Profile("prod") // Descomente se quiser usar só em produção
+public class GoogleStorageService implements BlobStorageService {
+
+    private final Storage storage;
+
+    @Value("${gcp.storage.bucket-name}")
+    private String bucketName;
+
+    public GoogleStorageService(Storage storage) {
+        this.storage = storage;
+    }
+
+    @Override
+    public void upload(String filename, byte[] content, String contentType) {
+        BlobId blobId = BlobId.of(bucketName, filename);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                .setContentType(contentType)
+                .build();
+        
+        // Upload direto
+        storage.create(blobInfo, content);
+        System.out.println("☁️ Uploaded to GCS: " + filename);
+    }
+
+    @Override
+    public byte[] download(String filename) {
+        BlobId blobId = BlobId.of(bucketName, filename);
+        Blob blob = storage.get(blobId);
+        
+        if (blob == null) {
+            throw new RuntimeException("Arquivo não encontrado no GCS: " + filename);
+        }
+        
+        return blob.getContent();
+    }
+
+    @Override
+    public URL getSignedUrl(String filename, int minutesToExpire) {
+        BlobId blobId = BlobId.of(bucketName, filename);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+        
+        // Gera uma URL assinada (V4) que permite leitura sem autenticação por X minutos
+        return storage.signUrl(
+                blobInfo, 
+                minutesToExpire, 
+                TimeUnit.MINUTES, 
+                Storage.SignUrlOption.withV4Signature()
+        );
+    }
+}

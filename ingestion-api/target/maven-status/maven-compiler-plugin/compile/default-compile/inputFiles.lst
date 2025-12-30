@@ -1,6 +1,8 @@
+D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\infrastructure\GoogleStorageService.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\IngestionApplication.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\IngestionController.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\IngestionEvent.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\IngestionService.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\S3Config.java
 D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\SecurityConfig.java
+D:\Projetos\logos\ingestion-api\src\main\java\com\ai\organizer\ingestion\service\BlobStorageService.java

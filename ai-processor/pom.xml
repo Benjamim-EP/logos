@@ -15,12 +15,33 @@
     <name>ai-processor</name>
     <description>Worker de IA e Embedding</description>
     <properties>
-    <java.version>17</java.version>
-    <langchain4j.version>0.34.0</langchain4j.version>
-    <aws.sdk.version>2.25.60</aws.sdk.version>
-    <resilience4j.version>2.2.0</resilience4j.version> 
-</properties>
+        <java.version>17</java.version>
+        <langchain4j.version>0.34.0</langchain4j.version>
+        <aws.sdk.version>2.25.60</aws.sdk.version>
+        <resilience4j.version>2.2.0</resilience4j.version> 
+        <spring-cloud-gcp.version>5.1.2</spring-cloud-gcp.version>
+    </properties>
+    <dependencyManagement>
+            <dependencies>
+                <dependency>
+                    <groupId>com.google.cloud</groupId>
+                    <artifactId>spring-cloud-gcp-dependencies</artifactId>
+                    <version>${spring-cloud-gcp.version}</version>
+                    <type>pom</type>
+                    <scope>import</scope>
+                </dependency>
+            </dependencies>
+    </dependencyManagement>
+
     <dependencies>
+         <!-- 
+            NOVA DEPENDÊNCIA: Google Cloud Storage 
+            Substituirá o AWS S3 no futuro
+        -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>spring-cloud-gcp-starter-storage</artifactId>
+        </dependency>
         <!-- Spring Boot + Kafka (Consumer) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

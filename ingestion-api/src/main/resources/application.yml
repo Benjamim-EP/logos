@@ -11,6 +11,13 @@ spring:
         jwt:
           # URL pública do Keycloak para validar a assinatura do token
           jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
+  cloud:
+    gcp:
+      storage:
+        enabled: true
+      credentials:
+        # Aponta para o arquivo que você baixou na raiz do projeto
+        location: file:credentials.json 
 
   # --- CONFIGURAÇÃO CONFLUENT CLOUD (KAFKA) ---
   kafka:
@@ -52,3 +59,7 @@ management:
   zipkin:
     tracing:
       endpoint: "http://localhost:9411/api/v2/spans"
+
+gcp:
+  storage:
+    bucket-name: ogos-knowledge-base # O nome exato que você criou no Console

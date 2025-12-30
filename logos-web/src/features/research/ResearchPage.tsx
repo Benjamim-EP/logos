@@ -10,6 +10,8 @@ import { PdfReaderView } from "@/features/reader/PdfReaderView"
 import { FileUploader } from "@/components/ui/file-uploader" // Nosso novo componente
 import api from "@/lib/api" // Cliente Axios configurado com JWT
 
+import { toast } from "sonner" 
+
 const AREAS = [
   { value: "all", label: "Todas as Áreas" },
   { value: "Medicine", label: "Medicina & Saúde" },
