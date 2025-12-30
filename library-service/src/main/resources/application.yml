@@ -32,6 +32,16 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         temp.use_jdbc_metadata_defaults: false
 
+  kafka:
+    bootstrap-servers: pkc-921jm.us-east-2.aws.confluent.cloud:9092 # Mesma do ai-processor
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="PA57SZCCZEALKVXR" password="cfltajgqBg76kNMVtyBpFhl59XMZeJIPT7il3f3CE69xQNR+Wh8F9eJyUPQBI9Qw";
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 management:
   tracing:
     sampling:

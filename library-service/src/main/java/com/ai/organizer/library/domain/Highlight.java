@@ -1,4 +1,4 @@
-package com.ai.organizer.library.domain; // <--- O PACOTE CORRETO
+package com.ai.organizer.library.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -10,20 +10,34 @@ import java.time.LocalDateTime;
 public class Highlight {
 
     @Id
-    private Long id; // Apenas leitura
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "FILE_HASH")
-    private String fileHash;
+    private String fileHash; // O "ID do Livro"
 
-    @Column(name = "USER_ID")
     private String userId;
     
-    @Column(name = "ORIGINAL_TEXT")
+    @Column(name = "original_text", length = 4000)
     private String originalText;
 
-    @Column(name = "AI_ANALYSIS_JSON", length = 4000)
+    // Novo: Tipo de conteúdo (TEXT ou IMAGE)
+    @Enumerated(EnumType.STRING)
+    private ContentType type;
+
+    // Novo: Status do processamento (PENDING, PROCESSED, FAILED)
+    @Enumerated(EnumType.STRING)
+    private ProcessingStatus status;
+
+    @Column(name = "ai_analysis_json", length = 4000)
     private String aiAnalysisJson;
 
-    @Column(name = "CREATED_AT")
     private LocalDateTime createdAt;
+
+    @PrePersist
+    void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        if (this.status == null) this.status = ProcessingStatus.PENDING;
+        if (this.type == null) this.type = ContentType.TEXT;
+    }
 }
