@@ -1,5 +1,7 @@
 package com.ai.organizer.processor.domain;
 
+import com.ai.organizer.processor.domain.enums.ContentType;     
+import com.ai.organizer.processor.domain.enums.ProcessingStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -8,26 +10,28 @@ import java.time.LocalDateTime;
 @Table(name = "HIGHLIGHTS")
 @Data
 public class HighlightEntity {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "FILE_HASH", unique = true)
+    @Column(name = "FILE_HASH")
     private String fileHash;
 
     private String userId;
     
-    @Column(length = 4000) // Oracle Text Limit
+    @Column(name = "original_text", length = 4000)
     private String originalText;
 
-    @Column(length = 4000) // JSON da IA
+    // --- NOVOS CAMPOS ---
+    @Enumerated(EnumType.STRING)
+    private ContentType type;
+
+    @Enumerated(EnumType.STRING)
+    private ProcessingStatus status;
+    // --------------------
+
+    @Column(name = "ai_analysis_json", length = 4000)
     private String aiAnalysisJson;
 
     private LocalDateTime createdAt;
-
-    @PrePersist
-    void prePersist() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

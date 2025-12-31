@@ -5,7 +5,11 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "HIGHLIGHTS")
+@Table(name = "HIGHLIGHTS", 
+       // CORREÇÃO: Removemos a constraint unique da coluna, 
+       // mas podemos manter um índice para performance.
+       indexes = @Index(columnList = "file_hash") 
+)
 @Data
 public class Highlight {
 
@@ -13,8 +17,9 @@ public class Highlight {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "FILE_HASH")
-    private String fileHash; // O "ID do Livro"
+    // CORREÇÃO: Removemos unique=true daqui
+    @Column(name = "FILE_HASH", nullable = false) 
+    private String fileHash;
 
     private String userId;
     

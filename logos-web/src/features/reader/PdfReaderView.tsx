@@ -10,19 +10,29 @@ import {
 import * as pdfjs from "pdfjs-dist"
 
 import { Button } from "@/components/ui/button"
-import { X, ZoomIn, ZoomOut, Loader2, MessageSquare, List, ChevronRight, Trash2 } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { 
+  X, 
+  ZoomIn, 
+  ZoomOut, 
+  Loader2, 
+  MessageSquare, 
+  List, 
+  ChevronRight, 
+  Trash2,
+  Sparkles // Icone novo para indicar IA
+} from "lucide-react"
 import { usePdfStore } from "@/stores/pdfStore"
 import type { Note } from "@/types/galaxy"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import api from "@/lib/api" // <--- Import do nosso cliente HTTP configurado
+import { toast } from "sonner" // <--- Import para notificações
 
 import "react-pdf-highlighter/dist/style.css"
 
-/* ================= WORKER CONFIG (CRÍTICO) ================= */
-// Fixamos a versão para bater com o seu package.json (5.4.449)
-// Importante: Versões 4+ e 5+ do PDF.js usam módulos (.mjs) em alguns CDNs.
-// Vamos usar o unpkg que serve o build clássico compatível.
+/* ================= WORKER CONFIG ================= */
+const pdfVersion = pdfjs.version || "5.4.449"
 try {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfVersion}/build/pdf.worker.min.js`
 } catch (e) {
   console.error("Erro ao configurar PDF Worker:", e)
 }
@@ -42,14 +52,28 @@ interface Content {
 /* ================= TIP COMPONENT ================= */
 function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (comment: { text: string; emoji: string }) => void }) {
   return (
-    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-50">
+    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-50 animate-in fade-in zoom-in-95 duration-200">
       <Button
         size="sm"
-        className="h-8 text-xs bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-0"
+        className="h-8 text-xs bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-0 transition-colors"
         onClick={() => onConfirm({ text: "Marcado", emoji: "🖍️" })}
       >
         Marcar
       </Button>
+      
+      {/* Botão de IA Explícita (Futuro) */}
+      <Button 
+        size="sm" 
+        variant="ghost"
+        className="h-8 text-xs text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+        onClick={() => {
+            onConfirm({ text: "Analisar com IA", emoji: "🤖" })
+            toast.info("Enviado para análise profunda...")
+        }}
+      >
+        <Sparkles className="w-3 h-3 mr-1" /> IA
+      </Button>
+
       <Button size="sm" variant="outline" className="h-8 text-xs border-white/20 hover:bg-white/10 text-gray-300" onClick={onOpen}>
         <MessageSquare className="w-3 h-3 mr-1" /> Comentar
       </Button>
@@ -62,20 +86,52 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
   const { getHighlights, addHighlight, removeHighlight } = usePdfStore()
   const [highlights, setHighlights] = useState<IHighlight[]>([])
   
-  // Zoom começa em 1.0 (100%)
   const [zoom, setZoom] = useState(1.0) 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Referência para o Highlighter (para fazer o scrollTo funcionar)
   const highlighterRef = useRef<any>(null)
 
   useEffect(() => {
     setHighlights(getHighlights(note.id))
   }, [note.id, getHighlights])
 
-  const addHighlightToStore = (highlight: IHighlight) => {
+  // --- AQUI ACONTECE A MÁGICA (INTEGRAÇÃO COM BACKEND) ---
+  const handleCreateHighlight = async (highlight: IHighlight) => {
+    // 1. Optimistic Update (Salva localmente na hora)
     addHighlight(note.id, highlight)
     setHighlights(prev => [...prev, highlight])
+
+    // 2. Envia para o Backend (Library Service -> Kafka -> AI Processor)
+    try {
+        // Se for destaque de texto
+        if (highlight.content.text) {
+            await api.post("/library/highlights", {
+                fileHash: note.id,        // ID do documento
+                content: highlight.content.text,
+                type: "TEXT"
+            })
+            
+            toast.success("Trecho enviado para a Galáxia", {
+                description: "A IA está vetorizando este conhecimento.",
+                duration: 2000
+            })
+        }
+        // Se for imagem (Futuro GPT-4 Vision)
+        else if (highlight.content.image) {
+             await api.post("/library/highlights", {
+                fileHash: note.id,
+                content: "Image Content", // Em prod, enviaríamos o base64 ou upload
+                type: "IMAGE"
+            })
+             toast.success("Recorte enviado para análise visual")
+        }
+
+    } catch (error) {
+        console.error("Erro ao salvar highlight:", error)
+        toast.error("Erro de Sincronização", {
+            description: "Salvo localmente, mas falhou ao enviar para a nuvem."
+        })
+    }
   }
 
   const scrollToHighlight = (highlight: IHighlight) => {
@@ -97,17 +153,13 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
             <h2 className="text-white font-bold text-sm truncate max-w-md">{note.title}</h2>
-            <span className="text-[10px] text-gray-500">PDF Reader • v5.4</span>
+            <span className="text-[10px] text-gray-500">PDF Reader • Connected</span>
           </div>
           
           <div className="flex items-center bg-white/5 rounded-md border border-white/10 ml-4">
-            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>
-                <ZoomOut className="w-3 h-3 text-gray-400" />
-            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}><ZoomOut className="w-3 h-3 text-gray-400" /></Button>
             <span className="text-xs w-12 text-center font-mono text-gray-300">{(zoom * 100).toFixed(0)}%</span>
-            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.min(3.0, z + 0.25))}>
-                <ZoomIn className="w-3 h-3 text-gray-400" />
-            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10" onClick={() => setZoom(z => Math.min(3.0, z + 0.25))}><ZoomIn className="w-3 h-3 text-gray-400" /></Button>
           </div>
         </div>
 
@@ -131,35 +183,13 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
       {/* --- BODY --- */}
       <div className="flex-1 relative bg-zinc-900 w-full h-full flex overflow-hidden">
         
-        {/* CONTAINER DO PDF (Scrollavel) */}
+        {/* PDF CONTAINER */}
         <div className="flex-1 relative h-full overflow-auto bg-gray-900/50 flex justify-center">
-            
-            {/* 
-               WRAPPER DE ZOOM (A Mágica do Foxit)
-               Ao mudar a largura (width) aqui, a lib recalcula o PDF vetorialmente.
-               Isso mantém o texto nítido, diferente de 'transform: scale'.
-            */}
-            <div 
-                style={{ 
-                    position: 'relative', // Necessário para a lib se achar
-                    width: `${60 * zoom}vw`, // Largura dinâmica baseada no zoom (Base 60% da tela)
-                    minWidth: '600px', // Tamanho mínimo para não quebrar layout
-                    marginBottom: '50px' // Espaço para scroll final
-                }}
-            >
+            <div style={{ position: 'relative', width: `${60 * zoom}vw`, minWidth: '600px', marginBottom: '50px' }}>
                 <PdfLoader 
                     url={pdfUrl} 
-                    beforeLoad={
-                        <div className="flex flex-col items-center justify-center h-96 gap-4 text-gray-400">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-500"/>
-                            <p>Carregando documento...</p>
-                        </div>
-                    }
-                    errorMessage={
-                        <div className="flex items-center justify-center h-96 text-red-400 p-4">
-                            Erro ao carregar PDF. Verifique a URL ou o Worker.
-                        </div>
-                    }
+                    beforeLoad={<div className="flex flex-col items-center justify-center h-96 gap-4 text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-blue-500"/><p>Carregando documento...</p></div>}
+                    errorMessage={<div className="flex items-center justify-center h-96 text-red-400 p-4">Erro ao carregar PDF.</div>}
                 >
                     {(pdfDocument) => (
                         <PdfHighlighter
@@ -167,12 +197,18 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
                             enableAreaSelection={(event) => event.altKey}
                             onScrollChange={() => {}}
                             scrollRef={() => {}}
-                            ref={highlighterRef} // Conectando a ref para scroll programático
+                            ref={highlighterRef}
                             onSelectionFinished={(position, content, hideTipAndSelection, transformSelection) => (
                                 <HighlightTip
                                     onOpen={transformSelection}
                                     onConfirm={(comment) => {
-                                        addHighlightToStore({ content, position, comment, id: crypto.randomUUID() })
+                                        // CHAMA A FUNÇÃO QUE SALVA NO BACKEND
+                                        handleCreateHighlight({ 
+                                            content, 
+                                            position, 
+                                            comment, 
+                                            id: crypto.randomUUID() 
+                                        })
                                         hideTipAndSelection()
                                     }}
                                 />
@@ -199,7 +235,7 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
             </div>
         </div>
 
-        {/* --- SIDEBAR --- */}
+        {/* SIDEBAR */}
         {isSidebarOpen && (
             <div className="w-80 bg-[#0a0a0a] border-l border-white/10 h-full flex flex-col animate-in slide-in-from-right duration-300 z-[201] shadow-2xl absolute right-0 top-0 bottom-0 md:relative">
                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur">

@@ -1,10 +1,10 @@
 package com.ai.organizer.processor.service;
 
+import com.ai.organizer.processor.HighlightEvent;
 import com.ai.organizer.processor.IngestionEvent;
 import com.ai.organizer.processor.ai.BookAssistant;
 import com.ai.organizer.processor.domain.HighlightEntity;
 import com.ai.organizer.processor.repository.HighlightRepository;
-import com.ai.organizer.processor.infrastructure.GoogleStorageService; // <--- Interface Genérica (Crie este arquivo se não tiver)
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -15,11 +15,17 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Collections;
 
 @Service
 @Slf4j
@@ -27,128 +33,183 @@ import java.time.Duration;
 public class ProcessorService {
 
     // --- Injeção de Dependências ---
-    private final BookAssistant bookAssistant;          // IA (OpenAI Chat)
-    private final StringRedisTemplate redisTemplate;    // Cache (Redis)
-    private final BlobStorageService blobStorage;       // <--- NOVO: Storage Genérico (Google Cloud)
-    private final HighlightRepository highlightRepository; // Banco Relacional (Postgres)
-    private final EmbeddingModel embeddingModel;        // Vetorização (OpenAI Embedding)
+    private final BookAssistant bookAssistant;          // Interface LangChain4j (OpenAI Chat)
+    private final StringRedisTemplate redisTemplate;    // Cache FinOps
+    private final S3Client s3Client;                    // Storage (MinIO/AWS)
+    private final HighlightRepository highlightRepository; // Banco Relacional
+    private final EmbeddingModel embeddingModel;        // Gerador de Vetores
     private final EmbeddingStore<TextSegment> embeddingStore; // Banco Vetorial (Pinecone)
 
+    @Value("${aws.s3.bucket-name}")
+    private String bucketName;
+
     /**
-     * Processamento Principal.
-     * Fluxo: Kafka -> Redis -> Google Storage -> OpenAI -> Postgres -> Pinecone
+     * FLUXO 1: Processamento de Arquivos Inteiros (Ingestão)
+     * Chamado quando o usuário faz upload de um PDF/TXT novo.
      */
     @CircuitBreaker(name = "openai", fallbackMethod = "fallbackOpenAI")
     @Retry(name = "openai")
     public void processDocument(IngestionEvent event) {
         String cacheKey = "doc_analysis:" + event.fileHash();
 
-        // 1. FinOps: Verifica Cache
+        // 1. FinOps Check
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
             log.info("💰 CACHE HIT (FinOps): Documento já processado. Recuperando do Redis.");
-            // Em produção, você poderia recuperar o JSON do Redis e atualizar a UI via WebSocket
             return; 
         }
 
-        log.info("🤖 CACHE MISS: Iniciando processamento para: {}", event.originalName());
+        log.info("🤖 CACHE MISS: Iniciando processamento de IA para hash: {}", event.fileHash());
 
         try {
-            // 2. Validação de Binários
-            if (isBinaryFile(event.originalName())) {
-                log.warn("⚠️ Arquivo binário (PDF/Imagem) detectado no bucket. Salvando apenas metadados.");
+            String content;
+            String analysisResult;
+            boolean isPdfOrImage = isBinaryFile(event.originalName());
+
+            // 2. Estratégia de Extração
+            if (isPdfOrImage) {
+                log.info("📂 Arquivo Binário detectado (PDF/Imagem). Ignorando leitura de texto bruto por enquanto.");
+                content = "[PDF/Imagem Original] - Conteúdo disponível no Storage.";
                 
-                // Salva no Oracle/Postgres apenas o registro que o arquivo existe
-                saveToRelationalDB(event, "Conteúdo binário disponível no Google Cloud Storage.", "{}");
-                return;
+                // JSON placeholder para constar no banco
+                analysisResult = """
+                    {
+                        "summary": "Documento PDF importado. Disponível para leitura e marcação.",
+                        "tags": ["PDF", "Importado"],
+                        "sentiment": "Neutro"
+                    }
+                """;
+            } else {
+                // É texto puro (.txt, .md)
+                content = downloadTextFromS3(event.s3Key());
+                
+                // Corte de segurança
+                if (content.length() > 2000) content = content.substring(0, 2000);
+                
+                log.info("🧠 Enviando texto para análise da OpenAI...");
+                analysisResult = bookAssistant.analyzeText(content);
             }
 
-            // 3. Download do Google Cloud Storage (via Interface Genérica)
-            String content = downloadTextFromStorage(event.s3Key());
-            
-            // 4. Validação de Conteúdo Vazio
-            if (content == null || content.trim().isEmpty()) {
-                log.error("❌ ERRO: Conteúdo vazio baixado do Storage: {}", event.s3Key());
-                throw new RuntimeException("Arquivo vazio no Storage.");
-            }
-
-            // 5. Corte de Segurança (Tokens)
-            if (content.length() > 2000) {
-                content = content.substring(0, 2000); 
-            }
-
-            // 6. Inteligência Artificial (LangChain4j)
-            String analysisResult = bookAssistant.analyzeText(content);
-
-            // 7. Salvar no Redis
+            // 3. Salvar Cache no Redis
             redisTemplate.opsForValue().set(cacheKey, analysisResult, Duration.ofHours(24));
             
-            log.info("✅ Sucesso IA. Persistindo dados...");
+            log.info("✅ Sucesso IA. Iniciando persistência poliglota...");
 
-            // 8. Persistência Relacional (Postgres/Neon)
-            HighlightEntity savedEntity = saveToRelationalDB(event, content, analysisResult);
+            // 4. Persistência Relacional (Oracle/Postgres)
+            HighlightEntity savedEntity = null;
+            
+            if (!highlightRepository.existsByFileHash(event.fileHash())) {
+                HighlightEntity entity = new HighlightEntity();
+                entity.setFileHash(event.fileHash());
+                entity.setUserId(event.userId());
+                
+                String safeContent = content.length() > 3900 ? content.substring(0, 3900) : content;
+                entity.setOriginalText(safeContent); 
+                entity.setAiAnalysisJson(analysisResult);
+                
+                savedEntity = highlightRepository.save(entity);
+                log.info("💾 DADO SALVO NO BANCO RELACIONAL COM SUCESSO! ID: {}", savedEntity.getId());
+            } else {
+                log.warn("⚠️ Registro duplicado no banco detectado (Race condition evitada).");
+                // Em um cenário real, recuperaríamos o ID do banco aqui
+            }
 
-            // 9. Persistência Vetorial (Pinecone)
-            if (savedEntity != null) {
-                saveToVectorDB(savedEntity, content, event);
+            // 5. Persistência Vetorial (Pinecone - RAG)
+            // Apenas para arquivos de texto simples. PDFs são vetorizados via Highlights (Fluxo 2).
+            if (savedEntity != null && !isPdfOrImage) {
+                log.info("▶️ Gerando Embedding do Documento para o Pinecone...");
+                
+                // Correção: Usando .put() para Metadados (versão nova)
+                Metadata metadata = Metadata.from("userId", event.userId())
+                                            .put("fileHash", event.fileHash())
+                                            .put("source", event.originalName())
+                                            .put("type", "document")
+                                            .put("dbId", String.valueOf(savedEntity.getId()));
+
+                TextSegment segment = TextSegment.from(content, metadata);
+                Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
+                
+                // Correção: Usando addAll com Singleton List para compatibilidade
+                embeddingStore.addAll(
+                    Collections.singletonList(embeddingResponse.content()),
+                    Collections.singletonList(segment)
+                );
+                
+                log.info("✅ VETOR DE DOCUMENTO SALVO NO PINECONE!");
             }
             
         } catch (Exception e) {
-            log.error("Erro crítico no processamento.", e);
+            log.error("Erro na tentativa de processamento de documento.", e);
             throw new RuntimeException("Erro de Processamento", e);
         }
     }
 
-    // --- Métodos Auxiliares ---
+    /**
+     * FLUXO 2: Processamento de Highlights (Marcações)
+     * Chamado quando o usuário seleciona um trecho no PDFReader.
+     */
+    public void processHighlight(HighlightEvent event) {
+        try {
+            if ("TEXT".equalsIgnoreCase(event.type())) {
+                log.info("🔍 Processando Highlight ID: {} (User: {})", event.highlightId(), event.userId());
 
-    private HighlightEntity saveToRelationalDB(IngestionEvent event, String content, String analysisResult) {
-        if (!highlightRepository.existsByFileHash(event.fileHash())) {
-            HighlightEntity entity = new HighlightEntity();
-            entity.setFileHash(event.fileHash());
-            entity.setUserId(event.userId());
-            
-            String safeContent = content.length() > 3900 ? content.substring(0, 3900) : content;
-            entity.setOriginalText(safeContent); 
-            entity.setAiAnalysisJson(analysisResult);
-            
-            HighlightEntity saved = highlightRepository.save(entity);
-            log.info("💾 DADO SALVO NO BANCO RELACIONAL! ID: {}", saved.getId());
-            return saved;
+                // 1. Prepara Metadados Ricos
+                Metadata metadata = Metadata.from("userId", event.userId())
+                        .put("fileHash", event.fileHash())
+                        .put("type", "highlight")
+                        .put("highlightId", String.valueOf(event.highlightId()));
+
+                // 2. Cria o Segmento
+                TextSegment segment = TextSegment.from(event.content(), metadata);
+
+                // 3. Gera o Vetor (OpenAI)
+                Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
+
+                // 4. Salva no Pinecone
+                String vectorId = "hl-" + event.highlightId();
+                
+                embeddingStore.addAll(
+                    Collections.singletonList(embeddingResponse.content()),
+                    Collections.singletonList(segment)
+                );
+                
+                log.info("✅ HIGHLIGHT VETORIZADO NO PINECONE! ID Vetorial: {}", vectorId);
+                
+            } else {
+                log.warn("⚠️ Processamento de imagem em highlight ainda não implementado.");
+            }
+        } catch (Exception e) {
+            log.error("❌ Erro ao processar highlight: {}", e.getMessage(), e);
         }
-        return null; // Já existe
-    }
-
-    private void saveToVectorDB(HighlightEntity entity, String content, IngestionEvent event) {
-        log.info("▶️ Gerando Embedding para Pinecone...");
-        
-        Metadata metadata = Metadata.from("userId", event.userId())
-                                    .add("fileHash", event.fileHash())
-                                    .add("source", event.originalName())
-                                    .add("dbId", String.valueOf(entity.getId()));
-
-        TextSegment segment = TextSegment.from(content, metadata);
-        Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
-        
-        embeddingStore.add(String.valueOf(entity.getId()), embeddingResponse.content());
-        log.info("✅ VETOR SALVO NO PINECONE!");
     }
 
     /**
-     * Download usando a implementação injetada (GoogleStorageService)
+     * Fallback para o Fluxo 1
      */
-    private String downloadTextFromStorage(String key) {
-        log.debug("Baixando do Storage: {}", key);
-        
-        // Chamada à interface genérica
-        byte[] bytes = blobStorage.download(key);
-        
-        return new String(bytes, StandardCharsets.UTF_8);
-    }
-
     public void fallbackOpenAI(IngestionEvent event, Throwable t) {
         log.error("🔥 FALLBACK ATIVADO: OpenAI indisponível. Erro: {}", t.getMessage());
-        String errorJson = "{ \"status\": \"PENDENTE\", \"error\": \"Serviço indisponível\" }";
+        
+        String errorJson = """
+            {
+                "summary": "Processamento Suspenso (Serviço Externo Indisponível)",
+                "tags": ["PENDENTE", "ERRO_EXTERNO"],
+                "sentiment": "Neutro"
+            }
+            """;
+            
         String cacheKey = "doc_analysis:" + event.fileHash();
         redisTemplate.opsForValue().set(cacheKey, errorJson, Duration.ofMinutes(5));
+        
+        log.warn("⚠️ Estado de erro salvo no Redis temporariamente.");
+    }
+
+    private String downloadTextFromS3(String key) {
+        log.debug("Baixando do S3: {}", key);
+        ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build());
+        
+        return new String(objectBytes.asByteArray(), StandardCharsets.UTF_8);
     }
 
     private boolean isBinaryFile(String filename) {
