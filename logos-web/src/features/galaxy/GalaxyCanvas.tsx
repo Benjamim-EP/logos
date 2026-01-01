@@ -12,6 +12,7 @@ import { GalaxyControls } from "@/features/galaxy/components/GalaxyControls"
 import { Button } from "@/components/ui/button"
 import { Loader2, MousePointer2, ZoomIn, RefreshCw } from "lucide-react"
 import { motion } from "framer-motion"
+import { GalaxyCreator } from "./components/GalaxyCreator"
 
 export function GalaxyCanvas() {
   const { 
@@ -112,6 +113,9 @@ export function GalaxyCanvas() {
             ))}
           </div>
         </div>
+
+        {/* --- ADICIONE AQUI O COMPONENTE NOVO --- */}
+        <GalaxyCreator />
 
         <LibrarySheet allNotes={visibleNotes} clusters={visibleClusters} />
         

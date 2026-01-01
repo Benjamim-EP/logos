@@ -1,7 +1,8 @@
-
+// #logos-web/src/stores/galaxyStore.ts
 import { create } from 'zustand'
 import type { Cluster, Note, SubCluster } from '@/types/galaxy'
-import api from "@/lib/api" // Seu cliente Axios configurado
+import api from "@/lib/api"
+import { toast } from "sonner" // Importante para feedback visual
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
@@ -12,6 +13,7 @@ interface GalaxyState {
   subClusters: SubCluster[]
   
   isLoading: boolean
+  isGravityLoading: boolean // Novo estado para loading específico da gravidade
   focusNode: Note | null
   viewMode: ViewMode
   
@@ -21,6 +23,7 @@ interface GalaxyState {
 
   // Actions
   initializeGalaxy: (count?: number) => Promise<void>
+  applyGravity: (term: string) => Promise<void> // <--- A Mágica
   setFocusNode: (note: Note | null) => void
   setViewMode: (mode: ViewMode) => void
   toggleCluster: (clusterId: string) => void
@@ -38,6 +41,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   clusters: [],
   subClusters: [],
   isLoading: false,
+  isGravityLoading: false,
   focusNode: null,
   viewMode: 'galaxy',
   
@@ -46,69 +50,150 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   maxVisibleNotes: 400,
 
   /**
-   * INICIALIZAÇÃO REAL (Fase 2)
-   * Busca dados do backend e distribui no espaço 3D aleatoriamente.
+   * FASE 2: Inicialização com Dados Reais (Modo Caos)
    */
   initializeGalaxy: async () => {
-    // Evita recarregar se já tem dados ou está carregando
     if (get().allNotes.length > 0 || get().isLoading) return;
 
     set({ isLoading: true })
     
     try {
-        console.log("🌌 Iniciando conexão com Library Service...")
-        
-        // 1. Chamada ao Backend (Library Service -> GalaxyController)
+        console.log("🌌 Conectando ao Núcleo da Biblioteca...")
         const { data: stars } = await api.get('/galaxy/stars')
         
-        console.log(`📡 Dados recebidos: ${stars.length} estrelas.`)
+        console.log(`📡 Telemetria recebida: ${stars.length} objetos estelares.`)
 
         if (!stars || stars.length === 0) {
             set({ isLoading: false, allNotes: [] })
             return
         }
 
-        // 2. Mapeamento e Distribuição Espacial (Big Bang)
-        // Como ainda não temos o X,Y da IA, distribuímos em uma esfera para ficar bonito.
         const notes: Note[] = stars.map((star: any) => {
-             // Matemática esférica para distribuir pontos uniformemente no espaço
-             // Isso evita que fiquem todos amontoados no centro
-             const theta = Math.random() * 2 * Math.PI; // Ângulo horizontal
-             const phi = Math.acos(2 * Math.random() - 1); // Ângulo vertical
-             const radius = 800 + Math.random() * 2500; // Distância do centro (Variada)
+             // Distribuição Esférica Inicial (Caos)
+             const theta = Math.random() * 2 * Math.PI;
+             const phi = Math.acos(2 * Math.random() - 1);
+             const radius = 1000 + Math.random() * 2000;
 
              return {
                 id: star.id,
                 title: star.documentTitle || "Documento Sem Nome",
                 preview: star.content || "Sem conteúdo...",
-                
-                // Tags iniciais baseadas no tipo
                 tags: [star.type === 'IMAGE' ? 'Visual' : 'Texto'],
-                
                 createdAt: star.createdAt,
                 
-                // Coordenadas calculadas (Placeholder para a Fase 3)
+                // Posição Inicial
                 x: radius * Math.sin(phi) * Math.cos(theta),
                 y: radius * Math.sin(phi) * Math.sin(theta),
-                z: Math.random() * 2 + 0.5, // Tamanho varia um pouco
+                z: Math.random() * 2 + 0.5,
                 
-                clusterId: "chaos", // Cluster padrão inicial
+                clusterId: "chaos",
                 documentId: star.documentId
              }
         })
 
         set({ 
             allNotes: notes, 
-            clusters: [], // Sem clusters definidos ainda
+            clusters: [],
             subClusters: [],
-            activeClusterIds: ["chaos"], // Ativa o cluster padrão
+            activeClusterIds: ["chaos"],
             isLoading: false 
         })
 
     } catch (error) {
-        console.error("❌ Erro crítico ao carregar galáxia:", error)
-        // Fallback: não trava a UI, apenas para o loading
+        console.error("❌ Falha crítica nos sensores:", error)
         set({ isLoading: false })
+    }
+  },
+
+  /**
+   * FASE 3: Motor de Gravidade Semântica
+   * O usuário cria um "Centro de Gravidade" (ex: "Java") e a IA puxa as notas relacionadas.
+   */
+  applyGravity: async (term: string) => {
+    if (!term.trim()) return
+
+    set({ isGravityLoading: true })
+
+    try {
+        // 1. Consulta o Oráculo (AI Processor)
+        console.log(`🧲 Gerando poço gravitacional para: "${term}"`)
+        const { data } = await api.post('/ai/galaxy/gravity', term, {
+            headers: { 'Content-Type': 'text/plain' }
+        })
+        
+        // Array de { highlightId, score }
+        const matches = data.matches as { highlightId: string, score: number }[]
+        
+        if (matches.length === 0) {
+            toast.info(`Nenhuma conexão encontrada para "${term}".`, {
+                description: "Tente um termo mais genérico ou verifique seus documentos."
+            })
+            set({ isGravityLoading: false })
+            return
+        }
+
+        toast.success(`Gravidade aplicada: "${term}"`, {
+            description: `${matches.length} notas foram atraídas.`
+        })
+
+        // 2. Define o novo Centro de Gravidade no Espaço
+        // Escolhemos uma posição aleatória longe do centro (0,0) para criar aglomerados distintos
+        const centerOffset = { 
+            x: (Math.random() - 0.5) * 3000, 
+            y: (Math.random() - 0.5) * 3000 
+        } 
+
+        // 3. Cria um novo Cluster visual (Galáxia Nomeada)
+        const newCluster: Cluster = {
+            id: `cluster-${term}-${Date.now()}`,
+            label: term,
+            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), // Cor aleatória
+            x: centerOffset.x,
+            y: centerOffset.y
+        }
+
+        // 4. Aplica a Física nas Estrelas
+        set(state => {
+            const newNotes = state.allNotes.map(note => {
+                const match = matches.find(m => m.highlightId === note.id)
+                
+                if (match) {
+                    // FÍSICA DE ATRAÇÃO
+                    // Score 1.0 (Muito igual) -> Distância 0 (Colado no centro)
+                    // Score 0.6 (Pouco igual) -> Distância 800 (Orbita longe)
+                    const attractionStrength = Math.pow(match.score, 3) // Exponencial para separar bem o joio do trigo
+                    const distance = (1 - attractionStrength) * 1200 
+                    
+                    // Adiciona dispersão angular para formar uma nuvem (Cluster), não uma linha
+                    const angle = Math.random() * 2 * Math.PI
+                    const dispersion = Math.random() * 200 // Jitter aleatório
+                    
+                    return {
+                        ...note,
+                        // Move a estrela para a nova galáxia
+                        x: centerOffset.x + (Math.cos(angle) * (distance + dispersion)),
+                        y: centerOffset.y + (Math.sin(angle) * (distance + dispersion)),
+                        // Adiciona o termo às tags para referência futura
+                        tags: [...new Set([...note.tags, term])],
+                        clusterId: newCluster.id // Associa ao novo cluster
+                    }
+                }
+                // Se não deu match, a nota fica onde estava (ou no Caos)
+                return note 
+            })
+            
+            return { 
+                allNotes: newNotes,
+                clusters: [...state.clusters, newCluster], // Adiciona o label visual no mapa
+                activeClusterIds: [...state.activeClusterIds, newCluster.id],
+                isGravityLoading: false
+            }
+        })
+
+    } catch (e) {
+        console.error("Erro ao aplicar gravidade", e)
+        toast.error("Falha no Motor de Gravidade", { description: "O AI Processor não respondeu." })
+        set({ isGravityLoading: false })
     }
   },
 
@@ -128,16 +213,15 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   getVisibleData: () => {
     const state = get()
     
-    // Se não tem filtro ativo ou deu bug, mostra tudo (Failsafe)
-    const effectiveClusterIds = (state.activeClusterIds && state.activeClusterIds.length > 0)
-      ? state.activeClusterIds 
-      : ["chaos"] // Fallback para o ID que usamos no initialize
-    
-    // Filtra notas (na Fase 2, todas são "chaos", então mostra tudo)
-    // Na Fase 3, isso filtrará por clusters semânticos
-    let filteredNotes = state.allNotes // .filter(n => effectiveClusterIds.includes(n.clusterId))
+    // Mostra tudo por padrão se não tiver filtro explícito
+    // Na fase 3, você pode querer filtrar: "Só mostrar estrelas do cluster Java"
+    // Por enquanto, mostra tudo para ver o movimento acontecer.
+    let filteredNotes = state.allNotes
 
-    // Ordenação
+    // Se tiver clusters ativos específicos (exclui chaos), filtra
+    // (Lógica opcional para o futuro)
+    
+    // Ordenação Z-Index (Render Order)
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
@@ -146,7 +230,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return 0
     })
 
-    // Paginação virtual (LOD) para performance
     const visibleNotes = filteredNotes.slice(0, state.maxVisibleNotes)
 
     return { 

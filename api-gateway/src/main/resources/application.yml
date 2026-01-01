@@ -41,6 +41,12 @@ spring:
           predicates:
             - Path=/api/ingestion/**
 
+        # Rota do AI Processor
+        - id: ai-processor
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/ai/**
+
 logging:
   level:
     org.springframework.cloud.gateway: INFO
