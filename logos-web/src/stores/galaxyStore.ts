@@ -1,6 +1,7 @@
+
 import { create } from 'zustand'
 import type { Cluster, Note, SubCluster } from '@/types/galaxy'
-import { generateUniverse } from '@/features/galaxy/utils/generator'
+import api from "@/lib/api" // Seu cliente Axios configurado
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
@@ -18,7 +19,8 @@ interface GalaxyState {
   sortOrder: SortOrder
   maxVisibleNotes: number
 
-  initializeGalaxy: (count?: number) => void
+  // Actions
+  initializeGalaxy: (count?: number) => Promise<void>
   setFocusNode: (note: Note | null) => void
   setViewMode: (mode: ViewMode) => void
   toggleCluster: (clusterId: string) => void
@@ -43,25 +45,71 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   sortOrder: 'newest',
   maxVisibleNotes: 400,
 
-  initializeGalaxy: (count = 1500) => {
-    // Verifica se já tem dados para não recalcular à toa
-    if (get().allNotes.length > 0) return;
+  /**
+   * INICIALIZAÇÃO REAL (Fase 2)
+   * Busca dados do backend e distribui no espaço 3D aleatoriamente.
+   */
+  initializeGalaxy: async () => {
+    // Evita recarregar se já tem dados ou está carregando
+    if (get().allNotes.length > 0 || get().isLoading) return;
 
     set({ isLoading: true })
     
-    // REDUZIMOS O DELAY: De 800ms para 10ms (Quase instantâneo, mas async para não travar a UI)
-    setTimeout(() => {
-      const { clusters, subClusters, notes } = generateUniverse(count)
-      
-      set({ 
-        clusters, 
-        subClusters,
-        allNotes: notes, 
-        // TRUQUE: Já inicializa com todos os clusters ativos
-        activeClusterIds: clusters.map(c => c.id),
-        isLoading: false 
-      })
-    }, 10)
+    try {
+        console.log("🌌 Iniciando conexão com Library Service...")
+        
+        // 1. Chamada ao Backend (Library Service -> GalaxyController)
+        const { data: stars } = await api.get('/galaxy/stars')
+        
+        console.log(`📡 Dados recebidos: ${stars.length} estrelas.`)
+
+        if (!stars || stars.length === 0) {
+            set({ isLoading: false, allNotes: [] })
+            return
+        }
+
+        // 2. Mapeamento e Distribuição Espacial (Big Bang)
+        // Como ainda não temos o X,Y da IA, distribuímos em uma esfera para ficar bonito.
+        const notes: Note[] = stars.map((star: any) => {
+             // Matemática esférica para distribuir pontos uniformemente no espaço
+             // Isso evita que fiquem todos amontoados no centro
+             const theta = Math.random() * 2 * Math.PI; // Ângulo horizontal
+             const phi = Math.acos(2 * Math.random() - 1); // Ângulo vertical
+             const radius = 800 + Math.random() * 2500; // Distância do centro (Variada)
+
+             return {
+                id: star.id,
+                title: star.documentTitle || "Documento Sem Nome",
+                preview: star.content || "Sem conteúdo...",
+                
+                // Tags iniciais baseadas no tipo
+                tags: [star.type === 'IMAGE' ? 'Visual' : 'Texto'],
+                
+                createdAt: star.createdAt,
+                
+                // Coordenadas calculadas (Placeholder para a Fase 3)
+                x: radius * Math.sin(phi) * Math.cos(theta),
+                y: radius * Math.sin(phi) * Math.sin(theta),
+                z: Math.random() * 2 + 0.5, // Tamanho varia um pouco
+                
+                clusterId: "chaos", // Cluster padrão inicial
+                documentId: star.documentId
+             }
+        })
+
+        set({ 
+            allNotes: notes, 
+            clusters: [], // Sem clusters definidos ainda
+            subClusters: [],
+            activeClusterIds: ["chaos"], // Ativa o cluster padrão
+            isLoading: false 
+        })
+
+    } catch (error) {
+        console.error("❌ Erro crítico ao carregar galáxia:", error)
+        // Fallback: não trava a UI, apenas para o loading
+        set({ isLoading: false })
+    }
   },
 
   setFocusNode: (note) => set({ focusNode: note }),
@@ -80,21 +128,16 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   getVisibleData: () => {
     const state = get()
     
-    // FALLBACK DE SEGURANÇA:
-    // Se a lista de ativos estiver vazia (bug de estado), considera TODOS os clusters.
-    // Isso evita a tela preta.
+    // Se não tem filtro ativo ou deu bug, mostra tudo (Failsafe)
     const effectiveClusterIds = (state.activeClusterIds && state.activeClusterIds.length > 0)
       ? state.activeClusterIds 
-      : state.clusters.map(c => c.id)
+      : ["chaos"] // Fallback para o ID que usamos no initialize
     
-    const visibleClusters = state.clusters.filter(c => effectiveClusterIds.includes(c.id))
-    
-    // Filtra SubClusters (segurança extra: verifica se subClusters existe)
-    const subList = state.subClusters || []
-    const visibleSubClusters = subList.filter(sc => effectiveClusterIds.includes(sc.clusterId))
-    
-    let filteredNotes = state.allNotes.filter(n => effectiveClusterIds.includes(n.clusterId))
+    // Filtra notas (na Fase 2, todas são "chaos", então mostra tudo)
+    // Na Fase 3, isso filtrará por clusters semânticos
+    let filteredNotes = state.allNotes // .filter(n => effectiveClusterIds.includes(n.clusterId))
 
+    // Ordenação
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
@@ -103,8 +146,13 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return 0
     })
 
+    // Paginação virtual (LOD) para performance
     const visibleNotes = filteredNotes.slice(0, state.maxVisibleNotes)
 
-    return { visibleNotes, visibleClusters, visibleSubClusters }
+    return { 
+        visibleNotes, 
+        visibleClusters: state.clusters, 
+        visibleSubClusters: state.subClusters 
+    }
   }
 }))
