@@ -33,9 +33,10 @@ public class DocumentIngestionConsumer {
 
             // Cria o documento minimalista
             Document doc = new Document(
-                event.originalName(), // Aqui está a correção do nome!
+                event.originalName(),
                 event.fileHash(),
-                event.userId()
+                event.userId(),
+                event.s3Key() // Este campo do evento contém o path no GCS (ex: uploads/hash/file.pdf)
             );
 
             documentRepository.save(doc);

@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { searchPapers } from '@/services/openAlex'
 
+import api from "@/lib/api"
+import { toast } from "sonner"
+
 export interface ResearchPaper {
   id: string
   title: string
@@ -58,22 +61,6 @@ export const useResearchStore = create<ResearchState>()(
         set({ results: markedPapers, isLoading: false })
       },
 
-      savePaper: (paper) => {
-        const { storageUsed, storageLimit, savedPapers } = get()
-        
-        if (storageUsed + paper.sizeMB > storageLimit) {
-          alert("🚫 Limite de armazenamento excedido! Faça upgrade para salvar mais.")
-          return
-        }
-
-        set({
-          storageUsed: storageUsed + paper.sizeMB,
-          savedPapers: [...savedPapers, { ...paper, isSaved: true }],
-          // Atualiza a lista de resultados para refletir o status
-          results: get().results.map(r => r.id === paper.id ? { ...r, isSaved: true } : r)
-        })
-      },
-
       removePaper: (paperId) => {
         const paper = get().savedPapers.find(p => p.id === paperId)
         if (!paper) return
@@ -83,7 +70,54 @@ export const useResearchStore = create<ResearchState>()(
           savedPapers: state.savedPapers.filter(p => p.id !== paperId),
           results: state.results.map(r => r.id === paperId ? { ...r, isSaved: false } : r)
         }))
-      }
+      },
+
+      savePaper: async (paper) => {
+        const { storageUsed, storageLimit } = get()
+        
+        // Validação simples de limite (mockada)
+        if (storageUsed + paper.sizeMB > storageLimit) {
+          toast.error("Limite de armazenamento excedido!")
+          return
+        }
+
+        // 1. Feedback Visual Imediato
+        toast.loading("Baixando documento para a Galáxia...", { id: "save-process" })
+
+        try {
+            // 2. Chamada ao Backend (NOVO)
+            await api.post("/ingestion/url", {
+                pdfUrl: paper.pdfUrl,
+                title: paper.title,
+                source: "OpenAlex"
+            })
+
+            // 3. Sucesso
+            toast.dismiss("save-process")
+            toast.success("Documento salvo!", {
+                description: "Ele aparecerá na sua Biblioteca em instantes."
+            })
+
+            // 4. Atualiza Estado Local (UI)
+            set((state) => ({
+                storageUsed: state.storageUsed + paper.sizeMB,
+                // Marca como salvo na lista de resultados
+                results: state.results.map(r => r.id === paper.id ? { ...r, isSaved: true } : r),
+                // Adiciona à lista de salvos
+                savedPapers: [...state.savedPapers, { ...paper, isSaved: true }]
+            }))
+
+        } catch (error: any) {
+            console.error("Erro ao salvar paper:", error)
+            toast.dismiss("save-process")
+            
+            const msg = error.response?.status === 401 
+                ? "Sessão expirada. Faça login novamente." 
+                : "Falha ao baixar o PDF. A URL pode estar protegida."
+            
+            toast.error("Erro ao salvar", { description: msg })
+        }
+      },
     }),
     { name: 'logos-research-storage' }
   )

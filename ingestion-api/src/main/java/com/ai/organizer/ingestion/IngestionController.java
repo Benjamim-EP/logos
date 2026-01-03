@@ -6,11 +6,15 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
+import com.ai.organizer.ingestion.dto.UrlIngestionRequest;
+
 import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/ingestion")
 public class IngestionController {
+
 
     private final IngestionService service;
 
@@ -35,5 +39,21 @@ public class IngestionController {
         return service.processUpload(file, userId)
                 .doOnSuccess(hash -> System.out.println("✅ Upload concluído. Hash: " + hash))
                 .doOnError(e -> System.err.println("❌ Erro no upload: " + e.getMessage()));
+    }
+
+    @PostMapping("/url")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Mono<String> uploadFromUrl(
+            @RequestBody UrlIngestionRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        // Extrai o usuário do token (Keycloak)
+        String userId = jwt.getClaimAsString("preferred_username");
+        if (userId == null) userId = jwt.getSubject();
+
+        System.out.println("⬇️ Ingestão URL solicitada por: " + userId + " | Doc: " + request.title());
+
+        return service.processUrlUpload(request, userId)
+                .doOnSuccess(hash -> System.out.println("✅ Processo iniciado com sucesso. Hash: " + hash));
     }
 }

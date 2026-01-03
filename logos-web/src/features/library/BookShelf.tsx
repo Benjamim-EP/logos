@@ -6,6 +6,9 @@ import { useGalaxyStore } from "@/stores/galaxyStore"
 import { PdfReaderView } from "@/features/reader/PdfReaderView"
 import type { Note } from "@/types/galaxy"
 
+import api from "@/lib/api" // Importe o cliente API
+import { toast } from "sonner"
+
 // Importação da Integração Real
 import { useLibraryBooks } from "@/features/library/hooks/useLibrary"
 
@@ -26,18 +29,33 @@ export function BookShelf() {
 
   // Adaptador: Transforma o JSON do Backend no formato visual do Componente
   // O backend retorna: { id, title, preview, highlightsCount, lastRead }
-  const handleOpenBook = (book: any) => {
-    const noteAdapter: Note = {
-      id: book.id,
-      title: book.title,
-      preview: book.preview,
-      tags: ["Importado", "PDF"], // Tags padrão por enquanto
-      createdAt: book.lastRead || new Date().toISOString(),
-      x: 0, y: 0, z: 1, clusterId: "library"
+  const handleOpenBook = async (book: any) => {
+    try {
+        // Feedback de carregamento
+        toast.loading("Abrindo documento...", { id: "open-book" })
+
+        // 1. Pede a URL assinada ao Backend
+        const { data } = await api.get(`/library/books/${book.id}/content`)
+        
+        const noteAdapter: Note = {
+          id: book.id,
+          title: book.title,
+          preview: book.preview,
+          tags: ["PDF", "Biblioteca"],
+          createdAt: book.lastRead || new Date().toISOString(),
+          x: 0, y: 0, z: 1, clusterId: "library"
+        }
+        
+        // 2. Passa a URL real (data.url) para o leitor
+        setReadingBook({ note: noteAdapter, url: data.url })
+        
+        toast.dismiss("open-book")
+
+    } catch (error) {
+        console.error("Erro ao abrir livro:", error)
+        toast.dismiss("open-book")
+        toast.error("Não foi possível carregar o arquivo.")
     }
-    // Usamos o sample.pdf por enquanto para garantir que abra, 
-    // mas o título e ID são do documento real do banco.
-    setReadingBook({ note: noteAdapter, url: "/sample.pdf" })
   }
 
   if (readingBook) {

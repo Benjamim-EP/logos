@@ -1,4 +1,3 @@
-
 package com.ai.organizer.library.domain;
 
 import jakarta.persistence.*;
@@ -31,6 +30,11 @@ public class Document {
     @Column(nullable = false)
     private String userId;
 
+    // --- NOVO CAMPO: Caminho no Google Cloud Storage ---
+    // Ex: "uploads/abc123/livro.pdf"
+    @Column(name = "storage_path")
+    private String storagePath; 
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -41,9 +45,11 @@ public class Document {
         }
     }
 
-    public Document(String title, String fileHash, String userId) {
+    // --- CONSTRUTOR ATUALIZADO (4 Argumentos) ---
+    public Document(String title, String fileHash, String userId, String storagePath) {
         this.title = title;
         this.fileHash = fileHash;
         this.userId = userId;
+        this.storagePath = storagePath;
     }
 }
