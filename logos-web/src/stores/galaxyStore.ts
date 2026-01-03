@@ -1,34 +1,52 @@
 // #logos-web/src/stores/galaxyStore.ts
+
 import { create } from 'zustand'
 import type { Cluster, Note, SubCluster } from '@/types/galaxy'
 import api from "@/lib/api"
-import { toast } from "sonner" // Importante para feedback visual
+import { toast } from "sonner"
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
 
+
+interface PhysicsLink {
+  galaxyId: string
+  highlightId: string
+  score: number
+}
+
 interface GalaxyState {
+  // Dados do Universo
   allNotes: Note[]
   clusters: Cluster[]
-  subClusters: SubCluster[]
+  subClusters: SubCluster[] // Mantido para compatibilidade futura (sistemas solares)
   
+  // Estados de UI
   isLoading: boolean
-  isGravityLoading: boolean // Novo estado para loading específico da gravidade
+  isGravityLoading: boolean // Indica que estamos criando uma galáxia/calculando gravidade
   focusNode: Note | null
   viewMode: ViewMode
   
+  // Filtros e Configurações
   activeClusterIds: string[]
   sortOrder: SortOrder
   maxVisibleNotes: number
 
-  // Actions
-  initializeGalaxy: (count?: number) => Promise<void>
-  applyGravity: (term: string) => Promise<void> // <--- A Mágica
+  // --- ACTIONS ---
+  
+  // Carrega Estrelas E Galáxias do Banco
+  initializeUniverse: () => Promise<void>
+  
+  // Cria uma nova Galáxia Persistente
+  createGalaxy: (name: string, x: number, y: number) => Promise<void>
+  
+  // Navegação e Visualização
   setFocusNode: (note: Note | null) => void
   setViewMode: (mode: ViewMode) => void
   toggleCluster: (clusterId: string) => void
   setSortOrder: (order: SortOrder) => void
   
+  // Seletor de Dados Visíveis
   getVisibleData: () => { 
     visibleNotes: Note[], 
     visibleClusters: Cluster[],
@@ -50,151 +68,185 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   maxVisibleNotes: 400,
 
   /**
-   * FASE 2: Inicialização com Dados Reais (Modo Caos)
+   * INICIALIZAÇÃO DO UNIVERSO (Estrelas + Galáxias Persistidas)
+   * Substitui o antigo initializeGalaxy.
    */
-  initializeGalaxy: async () => {
+  initializeUniverse: async () => {
     if (get().allNotes.length > 0 || get().isLoading) return;
 
     set({ isLoading: true })
     
     try {
-        console.log("🌌 Conectando ao Núcleo da Biblioteca...")
-        const { data: stars } = await api.get('/galaxy/stars')
+        console.log("🌌 Carregando Matriz Gravitacional...")
         
-        console.log(`📡 Telemetria recebida: ${stars.length} objetos estelares.`)
+        // 1. Busca Estrelas (Dados Brutos) e Estado (Galáxias + Links)
+        const [starsRes, stateRes] = await Promise.all([
+            api.get('/galaxy/stars'),
+            api.get('/galaxy/management/state') // Novo endpoint
+        ])
+        
+        const stars = starsRes.data
+        const { galaxies, links } = stateRes.data // DTO do Java
 
-        if (!stars || stars.length === 0) {
-            set({ isLoading: false, allNotes: [] })
-            return
-        }
+        console.log(`📡 Telemetria: ${stars.length} estrelas, ${galaxies.length} galáxias, ${links.length} conexões.`)
 
+        // 2. Mapeia Galáxias
+        const clusters: Cluster[] = galaxies.map((g: any) => ({
+            id: String(g.id),
+            label: g.name,
+            color: g.color,
+            x: g.x,
+            y: g.y,
+            isActive: g.isActive
+        }))
+
+        // 3. MAPA DE VETORES (Indexação para performance O(1))
+        // Cria um mapa: highlightId -> lista de links
+        const linkMap = new Map<string, PhysicsLink[]>()
+        links.forEach((l: any) => {
+            if (!linkMap.has(l.highlightId)) {
+                linkMap.set(l.highlightId, [])
+            }
+            linkMap.get(l.highlightId)?.push(l)
+        })
+
+        // 4. CALCULA A POSIÇÃO DAS ESTRELAS (MOTOR FÍSICO)
         const notes: Note[] = stars.map((star: any) => {
-             // Distribuição Esférica Inicial (Caos)
-             const theta = Math.random() * 2 * Math.PI;
-             const phi = Math.acos(2 * Math.random() - 1);
-             const radius = 1000 + Math.random() * 2000;
+             const starId = String(star.id)
+             const myLinks = linkMap.get(starId)
+
+             // Posição Padrão (Caos)
+             const chaosTheta = Math.random() * 2 * Math.PI;
+             const chaosR = 1500 + Math.random() * 1000;
+             let x = chaosR * Math.cos(chaosTheta);
+             let y = chaosR * Math.sin(chaosTheta);
+             let tags = [star.type];
+             let clusterId = "chaos";
+
+             // SE TIVER LINKS: Aplica a Soma Vetorial (Cabo de Guerra)
+             if (myLinks && myLinks.length > 0) {
+                 let vectorX = 0;
+                 let vectorY = 0;
+                 let totalScore = 0;
+                 const activeTags: string[] = [];
+
+                 myLinks.forEach(link => {
+                     const galaxy = clusters.find(c => c.id === link.galaxyId)
+                     if (galaxy) {
+                         // Soma Vetorial Ponderada
+                         vectorX += galaxy.x * link.score;
+                         vectorY += galaxy.y * link.score;
+                         totalScore += link.score;
+                         activeTags.push(galaxy.label);
+                     }
+                 })
+
+                 if (totalScore > 0) {
+                     // Calcula o Baricentro (Centro de Massa)
+                     const centerX = vectorX / totalScore;
+                     const centerY = vectorY / totalScore;
+
+                     // Aplica Dispersão (Para não ficarem todas empilhadas no ponto exato)
+                     // Quanto maior o score total, menor a dispersão (mais "firme" a atração)
+                     const dispersion = 300 * (1 / Math.max(totalScore, 0.5)); 
+                     const angle = Math.random() * 2 * Math.PI;
+
+                     x = centerX + (Math.cos(angle) * dispersion);
+                     y = centerY + (Math.sin(angle) * dispersion);
+                     
+                     tags = [...new Set([...tags, ...activeTags])];
+                     clusterId = "organized"; // Marca como organizada
+                 }
+             }
 
              return {
-                id: star.id,
-                title: star.documentTitle || "Documento Sem Nome",
-                preview: star.content || "Sem conteúdo...",
-                tags: [star.type === 'IMAGE' ? 'Visual' : 'Texto'],
+                id: starId,
+                title: star.documentTitle || "Documento",
+                preview: star.content || "",
+                tags: tags,
                 createdAt: star.createdAt,
-                
-                // Posição Inicial
-                x: radius * Math.sin(phi) * Math.cos(theta),
-                y: radius * Math.sin(phi) * Math.sin(theta),
+                x: x,
+                y: y,
                 z: Math.random() * 2 + 0.5,
-                
-                clusterId: "chaos",
+                clusterId: clusterId,
                 documentId: star.documentId
              }
         })
 
         set({ 
             allNotes: notes, 
-            clusters: [],
+            clusters: clusters,
             subClusters: [],
-            activeClusterIds: ["chaos"],
+            activeClusterIds: [...clusters.map(c => c.id), "chaos"],
             isLoading: false 
         })
 
     } catch (error) {
-        console.error("❌ Falha crítica nos sensores:", error)
+        console.error("❌ Erro ao calcular física do universo:", error)
         set({ isLoading: false })
     }
   },
 
+  
+
   /**
-   * FASE 3: Motor de Gravidade Semântica
-   * O usuário cria um "Centro de Gravidade" (ex: "Java") e a IA puxa as notas relacionadas.
+   * CRIAÇÃO DE GALÁXIA PERSISTENTE
+   * Envia para o Backend, que salva, vetoriza e cria links.
    */
-  applyGravity: async (term: string) => {
-    if (!term.trim()) return
+  createGalaxy: async (name: string, x: number, y: number) => {
+    if (!name.trim()) return
 
     set({ isGravityLoading: true })
 
     try {
-        // 1. Consulta o Oráculo (AI Processor)
-        console.log(`🧲 Gerando poço gravitacional para: "${term}"`)
-        const { data } = await api.post('/ai/galaxy/gravity', term, {
-            headers: { 'Content-Type': 'text/plain' }
+        console.log(`💾 Solicitando nova galáxia: "${name}" em (${x.toFixed(0)}, ${y.toFixed(0)})`)
+        
+        // 1. Chama o Backend (GalaxyManagementController)
+        const { data: newGalaxy } = await api.post('/galaxy/management', {
+            name,
+            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), // Cor gerada no front (ou deixe o back decidir)
+            x,
+            y
         })
         
-        // Array de { highlightId, score }
-        const matches = data.matches as { highlightId: string, score: number }[]
+        toast.success(`Galáxia "${newGalaxy.name}" criada!`, {
+            description: "A IA está calculando as atrações gravitacionais e salvando no banco."
+        })
+
+        // 2. Atualiza UI Imediatamente (Optimistic Update)
+        // Adicionamos a galáxia visualmente para o usuário não esperar o refresh
+        const cluster: Cluster = {
+            id: String(newGalaxy.id),
+            label: newGalaxy.name,
+            color: newGalaxy.color,
+            x: newGalaxy.x,
+            y: newGalaxy.y,
+            isActive: true
+        }
+
+        set(state => ({
+            clusters: [...state.clusters, cluster],
+            activeClusterIds: [...state.activeClusterIds, cluster.id],
+            isGravityLoading: false
+        }))
         
-        if (matches.length === 0) {
-            toast.info(`Nenhuma conexão encontrada para "${term}".`, {
-                description: "Tente um termo mais genérico ou verifique seus documentos."
-            })
-            set({ isGravityLoading: false })
-            return
+        // OBS: As estrelas só serão puxadas após implementarmos o endpoint de "Universe State Refresh" 
+        // ou recarregarmos a página, pois precisamos dos Links criados pelo backend.
+
+    } catch (e: any) {
+        console.error("Erro ao criar galáxia", e)
+        const msg = e.response?.data?.message || e.message || "Erro desconhecido"
+        
+        // Tratamento específico para duplicidade
+        if (msg.includes("já possui")) {
+            toast.warning("Galáxia Duplicada", { description: msg })
+        } else {
+            toast.error("Falha ao criar galáxia", { description: msg })
         }
-
-        toast.success(`Gravidade aplicada: "${term}"`, {
-            description: `${matches.length} notas foram atraídas.`
-        })
-
-        // 2. Define o novo Centro de Gravidade no Espaço
-        // Escolhemos uma posição aleatória longe do centro (0,0) para criar aglomerados distintos
-        const centerOffset = { 
-            x: (Math.random() - 0.5) * 3000, 
-            y: (Math.random() - 0.5) * 3000 
-        } 
-
-        // 3. Cria um novo Cluster visual (Galáxia Nomeada)
-        const newCluster: Cluster = {
-            id: `cluster-${term}-${Date.now()}`,
-            label: term,
-            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), // Cor aleatória
-            x: centerOffset.x,
-            y: centerOffset.y
-        }
-
-        // 4. Aplica a Física nas Estrelas
-        set(state => {
-            const newNotes = state.allNotes.map(note => {
-                const match = matches.find(m => m.highlightId === note.id)
-                
-                if (match) {
-                    // FÍSICA DE ATRAÇÃO
-                    // Score 1.0 (Muito igual) -> Distância 0 (Colado no centro)
-                    // Score 0.6 (Pouco igual) -> Distância 800 (Orbita longe)
-                    const attractionStrength = Math.pow(match.score, 3) // Exponencial para separar bem o joio do trigo
-                    const distance = (1 - attractionStrength) * 1200 
-                    
-                    // Adiciona dispersão angular para formar uma nuvem (Cluster), não uma linha
-                    const angle = Math.random() * 2 * Math.PI
-                    const dispersion = Math.random() * 200 // Jitter aleatório
-                    
-                    return {
-                        ...note,
-                        // Move a estrela para a nova galáxia
-                        x: centerOffset.x + (Math.cos(angle) * (distance + dispersion)),
-                        y: centerOffset.y + (Math.sin(angle) * (distance + dispersion)),
-                        // Adiciona o termo às tags para referência futura
-                        tags: [...new Set([...note.tags, term])],
-                        clusterId: newCluster.id // Associa ao novo cluster
-                    }
-                }
-                // Se não deu match, a nota fica onde estava (ou no Caos)
-                return note 
-            })
-            
-            return { 
-                allNotes: newNotes,
-                clusters: [...state.clusters, newCluster], // Adiciona o label visual no mapa
-                activeClusterIds: [...state.activeClusterIds, newCluster.id],
-                isGravityLoading: false
-            }
-        })
-
-    } catch (e) {
-        console.error("Erro ao aplicar gravidade", e)
-        toast.error("Falha no Motor de Gravidade", { description: "O AI Processor não respondeu." })
+        
         set({ isGravityLoading: false })
     }
+    get().initializeUniverse() 
   },
 
   setFocusNode: (note) => set({ focusNode: note }),
@@ -213,15 +265,16 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   getVisibleData: () => {
     const state = get()
     
-    // Mostra tudo por padrão se não tiver filtro explícito
-    // Na fase 3, você pode querer filtrar: "Só mostrar estrelas do cluster Java"
-    // Por enquanto, mostra tudo para ver o movimento acontecer.
+    // Fallback simples: se não houver cluster ativo, mostra tudo
+    const effectiveClusterIds = state.activeClusterIds.length > 0
+      ? state.activeClusterIds
+      : ["chaos", ...state.clusters.map(c => c.id)]
+
+    // Na fase de persistência, mostramos todas as notas
+    // A filtragem visual acontecerá quando implementarmos a física de atração baseada em Links
     let filteredNotes = state.allNotes
 
-    // Se tiver clusters ativos específicos (exclui chaos), filtra
-    // (Lógica opcional para o futuro)
-    
-    // Ordenação Z-Index (Render Order)
+    // Ordenação (Z-Index)
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()

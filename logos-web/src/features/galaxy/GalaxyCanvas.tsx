@@ -17,7 +17,7 @@ import { GalaxyCreator } from "./components/GalaxyCreator"
 export function GalaxyCanvas() {
   const { 
     getVisibleData,
-    initializeGalaxy, 
+    initializeUniverse, 
     isLoading, 
     focusNode, 
     allNotes 
@@ -31,9 +31,9 @@ export function GalaxyCanvas() {
     console.log("🌌 GalaxyCanvas montado. Notas:", allNotes.length)
     if (allNotes.length === 0) {
       console.log("⚡ Inicializando dados...")
-      initializeGalaxy(1500)
+      initializeUniverse()
     }
-  }, [allNotes.length]) // Adicionada dependência para garantir re-check
+  }, []) // Adicionada dependência para garantir re-check
 
   return (
     // Usa h-full para preencher o <main> do layout
@@ -44,7 +44,7 @@ export function GalaxyCanvas() {
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 pointer-events-none">
           <div className="pointer-events-auto text-center space-y-4">
              <p className="text-gray-500">Universo não carregado ou filtros muito restritivos.</p>
-             <Button onClick={() => initializeGalaxy(1500)} variant="outline">
+             <Button onClick={() => initializeUniverse()} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4" /> Gerar Universo
              </Button>
           </div>

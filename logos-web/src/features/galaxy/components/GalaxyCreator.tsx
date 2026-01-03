@@ -8,7 +8,7 @@ import { useGalaxyStore } from "@/stores/galaxyStore"
 import { motion, AnimatePresence } from "framer-motion"
 
 export function GalaxyCreator() {
-  const { applyGravity, isGravityLoading } = useGalaxyStore()
+  const { createGalaxy, isGravityLoading } = useGalaxyStore()
   const [term, setTerm] = useState("")
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -16,14 +16,22 @@ export function GalaxyCreator() {
     e.preventDefault()
     if (!term.trim()) return
 
-    await applyGravity(term)
-    setTerm("") // Limpa após criar
-    // Mantém expandido para criar mais se quiser
+    // Define uma posição inicial para a nova galáxia.
+    // Usamos um offset aleatório para que elas não nasçam todas empilhadas no centro (0,0).
+    // O usuário poderá arrastar depois (futura feature de Drag & Drop).
+    const randomX = (Math.random() - 0.5) * 1500;
+    const randomY = (Math.random() - 0.5) * 1500;
+
+    await createGalaxy(term, randomX, randomY)
+    
+    setTerm("") // Limpa o input
+    // Mantemos expandido para facilitar criar várias em sequência (Flow State)
   }
 
   return (
     <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
       
+      {/* INPUT FLUTUANTE EXPANSÍVEL */}
       <AnimatePresence>
         {isExpanded && (
           <motion.form
@@ -41,15 +49,16 @@ export function GalaxyCreator() {
                 autoFocus
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Ex: Arquitetura, Java, Deus..."
-                className="bg-transparent border-0 focus-visible:ring-0 text-white w-64 placeholder:text-gray-500"
+                placeholder="Nome da Galáxia (ex: Java, História)"
+                className="bg-transparent border-0 focus-visible:ring-0 text-white w-64 placeholder:text-gray-500 focus:placeholder:text-gray-700 transition-colors"
+                disabled={isGravityLoading}
             />
             
             <Button 
                 type="submit" 
                 size="icon" 
                 disabled={isGravityLoading || !term.trim()}
-                className="rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+                className="rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg transition-transform active:scale-95"
             >
                 {isGravityLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -61,6 +70,7 @@ export function GalaxyCreator() {
         )}
       </AnimatePresence>
 
+      {/* BOTÃO PRINCIPAL (GATILHO) */}
       {!isExpanded && (
           <Button
             onClick={() => setIsExpanded(true)}
@@ -72,12 +82,14 @@ export function GalaxyCreator() {
           </Button>
       )}
       
+      {/* BOTÃO FECHAR */}
       {isExpanded && (
         <button 
+            type="button"
             onClick={() => setIsExpanded(false)}
-            className="text-xs text-gray-500 hover:text-white mt-2 underline"
+            className="text-[10px] text-gray-500 hover:text-white mt-2 uppercase tracking-widest hover:underline transition-all"
         >
-            Fechar criador
+            Fechar painel
         </button>
       )}
     </div>
