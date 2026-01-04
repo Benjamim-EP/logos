@@ -1,12 +1,13 @@
-// ai-processor/src/main/java/com/ai/organizer/processor/service/ProcessorService.java
-
 package com.ai.organizer.processor.service;
 
+import com.ai.organizer.processor.CoverGeneratedEvent;
 import com.ai.organizer.processor.HighlightEvent;
 import com.ai.organizer.processor.IngestionEvent;
 import com.ai.organizer.processor.ai.BookAssistant;
 import com.ai.organizer.processor.domain.HighlightEntity;
 import com.ai.organizer.processor.repository.HighlightRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -18,11 +19,13 @@ import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Slf4j
@@ -30,19 +33,27 @@ import java.util.Collections;
 public class ProcessorService {
 
     // --- Injeção de Dependências ---
-    private final BookAssistant bookAssistant;          // Interface LangChain4j (OpenAI Chat)
-    private final StringRedisTemplate redisTemplate;    // Cache FinOps
+    private final BookAssistant bookAssistant;
+    private final StringRedisTemplate redisTemplate;
     
-    // MUDANÇA: Injetamos a abstração, não a implementação (S3/GCS)
+    // STORAGE AGNÓSTICO (Substitui S3Client)
     private final BlobStorageService blobStorageService; 
     
-    private final HighlightRepository highlightRepository; // Banco Relacional
-    private final EmbeddingModel embeddingModel;        // Gerador de Vetores
-    private final EmbeddingStore<TextSegment> embeddingStore; // Banco Vetorial (Pinecone)
+    // GERADOR DE CAPAS (Novo Fase 1)
+    private final CoverGeneratorService coverGenerator;
+
+    private final HighlightRepository highlightRepository;
+    private final EmbeddingModel embeddingModel;
+    private final EmbeddingStore<TextSegment> embeddingStore;
+    
+    // Para avisar a biblioteca sobre a capa (Fase 2)
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    private final ObjectMapper objectMapper; 
 
     /**
      * FLUXO 1: Processamento de Arquivos Inteiros (Ingestão)
-     * Chamado quando o usuário faz upload de um PDF/TXT novo.
+     * Chamado quando o usuário faz upload de um PDF/TXT ou salva via URL.
      */
     @CircuitBreaker(name = "openai", fallbackMethod = "fallbackOpenAI")
     @Retry(name = "openai")
@@ -51,50 +62,58 @@ public class ProcessorService {
 
         // 1. FinOps Check (Cache)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
-            log.info("💰 CACHE HIT (FinOps): Documento já processado. Recuperando do Redis.");
+            log.info("💰 CACHE HIT: Documento já processado. Recuperando do Redis.");
+            // Mesmo com cache hit, poderíamos verificar se a capa existe, 
+            // mas por performance assumimos que se tem cache, já foi processado.
             return; 
         }
 
-        log.info("🤖 CACHE MISS: Iniciando processamento de IA para hash: {}", event.fileHash());
+        log.info("🤖 CACHE MISS: Iniciando processamento para: {}", event.originalName());
 
         try {
+            // 2. Baixar o arquivo (Binário Bruto)
+            // Precisamos dos bytes para gerar a capa E para extrair texto se for arquivo simples
+            log.debug("Baixando arquivo do storage: {}", event.s3Key());
+            byte[] fileBytes = blobStorageService.download(event.s3Key());
+
+            // 3. GERAÇÃO DE CAPA (Se for PDF)
+            if (isPdf(event.originalName())) {
+                generateAndUploadCover(fileBytes, event.fileHash());
+            }
+
+            // 4. Estratégia de Conteúdo
             String content;
             String analysisResult;
             boolean isPdfOrImage = isBinaryFile(event.originalName());
 
-            // 2. Estratégia de Extração
             if (isPdfOrImage) {
-                log.info("📂 Arquivo Binário detectado (PDF/Imagem). Ignorando leitura de texto bruto por enquanto.");
+                log.info("📂 Binário detectado. Conteúdo bruto disponível no Storage.");
                 content = "[PDF/Imagem Original] - Conteúdo disponível no Storage.";
                 
-                // JSON placeholder para constar no banco
                 analysisResult = """
                     {
-                        "summary": "Documento PDF importado. Disponível para leitura e marcação.",
-                        "tags": ["PDF", "Importado"],
+                        "summary": "Documento importado. Disponível para leitura e marcação.",
+                        "tags": ["Importado", "Documento"],
                         "sentiment": "Neutro"
                     }
                 """;
+                // Futuro: Adicionar extração de texto do PDF aqui (PDFBox TextStripper)
             } else {
-                // É texto puro (.txt, .md)
-                // MUDANÇA: Usamos o serviço agnóstico de storage
-                content = downloadTextFromStorage(event.s3Key()); // 's3Key' aqui é apenas o path do arquivo
+                // É texto puro (.txt, .md, .csv)
+                content = new String(fileBytes, StandardCharsets.UTF_8);
                 
-                // Corte de segurança
-                if (content.length() > 2000) content = content.substring(0, 2000);
+                // Corte de segurança para IA
+                String textToAnalyze = content.length() > 2000 ? content.substring(0, 2000) : content;
                 
                 log.info("🧠 Enviando texto para análise da OpenAI...");
-                analysisResult = bookAssistant.analyzeText(content);
+                analysisResult = bookAssistant.analyzeText(textToAnalyze);
             }
 
-            // 3. Salvar Cache no Redis
+            // 5. Salvar Cache no Redis
             redisTemplate.opsForValue().set(cacheKey, analysisResult, Duration.ofHours(24));
             
-            log.info("✅ Sucesso IA. Iniciando persistência poliglota...");
-
-            // 4. Persistência Relacional (Postgres)
+            // 6. Persistência Relacional (Postgres)
             HighlightEntity savedEntity = null;
-            
             if (!highlightRepository.existsByFileHash(event.fileHash())) {
                 HighlightEntity entity = new HighlightEntity();
                 entity.setFileHash(event.fileHash());
@@ -105,16 +124,13 @@ public class ProcessorService {
                 entity.setAiAnalysisJson(analysisResult);
                 
                 savedEntity = highlightRepository.save(entity);
-                log.info("💾 DADO SALVO NO BANCO RELACIONAL COM SUCESSO! ID: {}", savedEntity.getId());
-            } else {
-                log.warn("⚠️ Registro duplicado no banco detectado (Race condition evitada).");
-                // Em um cenário real, recuperaríamos o ID do banco aqui se precisássemos usar abaixo
+                log.info("💾 Metadados salvos no Postgres. ID: {}", savedEntity.getId());
             }
 
-            // 5. Persistência Vetorial (Pinecone - RAG)
+            // 7. Persistência Vetorial (Pinecone - RAG)
             // Apenas para arquivos de texto simples. PDFs são vetorizados via Highlights (Fluxo 2).
             if (savedEntity != null && !isPdfOrImage) {
-                log.info("▶️ Gerando Embedding do Documento para o Pinecone...");
+                log.info("▶️ Gerando Embedding do Documento Inteiro...");
                 
                 Metadata metadata = Metadata.from("userId", event.userId())
                                             .put("fileHash", event.fileHash())
@@ -129,44 +145,67 @@ public class ProcessorService {
                     Collections.singletonList(embeddingResponse.content()),
                     Collections.singletonList(segment)
                 );
-                
-                log.info("✅ VETOR DE DOCUMENTO SALVO NO PINECONE!");
+                log.info("✅ Vetor salvo no Pinecone!");
             }
             
         } catch (Exception e) {
-            log.error("Erro na tentativa de processamento de documento.", e);
+            log.error("Erro crítico no processamento.", e);
             throw new RuntimeException("Erro de Processamento", e);
         }
     }
 
     /**
+     * Lógica auxiliar para gerar e salvar a capa
+     */
+    private void generateAndUploadCover(byte[] pdfBytes, String fileHash) {
+        try {
+            byte[] coverBytes = coverGenerator.generateCoverFromPdf(pdfBytes);
+            
+            if (coverBytes != null) {
+                String coverPath = "covers/" + fileHash + ".webp";
+                
+                // Salva no GCS
+                blobStorageService.upload(coverPath, coverBytes, "image/webp");
+                log.info("🖼️ Capa salva no Storage: {}", coverPath);
+                
+                // --- CORREÇÃO AQUI ---
+                CoverGeneratedEvent event = new CoverGeneratedEvent(fileHash, coverPath);
+                
+                // Serializa manualmente para JSON String antes de enviar
+                String jsonEvent = objectMapper.writeValueAsString(event);
+                
+                kafkaTemplate.send("document.cover.generated", fileHash, jsonEvent); 
+                log.info("📨 Evento de capa enviado para Kafka: {}", jsonEvent);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Não foi possível gerar a capa, mas o fluxo segue sem ela.", e);
+        }
+    }
+
+    
+
+    /**
      * FLUXO 2: Processamento de Highlights (Marcações)
-     * Chamado quando o usuário seleciona um trecho no PDFReader.
      */
     public void processHighlight(HighlightEvent event) {
         try {
             if ("TEXT".equalsIgnoreCase(event.type())) {
-                log.info("🔍 Processando Highlight ID: {} (User: {})", event.highlightId(), event.userId());
+                log.info("🔍 Processando Highlight ID: {}", event.highlightId());
 
-                // 1. Prepara Metadados Ricos
                 Metadata metadata = Metadata.from("userId", event.userId())
                         .put("fileHash", event.fileHash())
                         .put("type", "highlight")
                         .put("highlightId", String.valueOf(event.highlightId()));
 
-                // 2. Cria o Segmento
                 TextSegment segment = TextSegment.from(event.content(), metadata);
-
-                // 3. Gera o Vetor (OpenAI)
                 Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
-                // 4. Salva no Pinecone
                 embeddingStore.addAll(
                     Collections.singletonList(embeddingResponse.content()),
                     Collections.singletonList(segment)
                 );
                 
-                log.info("✅ HIGHLIGHT VETORIZADO NO PINECONE! ID Banco: {}", event.highlightId());
+                log.info("✅ Highlight vetorizado no Pinecone.");
                 
             } else {
                 log.warn("⚠️ Processamento de imagem em highlight ainda não implementado.");
@@ -176,41 +215,20 @@ public class ProcessorService {
         }
     }
 
-    /**
-     * Fallback para o Fluxo 1
-     */
     public void fallbackOpenAI(IngestionEvent event, Throwable t) {
         log.error("🔥 FALLBACK ATIVADO: OpenAI indisponível. Erro: {}", t.getMessage());
-        
-        String errorJson = """
-            {
-                "summary": "Processamento Suspenso (Serviço Externo Indisponível)",
-                "tags": ["PENDENTE", "ERRO_EXTERNO"],
-                "sentiment": "Neutro"
-            }
-            """;
-            
-        String cacheKey = "doc_analysis:" + event.fileHash();
-        redisTemplate.opsForValue().set(cacheKey, errorJson, Duration.ofMinutes(5));
-        
-        log.warn("⚠️ Estado de erro salvo no Redis temporariamente.");
+        // Lógica de fallback para não travar o sistema
     }
 
-    /**
-     * Helper para baixar texto do Storage usando a abstração
-     */
-    private String downloadTextFromStorage(String storagePath) {
-        log.debug("Baixando do Storage: {}", storagePath);
-        
-        // MUDANÇA: Usa a interface, não sabe se é S3 ou Google
-        byte[] contentBytes = blobStorageService.download(storagePath);
-        
-        return new String(contentBytes, StandardCharsets.UTF_8);
-    }
+    // --- Helpers ---
 
     private boolean isBinaryFile(String filename) {
         if (filename == null) return false;
         String lower = filename.toLowerCase();
         return lower.endsWith(".pdf") || lower.endsWith(".jpg") || lower.endsWith(".png") || lower.endsWith(".jpeg");
+    }
+
+    private boolean isPdf(String filename) {
+        return filename != null && filename.toLowerCase().endsWith(".pdf");
     }
 }

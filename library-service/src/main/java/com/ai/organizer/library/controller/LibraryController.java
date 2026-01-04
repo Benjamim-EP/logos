@@ -33,21 +33,24 @@ public class LibraryController {
     @GetMapping("/books")
     public List<Map<String, Object>> getMyBooks(@AuthenticationPrincipal Jwt jwt) {
         String userId = extractUserId(jwt);
-
-        log.info("📚 Buscando estante para o usuário: {}", userId);
-        
-        // 1. Busca os documentos cadastrados
         List<Document> docs = documentRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
-        // 2. Mapeia para o DTO simples esperado pelo Frontend
-        return docs.stream().map(doc -> Map.<String, Object>of(
-            "id", doc.getFileHash(),
-            "title", doc.getTitle(),
-            // Exibe data amigável no preview
-            "preview", "Importado em " + (doc.getCreatedAt() != null ? doc.getCreatedAt().toLocalDate() : "N/A"),
-            "highlightsCount", 0, // Poderíamos fazer um count() no repo de highlights aqui
-            "lastRead", doc.getCreatedAt() != null ? doc.getCreatedAt() : java.time.LocalDateTime.now()
-        )).collect(Collectors.toList());
+        return docs.stream().map(doc -> {
+            String coverUrl = null;
+            // Gera URL assinada on-the-fly (rápido, operação local de crypto)
+            if (doc.getCoverPath() != null) {
+                coverUrl = blobStorageService.getSignedUrl(doc.getCoverPath(), 60).toString();
+            }
+
+            return Map.<String, Object>of(
+                "id", doc.getFileHash(),
+                "title", doc.getTitle(),
+                "preview", "Importado em " + (doc.getCreatedAt() != null ? doc.getCreatedAt().toLocalDate() : "N/A"),
+                "coverUrl", coverUrl != null ? coverUrl : "", // <--- CAMPO NOVO
+                "highlightsCount", 0,
+                "lastRead", doc.getCreatedAt() != null ? doc.getCreatedAt() : java.time.LocalDateTime.now()
+            );
+        }).collect(Collectors.toList());
     }
 
     /**
@@ -109,5 +112,23 @@ public class LibraryController {
     private String extractUserId(Jwt jwt) {
         String claim = jwt.getClaimAsString("preferred_username");
         return claim != null ? claim : jwt.getSubject();
+    }
+
+    @GetMapping("/books/{fileHash}/cover")
+    public Map<String, String> getBookCoverUrl(@PathVariable String fileHash) {
+        
+        // 1. Busca documento
+        Document doc = documentRepository.findByFileHash(fileHash)
+                .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
+
+        // 2. Se não tiver capa, retorna null (Frontend usa placeholder)
+        if (doc.getCoverPath() == null) {
+            return Map.of("url", ""); 
+        }
+
+        // 3. Gera URL assinada (60 min)
+        URL signedUrl = blobStorageService.getSignedUrl(doc.getCoverPath(), 60);
+        
+        return Map.of("url", signedUrl.toString());
     }
 }

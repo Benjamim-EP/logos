@@ -45,6 +45,9 @@ public class Document {
         }
     }
 
+    @Column(name = "cover_path")
+    private String coverPath; // Novo campo!
+
     // --- CONSTRUTOR ATUALIZADO (4 Argumentos) ---
     public Document(String title, String fileHash, String userId, String storagePath) {
         this.title = title;

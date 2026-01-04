@@ -23,6 +23,7 @@ spring:
   kafka:
     # Coloque o endereço que você pegou em Cluster Settings
     bootstrap-servers: pkc-921jm.us-east-2.aws.confluent.cloud:9092
+    spring.json.type.mapping: "IngestionEvent:com.ai.organizer.ingestion.IngestionEvent"
     
     properties:
       # Segurança padrão para Confluent Cloud
