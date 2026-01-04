@@ -45,8 +45,13 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
 
   // Ação: Explorar Contexto (Dispara evento para o GalaxyCanvas abrir o PDF)
   const handleExplore = () => {
+    // Passamos a posição junto com o ID
     window.dispatchEvent(new CustomEvent('open-book-reader', { 
-        detail: { documentId: note.documentId, noteId: note.id } 
+        detail: { 
+            documentId: note.documentId, 
+            noteId: note.id,
+            position: note.position // <--- Envia a posição
+        } 
     }))
   }
 

@@ -47,4 +47,10 @@ public class GalaxyManagementController {
         String userId = extractUserId(jwt);
         return galaxyService.getUniverseState(userId);
     }
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteGalaxy(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        String userId = extractUserId(jwt);
+        galaxyService.deleteGalaxy(userId, id);
+    }
 }

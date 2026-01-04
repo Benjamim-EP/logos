@@ -17,3 +17,12 @@ export function getNearestNotes(target: Note, allNotes: Note[] = [], count = 10)
     .sort((a, b) => (a.distance || 0) - (b.distance || 0)) // Ordena
     .slice(0, count) // Pega as Top N
 }
+
+export function seededRandom(seed: string, min: number, max: number) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const normalized = (Math.sin(hash) + 1) / 2; // Normaliza para 0..1
+  return min + normalized * (max - min);
+}

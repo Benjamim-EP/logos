@@ -1,4 +1,3 @@
-
 package com.ai.organizer.processor.web;
 
 import com.ai.organizer.processor.web.dto.GravityResponse;
@@ -26,51 +25,53 @@ public class AiGalaxyController {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
 
-    /**
-     * Calcula a "Gravidade" de um termo para as estrelas do usuário.
-     */
     @PostMapping("/gravity")
     public GravityResponse calculateGravity(
             @RequestBody String term,
-            @RequestHeader(value = "X-User-Id", required = false) String userId // O Gateway pode injetar ou passamos no body
+            @RequestHeader(value = "X-User-Id", required = false) String userId
     ) {
-        log.info("🪐 Calculando gravidade para o termo: '{}'", term);
+        log.info("🪐 [DEBUG] Calculando gravidade para: '{}'", term);
 
-        // 1. Vetoriza o termo de busca (ex: "Arquitetura")
-        Response<Embedding> embeddingResponse = embeddingModel.embed(term);
-        Embedding queryEmbedding = embeddingResponse.content();
+        try {
+            Response<Embedding> embeddingResponse = embeddingModel.embed(term);
+            
+            EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(embeddingResponse.content())
+                    .maxResults(100) 
+                    .minScore(0.6) // Voltamos para um score razoável
+                    .build();
 
-        // 2. Busca no Pinecone (Top 100 mais próximos para performance)
-        // Em produção, filtraríamos por metadata 'userId' aqui para não pegar estrelas de outros
-        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
-                .queryEmbedding(queryEmbedding)
-                .maxResults(100) 
-                .minScore(0.6) // Só traz o que for minimamente relevante
-                .build();
+            EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
 
-        EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
+            // 3. Mapeamento com FILTRAGEM DEFENSIVA (Modern Java in Action - Cap 5: Streams)
+            List<GravityResponse.StarMatch> matches = result.matches().stream()
+                    // FILTRO CRÍTICO: Só aceita se houver conteúdo embutido (evita o NPE)
+                    .filter(m -> m.embedded() != null && m.embedded().metadata() != null)
+                    .map(this::toMatch)
+                    // Só aceita se conseguimos extrair um ID válido do banco
+                    .filter(m -> m.highlightId() != null)
+                    .collect(Collectors.toList());
 
-        // 3. Mapeia para DTO
-        List<GravityResponse.StarMatch> matches = result.matches().stream()
-                .map(this::toMatch)
-                // Filtra para garantir que temos ID (Defesa)
-                .filter(m -> m.highlightId() != null)
-                .collect(Collectors.toList());
+            log.info("🧲 Sucesso. Retornando {} conexões válidas de {} totais do Pinecone.", 
+                     matches.size(), result.matches().size());
+            
+            return new GravityResponse(term, matches);
 
-        log.info("🧲 Encontradas {} estrelas atraídas por '{}'", matches.size(), term);
-        
-        return new GravityResponse(term, matches);
+        } catch (Exception e) {
+            log.error("❌ ERRO NO AI PROCESSOR:", e);
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Erro na IA: " + e.getMessage());
+        }
     }
 
     private GravityResponse.StarMatch toMatch(EmbeddingMatch<TextSegment> match) {
-        // Recupera o ID do banco que salvamos no Metadata na fase de Ingestão
-        String dbId = match.embedded() != null ? match.embedded().metadata().getString("highlightId") : null;
+        // Como o filter anterior já garantiu que não é null, aqui é seguro
+        String id = match.embedded().metadata().getString("highlightId");
         
-        // Fallback: Se não tiver highlightId (pode ser um documento inteiro), tenta dbId genérico
-        if (dbId == null && match.embedded() != null) {
-             dbId = match.embedded().metadata().getString("dbId");
+        if (id == null) {
+            id = match.embedded().metadata().getString("dbId");
         }
-
-        return new GravityResponse.StarMatch(dbId, match.score());
+        
+        return new GravityResponse.StarMatch(id, match.score());
     }
 }

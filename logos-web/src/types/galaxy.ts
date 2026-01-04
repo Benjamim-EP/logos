@@ -32,6 +32,13 @@ export interface Note {
   
   clusterId?: string
   affinities?: Record<string, number>
-  
   documentId?: string 
+  
+  // --- NOVO: Posição Visual do PDF ---
+  // Guardamos como objeto (parseado do JSON do backend)
+  position?: {
+    boundingRect: any
+    rects: any[]
+    pageNumber: number
+  }
 }

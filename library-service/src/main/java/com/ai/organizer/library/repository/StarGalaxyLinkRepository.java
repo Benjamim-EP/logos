@@ -19,4 +19,5 @@ public interface StarGalaxyLinkRepository extends JpaRepository<StarGalaxyLink, 
         WHERE g.userId = :userId AND g.isActive = true
     """)
     List<StarGalaxyLink> findAllActiveLinksByUserId(@Param("userId") String userId);
+    void deleteByGalaxyId(Long galaxyId);
 }

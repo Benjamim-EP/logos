@@ -20,17 +20,19 @@ import {
   List, 
   ChevronRight, 
   Trash2,
-  Sparkles // Icone novo para indicar IA
+  Sparkles 
 } from "lucide-react"
 import { usePdfStore } from "@/stores/pdfStore"
 import type { Note } from "@/types/galaxy"
-import api from "@/lib/api" // <--- Import do nosso cliente HTTP configurado
-import { toast } from "sonner" // <--- Import para notificações
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 import "react-pdf-highlighter/dist/style.css"
 
-/* ================= WORKER CONFIG ================= */
-const pdfVersion = pdfjs.version || "5.4.449"
+/* ================= WORKER CONFIG (CORRIGIDO) ================= */
+// A biblioteca react-pdf-highlighter funciona melhor com a versão 3.x
+// Versões 4+ ou 5+ alteram a camada de texto e quebram a seleção.
+const pdfVersion = "3.11.174" 
 try {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfVersion}/build/pdf.worker.min.js`
 } catch (e) {
@@ -41,6 +43,7 @@ try {
 interface PdfReaderViewProps {
   note: Note
   pdfUrl: string
+  initialPosition?: any
   onClose: () => void
 }
 
@@ -49,10 +52,11 @@ interface Content {
   image?: string
 }
 
-/* ================= TIP COMPONENT ================= */
+/* ================= TIP COMPONENT (CORRIGIDO Z-INDEX) ================= */
 function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (comment: { text: string; emoji: string }) => void }) {
   return (
-    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+    // Z-INDEX AUMENTADO PARA 300 (Para ficar acima do Modal que é 200)
+    <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-[300] animate-in fade-in zoom-in-95 duration-200">
       <Button
         size="sm"
         className="h-8 text-xs bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-0 transition-colors"
@@ -61,7 +65,6 @@ function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (c
         Marcar
       </Button>
       
-      {/* Botão de IA Explícita (Futuro) */}
       <Button 
         size="sm" 
         variant="ghost"
@@ -82,7 +85,7 @@ function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (c
 }
 
 /* ================= MAIN COMPONENT ================= */
-export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
+export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfReaderViewProps) {
   const { getHighlights, addHighlight, removeHighlight } = usePdfStore()
   const [highlights, setHighlights] = useState<IHighlight[]>([])
   
@@ -95,32 +98,36 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
     setHighlights(getHighlights(note.id))
   }, [note.id, getHighlights])
 
-  // --- AQUI ACONTECE A MÁGICA (INTEGRAÇÃO COM BACKEND) ---
+  // --- AUTO SCROLL (Se houver posição inicial) ---
+  useEffect(() => {
+    if (initialPosition && highlighterRef.current) {
+        setTimeout(() => {
+            highlighterRef.current.scrollTo(initialPosition)
+        }, 1000)
+    }
+  }, [initialPosition])
+
   const handleCreateHighlight = async (highlight: IHighlight) => {
-    // 1. Optimistic Update (Salva localmente na hora)
+    // 1. Optimistic Update
     addHighlight(note.id, highlight)
     setHighlights(prev => [...prev, highlight])
 
-    // 2. Envia para o Backend (Library Service -> Kafka -> AI Processor)
+    // 2. Envia para o Backend
     try {
-        // Se for destaque de texto
         if (highlight.content.text) {
             await api.post("/library/highlights", {
-                fileHash: note.id,        // ID do documento
+                fileHash: note.id,
                 content: highlight.content.text,
-                type: "TEXT"
+                type: "TEXT",
+                position: JSON.stringify(highlight.position) // Salva posição para "Explorar Contexto"
             })
             
-            toast.success("Trecho enviado para a Galáxia", {
-                description: "A IA está vetorizando este conhecimento.",
-                duration: 2000
-            })
+            toast.success("Trecho salvo na Galáxia", { duration: 2000 })
         }
-        // Se for imagem (Futuro GPT-4 Vision)
         else if (highlight.content.image) {
              await api.post("/library/highlights", {
                 fileHash: note.id,
-                content: "Image Content", // Em prod, enviaríamos o base64 ou upload
+                content: "Image Content", 
                 type: "IMAGE"
             })
              toast.success("Recorte enviado para análise visual")
@@ -128,9 +135,7 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
 
     } catch (error) {
         console.error("Erro ao salvar highlight:", error)
-        toast.error("Erro de Sincronização", {
-            description: "Salvo localmente, mas falhou ao enviar para a nuvem."
-        })
+        toast.error("Erro de Sincronização")
     }
   }
 
@@ -146,9 +151,10 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
   }
 
   return (
+    // Z-INDEX DO MODAL É 200
     <div className="fixed inset-0 z-[200] bg-zinc-950 flex flex-col">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="h-14 border-b border-white/10 bg-black flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
@@ -180,7 +186,7 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
         </div>
       </div>
 
-      {/* --- BODY --- */}
+      {/* BODY */}
       <div className="flex-1 relative bg-zinc-900 w-full h-full flex overflow-hidden">
         
         {/* PDF CONTAINER */}
@@ -202,7 +208,6 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
                                 <HighlightTip
                                     onOpen={transformSelection}
                                     onConfirm={(comment) => {
-                                        // CHAMA A FUNÇÃO QUE SALVA NO BACKEND
                                         handleCreateHighlight({ 
                                             content, 
                                             position, 
@@ -221,7 +226,7 @@ export function PdfReaderView({ note, pdfUrl, onClose }: PdfReaderViewProps) {
 
                                 return (
                                     <Popup
-                                        popupContent={<div className="text-black text-xs p-2 bg-white rounded shadow border border-gray-200 z-[300]">Note: {highlight.comment?.text || ""}</div>}
+                                        popupContent={<div className="text-black text-xs p-2 bg-white rounded shadow border border-gray-200 z-[300]">{highlight.comment?.text || ""}</div>}
                                         onMouseOver={(popupContent) => setTip(highlight, (highlight) => popupContent)}
                                         onMouseOut={hideTip}
                                         key={index}

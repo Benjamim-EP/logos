@@ -1,3 +1,5 @@
+// library-service/src/main/java/com/ai/organizer/library/domain/UserHighlight.java
+
 package com.ai.organizer.library.domain;
 
 import jakarta.persistence.*;
@@ -5,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "USER_HIGHLIGHTS") // Nome da nova tabela no banco
+@Table(name = "USER_HIGHLIGHTS")
 @Data
 public class UserHighlight {
 
@@ -13,22 +15,22 @@ public class UserHighlight {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Link com o documento original (Não é unique aqui!)
     @Column(name = "FILE_HASH", nullable = false)
     private String fileHash;
 
     @Column(name = "USER_ID", nullable = false)
     private String userId;
     
-    // O texto que o usuário marcou
     @Column(name = "CONTENT", length = 4000)
     private String content;
 
-    // TEXT ou IMAGE
     @Column(name = "TYPE")
     private String type;
 
-    // Status da análise da IA (PENDING, PROCESSED)
+    // --- NOVO CAMPO: Guarda as coordenadas visuais (JSON) ---
+    @Column(name = "POSITION_JSON", columnDefinition = "TEXT")
+    private String positionJson;
+
     @Column(name = "STATUS")
     private String status;
 

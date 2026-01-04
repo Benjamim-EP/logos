@@ -49,7 +49,7 @@ public class GalaxyController {
                 h.getFileHash(),
                 titleMap.getOrDefault(h.getFileHash(), "Documento Desconhecido"),
                 h.getCreatedAt(),
-                h.getType()
+                h.getType(), userId
         )).collect(Collectors.toList());
     }
 

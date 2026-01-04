@@ -1,5 +1,3 @@
-// library-service/src/main/java/com/ai/organizer/library/service/GalaxyService.java
-
 package com.ai.organizer.library.service;
 
 import com.ai.organizer.library.client.AiProcessorClient;
@@ -29,16 +27,18 @@ public class GalaxyService {
     private final UserHighlightRepository highlightRepository;
     private final AiProcessorClient aiClient;
 
+    /**
+     * CRIA GALÁXIA E REORDENA AS ESTRELAS (GRAVIDADE REAL)
+     */
     @Transactional
     public UserGalaxy createGalaxy(String userId, CreateGalaxyRequest request) {
-        log.info("🌌 Criando nova galáxia '{}' para user {}", request.name(), userId);
+        log.info("🌌 Big Bang: Criando galáxia '{}' e aplicando gravidade...", request.name());
 
-        // 1. Validação
         if (galaxyRepository.existsByUserIdAndNameIgnoreCase(userId, request.name())) {
-            throw new IllegalArgumentException("Você já possui uma galáxia com este nome.");
+            throw new IllegalArgumentException("Já existe uma galáxia com este nome.");
         }
 
-        // 2. Persistir o Container (A Galáxia)
+        // 1. Salva a Entidade Galáxia (O Centro de Gravidade)
         UserGalaxy galaxy = new UserGalaxy(
                 request.name(),
                 userId,
@@ -48,29 +48,55 @@ public class GalaxyService {
         );
         galaxy = galaxyRepository.save(galaxy);
 
-        // 3. Consultar a IA (Externo)
+        // 2. Chama a IA para calcular a atração
+        // O AI Processor vai vetorizar o NOME da galáxia e buscar highlights próximos no Pinecone
         AiGravityResponse aiResponse = aiClient.getGravityMatches(request.name());
         
-        // 4. Batch Insert dos Links (Performance)
+        // 3. Cria os Links (A corda que puxa a estrela)
         if (aiResponse != null && !aiResponse.matches().isEmpty()) {
             List<StarGalaxyLink> links = new ArrayList<>();
             
             for (AiGravityResponse.StarMatch match : aiResponse.matches()) {
-                // OTIMIZAÇÃO: getReferenceById cria um Proxy (não vai ao banco buscar a estrela inteira)
-                // Só precisamos do ID para fazer a chave estrangeira na tabela de link.
-                var highlightProxy = highlightRepository.getReferenceById(Long.valueOf(match.highlightId()));
-                
-                links.add(new StarGalaxyLink(galaxy, highlightProxy, match.score()));
+                // Tenta encontrar o highlight no banco
+                // Se o Pinecone tiver IDs velhos que não estão no Postgres, ignoramos (safe)
+                if (highlightRepository.existsById(Long.valueOf(match.highlightId()))) {
+                    var highlightProxy = highlightRepository.getReferenceById(Long.valueOf(match.highlightId()));
+                    links.add(new StarGalaxyLink(galaxy, highlightProxy, match.score()));
+                }
             }
 
-            linkRepository.saveAll(links); // Hibernate faz batch insert aqui
-            log.info("🧲 {} estrelas conectadas à galáxia {}", links.size(), galaxy.getName());
+            linkRepository.saveAll(links);
+            log.info("🧲 Reordenação: {} estrelas foram atraídas pela nova galáxia '{}'", links.size(), galaxy.getName());
         }
 
         return galaxy;
     }
+
+    /**
+     * DELETAR GALÁXIA (SOLTAR AS ESTRELAS)
+     */
+    @Transactional
+    public void deleteGalaxy(String userId, Long galaxyId) {
+        log.info("💥 Supernova: Removendo galáxia ID {}", galaxyId);
+        
+        UserGalaxy galaxy = galaxyRepository.findById(galaxyId)
+                .orElseThrow(() -> new RuntimeException("Galáxia não encontrada"));
+
+        if (!galaxy.getUserId().equals(userId)) {
+            throw new RuntimeException("Acesso negado");
+        }
+
+        // 1. Remove os Links (As estrelas ficam "soltas" e voltam para a posição original/caos)
+        // O Cascade do JPA poderia fazer isso, mas delete explícito é mais seguro aqui
+        linkRepository.deleteByGalaxyId(galaxyId);
+
+        // 2. Remove a Galáxia
+        galaxyRepository.delete(galaxy);
+        
+        log.info("✅ Galáxia removida. As estrelas foram liberadas.");
+    }
     
-    // Método para recuperar o estado completo (Fase 1.2)
+    // ... (Métodos getUserGalaxies e getUniverseState mantidos iguais) ...
     @Transactional(readOnly = true)
     public List<UserGalaxy> getUserGalaxies(String userId) {
         return galaxyRepository.findByUserIdAndIsActiveTrue(userId);
@@ -78,13 +104,9 @@ public class GalaxyService {
 
     @Transactional(readOnly = true)
     public GalaxyStateDTO getUniverseState(String userId) {
-        // 1. Busca as Galáxias
         List<UserGalaxy> galaxies = galaxyRepository.findByUserIdAndIsActiveTrue(userId);
-
-        // 2. Busca os Links (Usando a query otimizada FETCH JOIN que criamos no passo anterior)
         var linksEntity = linkRepository.findAllActiveLinksByUserId(userId);
 
-        // 3. Converte Links para DTO leve
         List<GalaxyStateDTO.LinkDTO> links = linksEntity.stream()
                 .map(link -> new GalaxyStateDTO.LinkDTO(
                         String.valueOf(link.getGalaxy().getId()),
