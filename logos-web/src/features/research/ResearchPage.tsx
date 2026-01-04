@@ -198,10 +198,12 @@ export function ResearchPage() {
                 {/* Ações */}
                 <div className="flex md:flex-col justify-center gap-3 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6 min-w-[150px] relative z-10">
                     <Button 
-                        onClick={() => handleRead(paper)}
+                        // Lógica Nova: Se tem URL, abre nova aba. Se não, desabilita.
+                        onClick={() => paper.pdfUrl && window.open(paper.pdfUrl, '_blank')}
+                        disabled={!paper.pdfUrl}
                         className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20"
                     >
-                        <FileText className="w-4 h-4 mr-2" /> Ler PDF
+                        <FileText className="w-4 h-4 mr-2" /> Ler PDF (Fonte)
                     </Button>
 
                     <Button 

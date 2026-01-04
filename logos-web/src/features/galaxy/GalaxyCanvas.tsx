@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useGalaxyStore } from "@/stores/galaxyStore"
 import { useGalaxyZoom } from "@/features/galaxy/hooks/useGalaxyZoom"
 import { StarNode } from "./components/StarNode"
@@ -9,10 +9,22 @@ import { LibrarySheet } from "@/features/library/LibrarySheet"
 import { NoteReaderModal } from "@/features/library/NoteReaderModal"
 import { ConstellationMode } from "@/features/galaxy/ConstellationMode"
 import { GalaxyControls } from "@/features/galaxy/components/GalaxyControls"
+import { GalaxyCreator } from "./components/GalaxyCreator"
+import { PdfReaderView } from "@/features/reader/PdfReaderView"
+
 import { Button } from "@/components/ui/button"
 import { Loader2, MousePointer2, ZoomIn, RefreshCw } from "lucide-react"
 import { motion } from "framer-motion"
-import { GalaxyCreator } from "./components/GalaxyCreator"
+import api from "@/lib/api"
+import { toast } from "sonner"
+import type { Note } from "@/types/galaxy"
+
+// Interface do estado local para o leitor de PDF
+interface ExplorerState {
+  documentId: string
+  noteId: string
+  url: string
+}
 
 export function GalaxyCanvas() {
   const { 
@@ -26,38 +38,80 @@ export function GalaxyCanvas() {
   const { containerRef, universeRef, zoomLevel, flyTo } = useGalaxyZoom()
   const { visibleNotes, visibleClusters, visibleSubClusters } = getVisibleData()
 
-  // Inicialização Robusta
+  // Estado para controlar o Leitor de PDF aberto via Galáxia
+  const [explorerState, setExplorerState] = useState<ExplorerState | null>(null)
+
+  // 1. Inicialização de Dados
   useEffect(() => {
-    console.log("🌌 GalaxyCanvas montado. Notas:", allNotes.length)
+    // Se não tiver notas carregadas, inicializa.
+    // O check de allNotes.length evita recarregar se o usuário só trocou de rota.
     if (allNotes.length === 0) {
-      console.log("⚡ Inicializando dados...")
       initializeUniverse()
     }
-  }, []) // Adicionada dependência para garantir re-check
+  }, []) 
+
+  // 2. Listener para abrir o PDF (Disparado pelo StarNode)
+  useEffect(() => {
+    const handleOpenRequest = async (e: Event) => {
+        const customEvent = e as CustomEvent;
+        const { documentId, noteId } = customEvent.detail
+
+        if (!documentId) {
+            toast.error("Documento não vinculado a esta nota.")
+            return
+        }
+
+        try {
+            toast.loading("Descriptografando documento...", { id: "galaxy-open" })
+            
+            // Busca a URL assinada no Backend (Segurança)
+            const { data } = await api.get(`/library/books/${documentId}/content`)
+            
+            setExplorerState({
+                documentId,
+                noteId,
+                url: data.url
+            })
+            
+            toast.dismiss("galaxy-open")
+
+        } catch (err) {
+            console.error(err)
+            toast.dismiss("galaxy-open")
+            toast.error("Erro ao abrir documento", { description: "Link expirado ou arquivo não encontrado." })
+        }
+    }
+
+    window.addEventListener('open-book-reader', handleOpenRequest)
+    return () => window.removeEventListener('open-book-reader', handleOpenRequest)
+  }, [])
+
+  // Helper para fechar o leitor
+  const closeExplorer = () => setExplorerState(null)
 
   return (
-    // Usa h-full para preencher o <main> do layout
     <div className="w-full h-full bg-[#050505] overflow-hidden relative selection:bg-purple-500/30">
       
       {/* --- FAILSAFE: Botão se estiver vazio --- */}
       {visibleNotes.length === 0 && !isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 pointer-events-none">
           <div className="pointer-events-auto text-center space-y-4">
-             <p className="text-gray-500">Universo não carregado ou filtros muito restritivos.</p>
-             <Button onClick={() => initializeUniverse()} variant="outline">
+             <p className="text-gray-500 text-sm">Universo vazio ou filtros restritivos.</p>
+             <Button onClick={() => initializeUniverse()} variant="outline" className="border-white/10 text-white hover:bg-white/10">
                 <RefreshCw className="mr-2 h-4 w-4" /> Gerar Universo
              </Button>
           </div>
         </div>
       )}
 
+      {/* --- CAMADA PRINCIPAL --- */}
       <motion.div 
         className="w-full h-full absolute inset-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        {/* HUD */}
+        {/* HUD (Heads Up Display) */}
         <div className="absolute top-6 left-6 z-40 pointer-events-none">
           <div className="bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl space-y-3 pointer-events-auto min-w-[240px]">
             <h1 className="text-white font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
@@ -91,7 +145,7 @@ export function GalaxyCanvas() {
           </div>
         </div>
 
-        {/* CANVAS */}
+        {/* CANVAS D3/ZOOM */}
         <div 
           ref={containerRef} 
           className="w-full h-full cursor-grab active:cursor-grabbing outline-none"
@@ -100,32 +154,63 @@ export function GalaxyCanvas() {
             ref={universeRef} 
             className="absolute top-0 left-0 w-full h-full origin-top-left will-change-transform"
           >
+            {/* Renderização em Camadas (Z-Index implícito pela ordem) */}
+            
+            {/* 1. Galáxias (Fundo) */}
             {visibleClusters.map(cluster => (
               <ClusterNode key={cluster.id} cluster={cluster} zoomLevel={zoomLevel} />
             ))}
 
+            {/* 2. Sistemas Solares (Intermediário) */}
             {visibleSubClusters.map(sub => (
               <SolarSystemNode key={sub.id} subCluster={sub} zoomLevel={zoomLevel} />
             ))}
 
-            {zoomLevel >= 0.3 && visibleNotes.map(note => (
+            {/* 3. Estrelas (Topo - Interativas) */}
+            {/* Renderiza apenas se o zoom permitir (LOD) */}
+            {zoomLevel >= 0.15 && visibleNotes.map(note => (
               <StarNode key={note.id} note={note} zoomLevel={zoomLevel} />
             ))}
           </div>
         </div>
 
-        {/* --- ADICIONE AQUI O COMPONENTE NOVO --- */}
+        {/* COMPONENTES FLUTUANTES */}
         <GalaxyCreator />
-
-        <LibrarySheet allNotes={visibleNotes} clusters={visibleClusters} />
+        <LibrarySheet clusters={visibleClusters} allNotes={allNotes} />
         
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/20 text-xs pointer-events-none select-none">
-          Use scroll para zoom • Arraste para navegar • Duplo clique para Deep Dive
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/20 text-xs pointer-events-none select-none font-mono tracking-wider">
+          SCROLL TO ZOOM • DRAG TO MOVE • CLICK TO INTERACT
         </div>
       </motion.div>
 
+      {/* --- MODAIS E OVERLAYS --- */}
+
+      {/* Modo Constelação (Deep Dive) */}
       {focusNode && <ConstellationMode />}
+      
+      {/* Leitor de Anotação Rápida */}
       <NoteReaderModal />
+
+      {/* LEITOR DE PDF (EXPLORADOR) */}
+      {explorerState && (
+         <div className="fixed inset-0 z-[200] bg-black">
+            <PdfReaderView 
+                // Cria um objeto Note temporário para o leitor funcionar
+                note={{ 
+                    id: explorerState.documentId, // Usa o hash do doc como ID
+                    title: "Explorando Contexto", // Título genérico ou buscar da store
+                    preview: "", 
+                    tags: ["Exploração"], 
+                    createdAt: new Date().toISOString(), 
+                    x:0, y:0, z:0 
+                } as Note}
+                
+                pdfUrl={explorerState.url} // A URL assinada do GCS
+                onClose={closeExplorer}
+            />
+         </div>
+       )}
+
     </div>
   )
 }

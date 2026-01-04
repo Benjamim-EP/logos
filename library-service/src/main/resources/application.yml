@@ -60,3 +60,11 @@ management:
 gcp:
   storage:
     bucket-name: ogos-knowledge-base
+
+routes:
+        # Rota 1: Library Service (Leitura + Perfil)
+        - id: library-service
+          uri: http://localhost:8082
+          predicates:
+            # ADICIONE AQUI: /api/users/**
+            - Path=/api/library/**, /api/galaxy/**, /api/users/**
