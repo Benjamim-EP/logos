@@ -8,14 +8,13 @@ import com.ai.organizer.library.dto.CreateGalaxyRequest;
 import com.ai.organizer.library.dto.GalaxyStateDTO;
 import com.ai.organizer.library.repository.StarGalaxyLinkRepository;
 import com.ai.organizer.library.repository.UserGalaxyRepository;
-import com.ai.organizer.library.repository.UserHighlightRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,79 +23,62 @@ public class GalaxyService {
 
     private final UserGalaxyRepository galaxyRepository;
     private final StarGalaxyLinkRepository linkRepository;
-    private final UserHighlightRepository highlightRepository;
     private final AiProcessorClient aiClient;
+    // Removido kafkaTemplate não utilizado para limpar warnings
 
-    /**
-     * CRIA GALÁXIA E REORDENA AS ESTRELAS (GRAVIDADE REAL)
-     */
     @Transactional
     public UserGalaxy createGalaxy(String userId, CreateGalaxyRequest request) {
-        log.info("🌌 Big Bang: Criando galáxia '{}' e aplicando gravidade...", request.name());
+        log.info("🌌 Criando galáxia semântica: '{}' para o usuário: {}", request.name(), userId);
 
         if (galaxyRepository.existsByUserIdAndNameIgnoreCase(userId, request.name())) {
-            throw new IllegalArgumentException("Já existe uma galáxia com este nome.");
+            throw new IllegalArgumentException("Você já possui uma galáxia com este nome.");
         }
 
-        // 1. Salva a Entidade Galáxia (O Centro de Gravidade)
-        UserGalaxy galaxy = new UserGalaxy(
+        // 1. Criamos a instância inicial
+        UserGalaxy galaxyToSave = new UserGalaxy(
                 request.name(),
                 userId,
                 request.color(),
                 request.x(),
                 request.y()
         );
-        galaxy = galaxyRepository.save(galaxy);
 
-        // 2. Chama a IA para calcular a atração
-        // O AI Processor vai vetorizar o NOME da galáxia e buscar highlights próximos no Pinecone
+        // 2. CORREÇÃO: Salvamos em uma NOVA variável final para o Java não reclamar no Stream
+        final UserGalaxy savedGalaxy = galaxyRepository.save(galaxyToSave);
+
+        // 3. Busca no Pinecone
         AiGravityResponse aiResponse = aiClient.getGravityMatches(request.name());
         
-        // 3. Cria os Links (A corda que puxa a estrela)
-        if (aiResponse != null && !aiResponse.matches().isEmpty()) {
-            List<StarGalaxyLink> links = new ArrayList<>();
-            
-            for (AiGravityResponse.StarMatch match : aiResponse.matches()) {
-                // Tenta encontrar o highlight no banco
-                // Se o Pinecone tiver IDs velhos que não estão no Postgres, ignoramos (safe)
-                if (highlightRepository.existsById(Long.valueOf(match.highlightId()))) {
-                    var highlightProxy = highlightRepository.getReferenceById(Long.valueOf(match.highlightId()));
-                    links.add(new StarGalaxyLink(galaxy, highlightProxy, match.score()));
-                }
-            }
+        // 4. Cria Links de Gravidade usando a variável final 'savedGalaxy'
+        if (aiResponse != null && aiResponse.matches() != null) {
+            List<StarGalaxyLink> links = aiResponse.matches().stream()
+                .filter(m -> m.highlightId() != null)
+                .map(match -> new StarGalaxyLink(savedGalaxy, match.highlightId(), match.score()))
+                .collect(Collectors.toList());
 
             linkRepository.saveAll(links);
-            log.info("🧲 Reordenação: {} estrelas foram atraídas pela nova galáxia '{}'", links.size(), galaxy.getName());
+            log.info("🧲 Galáxia '{}' vinculada a {} objetos estelares.", 
+                     savedGalaxy.getName(), links.size());
         }
 
-        return galaxy;
+        return savedGalaxy;
     }
 
-    /**
-     * DELETAR GALÁXIA (SOLTAR AS ESTRELAS)
-     */
     @Transactional
     public void deleteGalaxy(String userId, Long galaxyId) {
-        log.info("💥 Supernova: Removendo galáxia ID {}", galaxyId);
-        
         UserGalaxy galaxy = galaxyRepository.findById(galaxyId)
                 .orElseThrow(() -> new RuntimeException("Galáxia não encontrada"));
 
         if (!galaxy.getUserId().equals(userId)) {
-            throw new RuntimeException("Acesso negado");
+            throw new RuntimeException("Ação não autorizada");
         }
 
-        // 1. Remove os Links (As estrelas ficam "soltas" e voltam para a posição original/caos)
-        // O Cascade do JPA poderia fazer isso, mas delete explícito é mais seguro aqui
         linkRepository.deleteByGalaxyId(galaxyId);
-
-        // 2. Remove a Galáxia
         galaxyRepository.delete(galaxy);
         
-        log.info("✅ Galáxia removida. As estrelas foram liberadas.");
+        log.info("🗑️ Galáxia {} dissolvida e estrelas liberadas.", galaxyId);
     }
-    
-    // ... (Métodos getUserGalaxies e getUniverseState mantidos iguais) ...
+
     @Transactional(readOnly = true)
     public List<UserGalaxy> getUserGalaxies(String userId) {
         return galaxyRepository.findByUserIdAndIsActiveTrue(userId);
@@ -104,13 +86,17 @@ public class GalaxyService {
 
     @Transactional(readOnly = true)
     public GalaxyStateDTO getUniverseState(String userId) {
+        // 1. Busca as Galáxias do usuário
         List<UserGalaxy> galaxies = galaxyRepository.findByUserIdAndIsActiveTrue(userId);
-        var linksEntity = linkRepository.findAllActiveLinksByUserId(userId);
+        
+        // 2. Busca os Links do usuário (usando a nova query do repo)
+        List<StarGalaxyLink> linksEntity = linkRepository.findByUserId(userId);
 
+        // 3. Mapeia para DTO
         List<GalaxyStateDTO.LinkDTO> links = linksEntity.stream()
                 .map(link -> new GalaxyStateDTO.LinkDTO(
                         String.valueOf(link.getGalaxy().getId()),
-                        String.valueOf(link.getHighlight().getId()),
+                        link.getStarId(), 
                         link.getScore()
                 ))
                 .toList();

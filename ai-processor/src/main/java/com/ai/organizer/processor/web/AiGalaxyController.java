@@ -65,13 +65,19 @@ public class AiGalaxyController {
     }
 
     private GravityResponse.StarMatch toMatch(EmbeddingMatch<TextSegment> match) {
-        // Como o filter anterior já garantiu que não é null, aqui é seguro
-        String id = match.embedded().metadata().getString("highlightId");
-        
-        if (id == null) {
-            id = match.embedded().metadata().getString("dbId");
+        String starId = null;
+        if (match.embedded() != null && match.embedded().metadata() != null) {
+            // Tenta pegar de uma das duas fontes possíveis
+            String hId = match.embedded().metadata().getString("highlightId");
+            String sId = match.embedded().metadata().getString("summaryId");
+
+            if (sId != null) {
+                // Se for resumo, mandamos com o prefixo que o frontend já usa
+                starId = "summary-" + sId;
+            } else if (hId != null) {
+                starId = hId;
+            }
         }
-        
-        return new GravityResponse.StarMatch(id, match.score());
+        return new GravityResponse.StarMatch(starId, match.score());
     }
 }

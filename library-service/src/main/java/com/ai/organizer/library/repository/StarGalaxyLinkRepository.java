@@ -1,23 +1,19 @@
-// library-service/src/main/java/com/ai/organizer/library/repository/StarGalaxyLinkRepository.java
-
 package com.ai.organizer.library.repository;
 
 import com.ai.organizer.library.domain.StarGalaxyLink;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface StarGalaxyLinkRepository extends JpaRepository<StarGalaxyLink, Long> {
+    
+    // Busca todos os links que pertencem às galáxias de um usuário específico
+    @Query("SELECT l FROM StarGalaxyLink l WHERE l.galaxy.userId = :userId")
+    List<StarGalaxyLink> findByUserId(@Param("userId") String userId);
 
-    // QUERY OTIMIZADA: Busca todos os links de um usuário de uma vez só.
-    // Isso alimenta o "Cabo de Guerra" no frontend.
-    @Query("""
-        SELECT link 
-        FROM StarGalaxyLink link
-        JOIN FETCH link.galaxy g 
-        WHERE g.userId = :userId AND g.isActive = true
-    """)
-    List<StarGalaxyLink> findAllActiveLinksByUserId(@Param("userId") String userId);
-    void deleteByGalaxyId(Long galaxyId);
+    @Modifying
+    @Query("DELETE FROM StarGalaxyLink l WHERE l.galaxy.id = :galaxyId")
+    void deleteByGalaxyId(@Param("galaxyId") Long galaxyId);
 }
