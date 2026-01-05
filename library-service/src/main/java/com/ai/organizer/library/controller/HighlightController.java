@@ -60,4 +60,15 @@ public class HighlightController {
 
         kafkaTemplate.send("highlight.created", saved.getId().toString(), event);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteHighlight(@PathVariable Long id) {
+        if (userHighlightRepository.existsById(id)) {
+            userHighlightRepository.deleteById(id);
+            // Formato da mensagem: "TIPO:ID"
+            kafkaTemplate.send("data.deleted", "HIGHLIGHT:" + id);
+            log.info("🗑️ Highlight {} deletado.", id);
+        }
+    }
 }

@@ -39,6 +39,9 @@ public class UserSummary {
 
     private LocalDateTime createdAt;
 
+    @Column(name = "POSITION_JSON", columnDefinition = "TEXT")
+    private String positionJson;
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();

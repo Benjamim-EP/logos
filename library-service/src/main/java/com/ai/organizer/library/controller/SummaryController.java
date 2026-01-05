@@ -49,6 +49,7 @@ public class SummaryController {
         );
         // Se for seleção de texto, já salvamos o input como referência (opcional, mas bom pra debug)
         // Mas o generatedText ficará null até a IA responder.
+        summary.setPositionJson(request.position());
         
         summary = summaryRepository.save(summary);
 
@@ -79,6 +80,21 @@ public class SummaryController {
         }
 
         return summary;
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSummary(@PathVariable Long id) {
+        // 1. Busca para validar e pegar dados (opcional)
+        if (summaryRepository.existsById(id)) {
+            // 2. Apaga do Postgres
+            summaryRepository.deleteById(id);
+            
+            // 3. Avisa o AI Processor para apagar do Pinecone
+            // (Vamos criar esse evento simples agora)
+            kafkaTemplate.send("data.deleted", "SUMMARY:" + id);
+            log.info("🗑️ Resumo {} deletado. Evento de limpeza enviado.", id);
+        }
     }
 
     @GetMapping("/{fileHash}")
