@@ -29,9 +29,7 @@ import { toast } from "sonner"
 
 import "react-pdf-highlighter/dist/style.css"
 
-/* ================= WORKER CONFIG (CORRIGIDO) ================= */
-// A biblioteca react-pdf-highlighter funciona melhor com a versão 3.x
-// Versões 4+ ou 5+ alteram a camada de texto e quebram a seleção.
+/* ================= WORKER CONFIG ================= */
 const pdfVersion = "3.11.174" 
 try {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfVersion}/build/pdf.worker.min.js`
@@ -52,10 +50,9 @@ interface Content {
   image?: string
 }
 
-/* ================= TIP COMPONENT (CORRIGIDO Z-INDEX) ================= */
+/* ================= TIP COMPONENT ================= */
 function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (comment: { text: string; emoji: string }) => void }) {
   return (
-    // Z-INDEX AUMENTADO PARA 300 (Para ficar acima do Modal que é 200)
     <div className="bg-zinc-900 border border-white/20 p-2 rounded-lg shadow-xl flex gap-2 z-[300] animate-in fade-in zoom-in-95 duration-200">
       <Button
         size="sm"
@@ -98,7 +95,6 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
     setHighlights(getHighlights(note.id))
   }, [note.id, getHighlights])
 
-  // --- AUTO SCROLL (Se houver posição inicial) ---
   useEffect(() => {
     if (initialPosition && highlighterRef.current) {
         setTimeout(() => {
@@ -108,18 +104,16 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
   }, [initialPosition])
 
   const handleCreateHighlight = async (highlight: IHighlight) => {
-    // 1. Optimistic Update
     addHighlight(note.id, highlight)
     setHighlights(prev => [...prev, highlight])
 
-    // 2. Envia para o Backend
     try {
         if (highlight.content.text) {
             await api.post("/library/highlights", {
                 fileHash: note.id,
                 content: highlight.content.text,
                 type: "TEXT",
-                position: JSON.stringify(highlight.position) // Salva posição para "Explorar Contexto"
+                position: JSON.stringify(highlight.position) 
             })
             
             toast.success("Trecho salvo na Galáxia", { duration: 2000 })
@@ -151,11 +145,14 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
   }
 
   return (
-    // Z-INDEX DO MODAL É 200
-    <div className="fixed inset-0 z-[200] bg-zinc-950 flex flex-col">
+    // CORREÇÃO AQUI:
+    // 1. fixed inset-x-0 bottom-0: Fixa nas laterais e embaixo
+    // 2. top-16: Deixa 64px no topo (espaço do Header Global)
+    // 3. z-50: Fica abaixo do Header Global (que é z-100)
+    <div className="fixed inset-x-0 bottom-0 top-16 z-50 bg-zinc-950 flex flex-col border-t border-white/10 animate-in slide-in-from-bottom-10 duration-300">
       
-      {/* HEADER */}
-      <div className="h-14 border-b border-white/10 bg-black flex items-center justify-between px-4 z-50">
+      {/* HEADER DO PDF (Sub-header) */}
+      <div className="h-14 border-b border-white/10 bg-black/90 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
             <h2 className="text-white font-bold text-sm truncate max-w-md">{note.title}</h2>
@@ -186,7 +183,7 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
         </div>
       </div>
 
-      {/* BODY */}
+      {/* BODY (Onde o PDF Renderiza) */}
       <div className="flex-1 relative bg-zinc-900 w-full h-full flex overflow-hidden">
         
         {/* PDF CONTAINER */}
@@ -242,7 +239,7 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
 
         {/* SIDEBAR */}
         {isSidebarOpen && (
-            <div className="w-80 bg-[#0a0a0a] border-l border-white/10 h-full flex flex-col animate-in slide-in-from-right duration-300 z-[201] shadow-2xl absolute right-0 top-0 bottom-0 md:relative">
+            <div className="w-80 bg-[#0a0a0a] border-l border-white/10 h-full flex flex-col animate-in slide-in-from-right duration-300 z-[201] absolute right-0 top-0 bottom-0 md:relative shadow-2xl">
                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/50 backdrop-blur">
                     <h3 className="font-semibold text-white text-sm">Anotações</h3>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsSidebarOpen(false)}>
