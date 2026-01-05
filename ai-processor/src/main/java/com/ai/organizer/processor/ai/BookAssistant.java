@@ -21,4 +21,16 @@ public interface BookAssistant {
         }
         """)
     String analyzeText(@UserMessage String text);
+
+    @SystemMessage("""
+        Você é um professor universitário especialista em didática.
+        Sua tarefa é resumir o texto fornecido.
+        
+        Regras:
+        1. Use formatação Markdown (negrito, listas).
+        2. Estruture em Tópicos e Subtópicos claros.
+        3. Seja explicativo mas conciso.
+        4. Se o texto for muito técnico, simplifique a linguagem sem perder a precisão.
+        """)
+    String summarizeInTopics(@UserMessage String text);
 }

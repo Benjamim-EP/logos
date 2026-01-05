@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import { BookOpen, Crosshair } from "lucide-react"
+import { BookOpen, Crosshair, Sparkles } from "lucide-react"
 import { stringToColor } from "@/lib/colors"
 import { useGalaxyStore } from "@/stores/galaxyStore"
 
@@ -18,44 +18,40 @@ interface StarNodeProps {
   zoomLevel: number
 }
 
-// OTIMIZAÇÃO: React.memo evita re-renderizar milhares de estrelas se elas não mudaram
 export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNodeProps) {
   const { centralizeNode } = useGalaxyStore()
-  
-  // Estado local para hover e menu
   const [isOpen, setIsOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
-  // 1. LOD (Level of Detail): Otimização de RAM/GPU
-  // Se o zoom estiver muito longe (< 0.15), não renderiza a estrela (culling)
+  // LOD: Otimização de Performance
   if (zoomLevel < 0.15) return null
 
-  // 2. Cor Consistente por Documento
-  // Usa o ID do documento para gerar a cor. Se não tiver documento, usa o ID da nota.
-  // Opacidade de 0.8 para não ficar "gritante"
-  const starColor = stringToColor(note.documentId || note.id, 0.8)
-  
-  // 3. Tamanho Dinâmico
-  // Aumenta ligeiramente quando o zoom aproxima, mas mantém proporção
-  const baseSize = (5 * (note.z || 1)) / Math.pow(zoomLevel, 0.3)
-  
-  // 4. Performance Visual
-  // Só renderiza sombras pesadas (Glow) se estiver focado ou com zoom muito perto
-  const showGlow = zoomLevel > 1.5 || isHovered
+  // 1. Detectar se é Resumo (AI Summary)
+  // O backend manda "type": "RESUME", que o store mapeia para as tags
+  const isResume = note.tags?.includes("RESUME") || note.tags?.includes("resume");
 
-  // Ação: Explorar Contexto (Dispara evento para o GalaxyCanvas abrir o PDF)
+  // 2. Definir Cor
+  // Se for resumo: Ciano (Brilhante). Se for nota normal: Cor do Livro.
+  const starColor = isResume 
+    ? '#06b6d4' // Ciano 500
+    : stringToColor(note.documentId || note.id, 0.8)
+  
+  // 3. Tamanho (Resumos podem ser levemente maiores)
+  const baseSize = ((isResume ? 7 : 5) * (note.z || 1)) / Math.pow(zoomLevel, 0.3)
+  
+  const showGlow = zoomLevel > 1.5 || isHovered || isResume
+
+  // Ação: Explorar (Se tiver posição, abre lá. Se for resumo, talvez abra o card)
   const handleExplore = () => {
-    // Passamos a posição junto com o ID
     window.dispatchEvent(new CustomEvent('open-book-reader', { 
         detail: { 
             documentId: note.documentId, 
             noteId: note.id,
-            position: note.position // <--- Envia a posição
+            position: note.position 
         } 
     }))
   }
 
-  // Ação: Centralizar (Gravidade Temporária)
   const handleCentralize = () => {
     centralizeNode(note)
   }
@@ -71,15 +67,27 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
             width: `${baseSize}px`,
             height: `${baseSize}px`,
             transform: 'translate(-50%, -50%)',
-            zIndex: isOpen || isHovered ? 60 : 10 // Traz para frente no hover
+            zIndex: isOpen || isHovered ? 60 : (isResume ? 20 : 10)
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          // Impede que o clique na estrela arraste o canvas
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* O Corpo Visual da Estrela */}
+          {/* --- ANEL DE RESUMO (O Diferencial Visual) --- */}
+          {isResume && (
+             <>
+                {/* Anel Pulsante */}
+                <div 
+                    className="absolute inset-[-60%] rounded-full border border-cyan-500/60 animate-pulse pointer-events-none"
+                    style={{ animationDuration: '3s' }}
+                />
+                {/* Anel Estático */}
+                <div className="absolute inset-[-30%] rounded-full border border-cyan-300/30 pointer-events-none" />
+             </>
+          )}
+
+          {/* O Corpo da Estrela */}
           <motion.div
             initial={false}
             animate={{ 
@@ -89,18 +97,25 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
             transition={{ duration: 0.2 }}
             className="rounded-full w-full h-full"
             style={{
-                boxShadow: showGlow ? `0 0 ${baseSize * 3}px ${starColor}` : 'none'
+                boxShadow: showGlow 
+                    ? `0 0 ${baseSize * (isResume ? 4 : 3)}px ${starColor}` 
+                    : 'none'
             }}
           />
 
-          {/* Tooltip Leve (Só aparece no Hover e se o zoom permitir leitura) */}
+          {/* Tooltip */}
           {isHovered && zoomLevel > 0.4 && (
             <div 
                 className="absolute top-full mt-3 bg-zinc-950/90 border border-white/10 px-3 py-2 rounded-lg text-xs text-white z-[100] pointer-events-none shadow-2xl backdrop-blur-md min-w-[150px] max-w-[250px]"
             >
-                <p className="font-bold text-blue-300 mb-1 truncate block">{note.title}</p>
+                <div className="flex items-center gap-1 mb-1">
+                    {isResume && <Sparkles className="w-3 h-3 text-cyan-400" />}
+                    <p className="font-bold text-blue-300 truncate block">
+                        {isResume ? "Resumo IA" : note.title}
+                    </p>
+                </div>
                 {note.preview && (
-                    <p className="text-zinc-400 italic line-clamp-2 leading-relaxed">
+                    <p className="text-zinc-400 italic line-clamp-3 leading-relaxed">
                         "{note.preview}"
                     </p>
                 )}
@@ -114,15 +129,19 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
         className="bg-black/90 border-white/10 text-white w-56 backdrop-blur-xl z-[200]"
         sideOffset={5}
       >
-        <DropdownMenuLabel className="truncate text-xs text-zinc-500 font-mono uppercase tracking-widest">
-            Opções do Nó
+        <DropdownMenuLabel className="truncate text-xs text-zinc-500 font-mono uppercase tracking-widest flex items-center gap-2">
+            {isResume && <Sparkles className="w-3 h-3 text-cyan-500" />}
+            {isResume ? "IA Summary" : "Anotação"}
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-white/10" />
         
-        <DropdownMenuItem onClick={handleExplore} className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white gap-2 py-2">
-            <BookOpen className="w-4 h-4 text-blue-400" />
-            <span>Explorar Contexto</span>
-        </DropdownMenuItem>
+        {/* Só mostra 'Explorar Contexto' se tiver um documento vinculado */}
+        {note.documentId && (
+            <DropdownMenuItem onClick={handleExplore} className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white gap-2 py-2">
+                <BookOpen className="w-4 h-4 text-blue-400" />
+                <span>{isResume ? "Ver Documento Fonte" : "Explorar Contexto"}</span>
+            </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem onClick={handleCentralize} className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white gap-2 py-2">
             <Crosshair className="w-4 h-4 text-purple-400" />

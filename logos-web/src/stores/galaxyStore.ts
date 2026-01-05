@@ -34,9 +34,9 @@ interface GalaxyState {
 
   // --- ACTIONS ---
   initializeUniverse: () => Promise<void>
-  createGalaxy: (name: string) => Promise<void> // Store calcula x,y
+  createGalaxy: (name: string) => Promise<void>
   deleteGalaxy: (galaxyId: string) => Promise<void>
-  centralizeNode: (note: Note | null) => void // Ação de gravidade temporária
+  centralizeNode: (note: Note | null) => void 
   
   setFocusNode: (note: Note | null) => void
   setViewMode: (mode: ViewMode) => void
@@ -51,7 +51,6 @@ interface GalaxyState {
 }
 
 // --- FUNÇÃO AUXILIAR: Encontrar espaço vazio no universo ---
-// Evita que novas galáxias nasçam sobrepostas
 function findEmptySpace(clusters: Cluster[], minDistance: number = 800): { x: number, y: number } {
     let bestX = 0;
     let bestY = 0;
@@ -60,7 +59,6 @@ function findEmptySpace(clusters: Cluster[], minDistance: number = 800): { x: nu
     // Se for a primeira, nasce no centro
     if (clusters.length === 0) return { x: 0, y: 0 };
 
-    // Tenta 30 posições aleatórias e escolhe a mais distante das outras
     for (let i = 0; i < 30; i++) {
         const x = (Math.random() - 0.5) * 4000;
         const y = (Math.random() - 0.5) * 4000;
@@ -72,12 +70,10 @@ function findEmptySpace(clusters: Cluster[], minDistance: number = 800): { x: nu
             if (dist < minDistToOthers) minDistToOthers = dist;
         }
 
-        // Se achou um lugar com a distância mínima segura, usa ele imediatamente
         if (minDistToOthers > minDistance) {
             return { x, y };
         }
 
-        // Se não, guarda o "menos pior" (o mais longe possível)
         if (minDistToOthers > maxDist) {
             maxDist = minDistToOthers;
             bestX = x;
@@ -100,13 +96,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   
   activeClusterIds: [],
   sortOrder: 'newest',
-  maxVisibleNotes: 800, // Limite seguro para WebGL/DOM
+  maxVisibleNotes: 800,
 
   /**
-   * INICIALIZAÇÃO: Carrega Estrelas, Galáxias e Links, e aplica a Física.
+   * INICIALIZAÇÃO: Carrega Estrelas (Highlights + Resumos), Galáxias e Links.
    */
   initializeUniverse: async () => {
-    // Evita recarregar se já está carregando
     if (get().isLoading) return;
 
     set({ isLoading: true, tempCentralizedId: null })
@@ -114,7 +109,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     try {
         console.log("🌌 Carregando Universo...")
         
-        // 1. Busca Paralela (Performance)
         const [starsRes, stateRes] = await Promise.all([
             api.get('/galaxy/stars'),
             api.get('/galaxy/management/state')
@@ -123,7 +117,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         const stars = starsRes.data
         const { galaxies, links } = stateRes.data
 
-        console.log(`📡 Telemetria: ${stars.length} estrelas, ${galaxies.length} galáxias, ${links.length} conexões.`)
+        console.log(`📡 Dados: ${stars.length} estrelas, ${galaxies.length} galáxias, ${links.length} conexões.`)
 
         // 2. Mapeia Galáxias
         const clusters: Cluster[] = galaxies.map((g: any) => ({
@@ -135,7 +129,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             isActive: g.isActive
         }))
 
-        // 3. Indexa Links para acesso O(1)
+        // 3. Indexa Links
         const linkMap = new Map<string, PhysicsLink[]>()
         links.forEach((l: any) => {
             if (!linkMap.has(l.highlightId)) {
@@ -144,32 +138,29 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             linkMap.get(l.highlightId)?.push(l)
         })
 
-        // 4. MOTOR FÍSICO (Cálculo de Posição Determinístico)
+        // 4. MOTOR FÍSICO
         const notes: Note[] = stars.map((star: any) => {
              const starId = String(star.id)
              const myLinks = linkMap.get(starId)
 
-             // A. Parse seguro do JSON de posição (Para Deep Linking no PDF)
+             // A. Parse seguro do JSON de posição
              let parsedPosition = null;
              try {
                 if (star.positionJson) {
                     parsedPosition = JSON.parse(star.positionJson);
                 }
-             } catch (e) {
-                // Ignora erros de parse
-             }
+             } catch (e) { }
 
-             // Variáveis finais
+             // B. Dados Básicos
+             // O backend envia "type" (TEXT, IMAGE, RESUME). Colocamos nas tags.
+             let tags = [star.type]; 
+             
              let x = 0;
              let y = 0;
-             let tags = [star.type];
              let clusterId = "chaos";
 
-             // B. LÓGICA DE POSICIONAMENTO
-             
+             // C. Lógica de Posicionamento (Organizado vs Caos)
              if (myLinks && myLinks.length > 0) {
-                 // --- CENÁRIO 1: ORGANIZADO (Tem Gravidade) ---
-                 
                  let vectorX = 0;
                  let vectorY = 0;
                  let totalScore = 0;
@@ -178,7 +169,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                  myLinks.forEach(link => {
                      const galaxy = clusters.find(c => c.id === link.galaxyId)
                      if (galaxy) {
-                         // Soma Vetorial Ponderada
                          vectorX += galaxy.x * link.score;
                          vectorY += galaxy.y * link.score;
                          totalScore += link.score;
@@ -187,27 +177,18 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                  })
 
                  if (totalScore > 0) {
-                     // 1. Centro de Gravidade (Baricentro)
+                     // Baricentro
                      const centerX = vectorX / totalScore;
                      const centerY = vectorY / totalScore;
 
-                     // 2. NOVA FÍSICA: "Orbiting" em vez de "Clumping"
-                     // Queremos que elas fiquem próximas, mas não em cima do texto.
-                     
-                     // Definimos um raio de "exclusão" (tamanho do texto da galáxia)
+                     // Física de Órbita: "The Orbital Nebula"
+                     // Garante que não fiquem em cima do texto (innerSafeZone)
                      const innerSafeZone = 200; 
-                     
-                     // Quanto maior o score, mais perto da zona de exclusão ela fica.
-                     // Se score é 0.9 -> ela fica quase colada no raio 200.
-                     // Se score é 0.3 -> ela fica lá pro raio 800.
                      const scoreEffect = (1 - Math.min(totalScore, 0.95)) * 800;
-                     
                      const dispersionRadius = innerSafeZone + scoreEffect;
                      
-                     // 3. Ângulo Determinístico
+                     // Ângulo Determinístico
                      const stableAngle = seededRandom(starId + "disp", 0, Math.PI * 2);
-
-                     // 4. Jitter (Pequeno desvio aleatório para não formar um círculo perfeito)
                      const jitter = seededRandom(starId + "jitter", -50, 50);
 
                      x = centerX + (Math.cos(stableAngle) * (dispersionRadius + jitter));
@@ -217,8 +198,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                      clusterId = "organized"; 
                  }
              } else {
-                 // --- CENÁRIO 2: CAOS (Sem Gravidade) ---
-                 // Usa seededRandom para posição fixa no caos (não muda no F5)
+                 // Caos Estável
                  const stableAngle = seededRandom(starId + "ang", 0, Math.PI * 2);
                  const stableRadius = seededRandom(starId + "rad", 2500, 4500); 
                  
@@ -230,7 +210,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 id: starId,
                 title: star.documentTitle || "Documento Sem Título",
                 preview: star.content || "",
-                tags: tags,
+                tags: tags, // Contém "RESUME" se for resumo
                 createdAt: star.createdAt,
                 x: x,
                 y: y,
@@ -242,7 +222,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
              }
         })
 
-        // 5. Atualiza Store
         set({ 
             allNotes: notes, 
             clusters: clusters,
@@ -252,132 +231,83 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         })
 
     } catch (error) {
-        console.error("❌ Erro crítico ao inicializar universo:", error)
+        console.error("❌ Erro inicialização:", error)
         toast.error("Falha ao carregar galáxia.")
         set({ isLoading: false })
     }
   },
 
-  /**
-   * CRIAÇÃO DE GALÁXIA COM POSICIONAMENTO INTELIGENTE
-   */
   createGalaxy: async (name: string) => {
     if (!name.trim()) return
-
     set({ isGravityLoading: true })
-
     try {
-        // 1. Encontra um lugar vazio no espaço
         const currentClusters = get().clusters;
         const pos = findEmptySpace(currentClusters, 1000);
-
-        console.log(`💾 Criando galáxia "${name}" em (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`)
         
-        // 2. Salva no Backend
         await api.post('/galaxy/management', {
             name,
             color: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
             x: pos.x,
             y: pos.y
         })
-        
         toast.success(`Galáxia "${name}" criada!`)
-
-        // 3. Recarrega para aplicar gravidade com os novos links
         get().initializeUniverse()
-
     } catch (e: any) {
-        console.error("Erro ao criar galáxia", e)
-        const msg = e.response?.data?.message || "Erro desconhecido"
-        toast.error("Falha ao criar galáxia", { description: msg })
+        toast.error("Falha ao criar galáxia")
     } finally {
         set({ isGravityLoading: false })
     }
   },
 
-  /**
-   * DELETAR GALÁXIA E LIBERAR ESTRELAS
-   */
   deleteGalaxy: async (galaxyId: string) => {
       try {
-          // 1. Delete no Backend
           await api.delete(`/galaxy/management/${galaxyId}`)
-          toast.success("Galáxia removida. As estrelas foram liberadas.")
-          
-          // 2. Recarrega o universo (As estrelas perderão os links e voltarão ao Caos)
+          toast.success("Galáxia removida.")
           get().initializeUniverse()
       } catch (e) {
-          console.error("Erro ao apagar", e)
           toast.error("Erro ao apagar galáxia")
       }
   },
 
-  /**
-   * CENTRALIZAR NÓ (GRAVIDADE TEMPORÁRIA / LENSING)
-   */
   centralizeNode: (note: Note | null) => {
     const { allNotes } = get()
-    
-    // Reset se nulo
     if (!note) {
         get().initializeUniverse()
         return
     }
-
-    // 1. Encontra vizinhos (Top 10 mais próximos matematicamente via Vetores ou Posição)
-    // Nota: Como não temos vetores no front, usamos a posição atual como proxy de similaridade
     const neighbors = getNearestNotes(note, allNotes, 10)
     const neighborIds = new Set(neighbors.map(n => n.id))
 
-    // 2. Aplica transformação nas posições visualmente
     const newNotes = allNotes.map(n => {
-        // A nota central fica fixa e em destaque
         if (n.id === note.id) return { ...n, opacity: 1, z: 3 }
-        
         if (neighborIds.has(n.id)) {
-            // LERP: Traz o vizinho 85% do caminho em direção ao centro
-            const targetX = note.x + (Math.random() - 0.5) * 150 // Jitter para não sobrepor
+            const targetX = note.x + (Math.random() - 0.5) * 150
             const targetY = note.y + (Math.random() - 0.5) * 150
-            
             return {
                 ...n,
-                x: n.x + (targetX - n.x) * 0.85,
-                y: n.y + (targetY - n.y) * 0.85,
+                x: n.x + (targetX - n.x) * 0.9,
+                y: n.y + (targetY - n.y) * 0.9,
                 z: 2, 
                 opacity: 1
             }
         }
-        
-        // Diminui a opacidade do resto do universo
         return { ...n, opacity: 0.1 }
     })
-
-    set({ 
-        allNotes: newNotes, 
-        tempCentralizedId: note.id 
-    })
+    set({ allNotes: newNotes, tempCentralizedId: note.id })
   },
 
-  // --- ACTIONS SIMPLES ---
   setFocusNode: (note) => set({ focusNode: note }),
   setViewMode: (mode) => set({ viewMode: mode }),
-
-  toggleCluster: (clusterId) => set((state) => {
-    const isActive = state.activeClusterIds.includes(clusterId)
-    const newIds = isActive 
-      ? state.activeClusterIds.filter(id => id !== clusterId)
-      : [...state.activeClusterIds, clusterId]
+  toggleCluster: (id) => set((state) => {
+    const isActive = state.activeClusterIds.includes(id)
+    const newIds = isActive ? state.activeClusterIds.filter(cid => cid !== id) : [...state.activeClusterIds, id]
     return { activeClusterIds: newIds }
   }),
-
   setSortOrder: (order) => set({ sortOrder: order }),
 
   getVisibleData: () => {
     const state = get()
-    
     let filteredNotes = state.allNotes
-
-    // Ordenação Z-Index
     filteredNotes.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
@@ -385,11 +315,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       if (state.sortOrder === 'oldest') return dateA - dateB
       return 0
     })
-
-    const visibleNotes = filteredNotes.slice(0, state.maxVisibleNotes)
-
     return { 
-        visibleNotes, 
+        visibleNotes: filteredNotes.slice(0, state.maxVisibleNotes), 
         visibleClusters: state.clusters, 
         visibleSubClusters: state.subClusters 
     }
