@@ -1,203 +1,176 @@
-import { useMemo, useState, useEffect } from "react"
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useSelectionStore } from "@/stores/selectionStore"
-import { useGalaxyStore } from "@/stores/galaxyStore"
-import { Tag, FileText, Image, MessageCircle, Share2, Compass, BookOpen, ExternalLink } from "lucide-react"
+import { 
+  Calendar, 
+  ExternalLink, 
+  Trash2, 
+  Clock,
+  Shield,
+  FileText,
+  FileSearch
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getNearestNotes } from "@/lib/math"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { PdfReaderView } from "@/features/reader/PdfReaderView"
+import api from "@/lib/api"
+import { toast } from "sonner"
+import { stringToColor } from "@/lib/colors"
+import ReactMarkdown from 'react-markdown'
 
 export function NoteReaderModal() {
   const { selectedNote, setSelectedNote } = useSelectionStore()
-  const allNotes = useGalaxyStore((state) => state.notes)
-  
-  // Estado local para controlar se estamos vendo o PDF Fullscreen
-  const [isReadingPdf, setIsReadingPdf] = useState(false)
-
-  // Reseta o modo de leitura se mudar de nota
-  useEffect(() => {
-    setIsReadingPdf(false)
-  }, [selectedNote?.id])
+  const [explorerState, setExplorerState] = useState<{ url: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const isOpen = !!selectedNote
 
-  // Calcula vizinhos próximos (Sistema de Recomendação)
-  const relatedNotes = useMemo(() => {
-    if (!selectedNote) return []
-    return getNearestNotes(selectedNote, allNotes, 3)
-  }, [selectedNote, allNotes])
-
-  // Mock de Imagem e PDF
-  const mockImageUrl = `https://picsum.photos/400/600?random=${selectedNote?.id}`
-  // PDF Exemplo (Artigo sobre LLMs para teste)
-  const MOCK_PDF_URL = "/sample.pdf" 
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setSelectedNote(null)
-      setIsReadingPdf(false)
+  const handleOpenOriginal = async () => {
+    if (!selectedNote?.documentId) return;
+    try {
+        toast.loading("Acessando arquivo original...", { id: "modal-open" })
+        const { data } = await api.get(`/library/books/${selectedNote.documentId}/content`)
+        setExplorerState({ url: data.url })
+        toast.dismiss("modal-open")
+    } catch (err) {
+        toast.dismiss("modal-open")
+        toast.error("Erro ao carregar documento.")
     }
   }
 
-  // Se não tem nota, não renderiza nada
+  const handleDelete = async () => {
+    if (!selectedNote) return;
+    if (!confirm("Excluir esta nota permanentemente?")) return;
+
+    setIsDeleting(true);
+    try {
+        const isResume = selectedNote.id.startsWith("summary-") || selectedNote.tags?.includes("RESUME");
+        const cleanId = selectedNote.id.replace("summary-", "");
+
+        if (isResume) {
+            await api.delete(`/library/summaries/${cleanId}`);
+        } else {
+            await api.delete(`/library/highlights/${cleanId}`);
+        }
+
+        toast.success("Nota removida.");
+        setSelectedNote(null);
+        window.dispatchEvent(new Event('refresh-galaxy')); 
+    } catch (e) {
+        toast.error("Erro ao excluir.");
+    } finally {
+        setIsDeleting(false);
+    }
+  }
+
   if (!selectedNote) return null
 
-  // --- MODO LEITURA IMERSIVA (PDF READER) ---
-  if (isReadingPdf) {
+  if (explorerState) {
     return (
       <PdfReaderView 
         note={selectedNote}
-        pdfUrl={MOCK_PDF_URL}
-        onClose={() => setIsReadingPdf(false)}
+        pdfUrl={explorerState.url}
+        initialPosition={selectedNote.position}
+        onClose={() => setExplorerState(null)}
       />
     )
   }
 
-  // --- MODO VISÃO GERAL (MODAL) ---
+  const docColor = stringToColor(selectedNote.documentId || "default");
+  const isResume = selectedNote.id.startsWith("summary-") || selectedNote.tags?.includes("RESUME");
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      
-      {/* Z-Index 100 para ficar acima do Deep Dive e da Galáxia */}
-      <DialogContent className="max-w-6xl h-[85vh] bg-[#0a0a0a] border-white/10 text-white p-0 flex overflow-hidden shadow-2xl z-[100] gap-0 outline-none">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && setSelectedNote(null)}>
+      {/* REDUZIDO: max-w-2xl para um visual mais focado */}
+      <DialogContent className="max-w-2xl bg-[#0a0a0a] border-white/10 text-white p-0 overflow-hidden shadow-2xl z-[150] outline-none">
         
-        {/* --- COLUNA 1: Visualização do Recorte (Esquerda) --- */}
-        <div className="w-[35%] bg-black/50 border-r border-white/10 relative hidden md:flex flex-col items-center justify-center group overflow-hidden">
+        <div className="flex flex-col h-auto max-h-[85vh]">
           
-          {/* Imagem com Zoom on Hover */}
-          <div className="w-full h-full relative overflow-hidden">
-            <img 
-              src={mockImageUrl} 
-              className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out" 
-              alt="Original"
-            />
-            {/* Overlay Gradiente */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-          </div>
+          {/* HEADER COMPACTO */}
+          <div className="p-6 border-b border-white/5 bg-zinc-900/20">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex gap-2">
+                    {selectedNote.tags?.filter(t => t !== "organized").map(tag => (
+                    <span 
+                        key={tag} 
+                        className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10"
+                        style={{ borderColor: tag === "RESUME" ? "#06b6d4" : "" }}
+                    >
+                        {tag}
+                    </span>
+                    ))}
+                </div>
+                <div className="flex items-center gap-1.5 text-zinc-500">
+                    <Shield className={`w-3.5 h-3.5 ${isResume ? 'text-cyan-500' : 'text-blue-500'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Vetorizado</span>
+                </div>
+            </div>
 
-          {/* Botão Flutuante para Ler PDF */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-max z-20">
-            <Button 
-                onClick={() => setIsReadingPdf(true)}
-                className="bg-blue-600/90 hover:bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/20 backdrop-blur-md transition-all hover:scale-105"
-            >
-                <BookOpen className="w-4 h-4 mr-2" /> 
-                Ler Documento Original
-            </Button>
-          </div>
-
-          {/* Badge de Origem */}
-          <div className="absolute top-4 left-4 bg-black/60 px-3 py-1.5 rounded-full text-xs text-white/70 flex items-center gap-2 backdrop-blur-md border border-white/5">
-            <Image className="w-3 h-3" /> 
-            <span>Página 42 • Recorte Manual</span>
-          </div>
-        </div>
-
-        {/* --- COLUNA 2: Conteúdo e IA (Centro) --- */}
-        <div className="flex-1 flex flex-col h-full bg-[#0a0a0a]">
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <DialogTitle className="text-xl font-bold text-white tracking-tight mb-2">
+                {isResume ? "Resumo Semântico" : "Destaque do Documento"}
+            </DialogTitle>
             
-            {/* Header da Nota */}
-            <div className="mb-8">
-              <div className="flex gap-2 mb-4 flex-wrap">
-                {selectedNote.tags.map(tag => (
-                  <span key={tag} className="text-[10px] uppercase tracking-widest bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full border border-purple-500/20 hover:bg-purple-500/20 cursor-default transition-colors">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <DialogTitle className="text-3xl md:text-4xl font-bold leading-tight mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">
-                {selectedNote.title}
-              </DialogTitle>
-              <div className="flex items-center gap-4 mt-2">
-                <DialogDescription className="text-sm text-gray-500 font-mono flex items-center gap-2">
-                  ID: {selectedNote.id}
-                </DialogDescription>
-                <span className="text-gray-700">•</span>
-                <span className="text-xs text-gray-500">Adicionado em {new Date(selectedNote.createdAt).toLocaleDateString()}</span>
-              </div>
-            </div>
-
-            {/* AI Insight Card */}
-            <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-6 mb-8 hover:border-white/20 transition-colors relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <FileText className="w-24 h-24 text-white" />
+            <div className="flex items-center gap-4 text-[11px] text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="truncate max-w-[250px]">{selectedNote.title}</span>
                 </div>
-              <h3 className="text-sm font-semibold text-green-400 flex items-center gap-2 mb-3 relative z-10">
-                <FileText className="w-4 h-4" /> Análise Semântica (IA)
-              </h3>
-              <p className="text-gray-300 leading-relaxed italic border-l-2 border-green-500/30 pl-4 relative z-10">
-                "{selectedNote.preview}..."
-              </p>
-            </div>
-
-            {/* Texto Completo Mock */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                Transcrição
-                <div className="h-px flex-1 bg-white/10 ml-4"></div>
-              </h3>
-              <div className="text-gray-400 leading-relaxed text-sm space-y-4 font-serif">
-                <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-                  Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                </p>
-                <p>
-                  Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
-                  Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                  Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.
-                </p>
-              </div>
+                <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{new Date(selectedNote.createdAt).toLocaleDateString()}</span>
+                </div>
             </div>
           </div>
 
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-white/10 bg-black/40 flex justify-between items-center backdrop-blur-sm">
-            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-              <Share2 className="w-4 h-4 mr-2" /> Compartilhar
+          {/* CONTEÚDO */}
+          <ScrollArea className="flex-1 p-6">
+            <div 
+                className="bg-zinc-900/40 border-l-2 p-6 rounded-r-xl leading-relaxed text-zinc-200" 
+                style={{ borderColor: docColor }}
+            >
+              {isResume ? (
+                  <div className="markdown-content prose-invert text-sm">
+                      <ReactMarkdown>{selectedNote.preview}</ReactMarkdown>
+                  </div>
+              ) : (
+                  <p className="italic text-base font-serif opacity-90">
+                    "{selectedNote.preview}"
+                  </p>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-between px-2">
+                <div className="flex items-center gap-2 text-zinc-500">
+                    <Clock className="w-3 h-3" />
+                    <span className="text-[10px] uppercase font-bold tracking-tighter">Página {selectedNote.position?.pageNumber || "N/A"}</span>
+                </div>
+                
+                <Button 
+                    variant="link" 
+                    onClick={handleOpenOriginal}
+                    className="text-blue-400 hover:text-blue-300 text-[11px] h-auto p-0 gap-1.5"
+                >
+                    <FileSearch className="w-3.5 h-3.5" /> Ir para o contexto original
+                </Button>
+            </div>
+          </ScrollArea>
+
+          {/* FOOTER DE AÇÕES */}
+          <div className="p-4 border-t border-white/5 bg-[#050505] flex justify-between items-center px-6">
+            <Button 
+                variant="ghost" 
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="text-zinc-600 hover:text-red-500 hover:bg-red-500/5 h-8 text-[10px] uppercase font-bold tracking-widest"
+            >
+                <Trash2 className="w-3 h-3 mr-2" /> Excluir Nota
             </Button>
-            <div className="flex gap-2">
-                <Button variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-0">
-                    <ExternalLink className="w-4 h-4 mr-2" /> Fonte
-                </Button>
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/20 border border-purple-500/50">
-                <MessageCircle className="w-4 h-4 mr-2" /> Chat com IA
-                </Button>
+
+            <div className="text-[9px] text-zinc-800 font-mono tracking-[0.2em]">
+                LOGOS SYSTEM
             </div>
           </div>
         </div>
-
-        {/* --- COLUNA 3: Navegação Semântica (Direita) --- */}
-        <div className="w-[280px] border-l border-white/10 bg-zinc-950/80 flex flex-col backdrop-blur-xl">
-          <div className="p-5 border-b border-white/10 bg-zinc-900/50">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-blue-400">
-              <Compass className="w-4 h-4" /> Próximos na Galáxia
-            </h3>
-            <p className="text-[10px] text-gray-500 mt-1">Baseado em distância vetorial</p>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-            {relatedNotes.map((note) => (
-              <div 
-                key={note.id}
-                onClick={() => setSelectedNote(note)} // Navegação Interna: Troca o conteúdo do modal sem fechar
-                className="p-3 rounded-lg bg-white/5 hover:bg-white/10 hover:border-white/30 border border-transparent cursor-pointer transition-all group"
-              >
-                <h4 className="text-sm font-medium text-gray-200 group-hover:text-white line-clamp-2 mb-2 leading-snug">
-                  {note.title}
-                </h4>
-                <div className="flex justify-between items-center border-t border-white/5 pt-2">
-                  <span className="text-[10px] text-gray-500 bg-black/30 px-1.5 py-0.5 rounded truncate max-w-[80px]">
-                    {note.tags[0]}
-                  </span>
-                  <span className="text-[9px] text-blue-500/70 font-mono">
-                    {Math.floor(Math.random() * 100)}u dist
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
       </DialogContent>
     </Dialog>
   )

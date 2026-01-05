@@ -1,41 +1,44 @@
 import type { Note } from "@/types/galaxy"
 import { Virtuoso } from "react-virtuoso"
-import { Text, Tag, Calendar, ChevronRight } from "lucide-react"
+import { FileText, ChevronRight, Sparkles } from "lucide-react"
 import { useSelectionStore } from "@/stores/selectionStore"
 
 interface VirtualizedNoteListProps {
   notes: Note[]
 }
 
-// Item extraído para usar o Hook corretamente
 const NoteListItem = ({ note }: { note: Note }) => {
   const setSelectedNote = useSelectionStore((state) => state.setSelectedNote)
+  const isResume = note.tags?.includes("RESUME");
 
   return (
     <div 
-      className="flex items-center justify-between p-3 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer"
-      onClick={() => {
-        console.log("Lista clicada:", note.title) // Debug
-        setSelectedNote(note)
-      }}
+      className="flex items-start justify-between p-4 border-b border-white/5 hover:bg-white/[0.03] transition-all cursor-pointer group"
+      onClick={() => setSelectedNote(note)}
     >
-      <div className="space-y-1 overflow-hidden">
-        <p className="text-sm font-semibold text-white truncate max-w-[200px] flex items-center gap-2">
-          <Text className="w-4 h-4 text-purple-400 shrink-0" />
-          <span className="truncate">{note.title}</span>
+      <div className="space-y-2 overflow-hidden flex-1">
+        {/* TEXTO DA MARCAÇÃO (Agora é o principal) */}
+        <p className="text-sm text-zinc-200 leading-relaxed line-clamp-2 italic font-serif">
+          {isResume ? (
+             <span className="flex items-center gap-2 text-cyan-400 not-italic font-sans font-bold text-[10px] uppercase tracking-widest mb-1">
+                <Sparkles className="w-3 h-3" /> Resumo IA
+             </span>
+          ) : null}
+          "{note.preview}"
         </p>
-        <div className="flex items-center text-xs text-gray-400 gap-3">
-          <span className="flex items-center gap-1">
-            <Tag className="w-3 h-3" />
-            {note.tags[0]}
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            {new Date(note.createdAt).toLocaleDateString('pt-BR')}
-          </span>
+
+        {/* NOME DO LIVRO (Subtítulo) */}
+        <div className="flex items-center text-[10px] text-zinc-500 gap-2">
+          <FileText className="w-3 h-3" />
+          <span className="truncate font-medium uppercase tracking-tight">{note.title}</span>
+          <span>•</span>
+          <span>{new Date(note.createdAt).toLocaleDateString()}</span>
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-gray-500 hover:text-white shrink-0" />
+      
+      <div className="ml-4 pt-1">
+        <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-blue-500 transition-colors" />
+      </div>
     </div>
   )
 }
@@ -44,12 +47,12 @@ export function VirtualizedNoteList({ notes }: VirtualizedNoteListProps) {
   return (
     <div className="h-full w-full">
       <Virtuoso
-        style={{ height: 'calc(100vh - 180px)' }} // Ajuste fino da altura
+        style={{ height: '100%' }}
         data={notes}
-        itemContent={(index, note) => <NoteListItem key={note.id} note={note} />}
+        itemContent={(_, note) => <NoteListItem note={note} />}
         components={{ 
           Footer: () => (
-            <p className="text-center text-gray-600 py-4 text-xs">Fim da Galáxia</p>
+            <p className="text-center text-zinc-700 py-10 text-[10px] uppercase tracking-widest font-bold">Fim da Galáxia</p>
           )
         }}
       />
