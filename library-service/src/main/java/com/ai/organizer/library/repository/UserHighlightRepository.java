@@ -13,6 +13,7 @@ public interface UserHighlightRepository extends JpaRepository<UserHighlight, Lo
     
     List<UserHighlight> findByFileHash(String fileHash);
     List<UserHighlight> findByUserIdAndFileHash(String userId, String fileHash);
+    long countByUserId(String userId);
 
      @Query("""
         SELECT new com.ai.organizer.library.dto.StarDTO(

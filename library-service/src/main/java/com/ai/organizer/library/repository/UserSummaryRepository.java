@@ -7,4 +7,5 @@ import java.util.List;
 public interface UserSummaryRepository extends JpaRepository<UserSummary, Long> {
     List<UserSummary> findByUserIdAndFileHashOrderByCreatedAtDesc(String userId, String fileHash);
     List<UserSummary> findByUserId(String userId);
+    long countByUserId(String userId);
 }

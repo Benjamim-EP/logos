@@ -16,4 +16,7 @@ public interface StarGalaxyLinkRepository extends JpaRepository<StarGalaxyLink, 
     @Modifying
     @Query("DELETE FROM StarGalaxyLink l WHERE l.galaxy.id = :galaxyId")
     void deleteByGalaxyId(@Param("galaxyId") Long galaxyId);
+
+    @Query("SELECT COUNT(l) FROM StarGalaxyLink l WHERE l.galaxy.userId = :userId")
+    long countByUserId(@Param("userId") String userId);
 }

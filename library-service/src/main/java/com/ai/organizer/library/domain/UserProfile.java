@@ -21,4 +21,7 @@ public class UserProfile {
 
     @Column(name = "bio")
     private String bio; // Já deixamos pronto para o futuro
+
+    @Column(name = "radar_data", columnDefinition = "TEXT")
+    private String radarData; // JSON: [{"subject": "Java", "value": 100}, ...]
 }

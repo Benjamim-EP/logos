@@ -5,6 +5,8 @@ package com.ai.organizer.library.controller;
 import com.ai.organizer.library.domain.UserHighlight;
 import com.ai.organizer.library.event.HighlightEvent;
 import com.ai.organizer.library.repository.UserHighlightRepository;
+import com.ai.organizer.library.service.RadarTriggerService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,6 +23,8 @@ public class HighlightController {
 
     private final UserHighlightRepository userHighlightRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final RadarTriggerService radarTriggerService;
+    
 
     // DTO Atualizado: Agora recebe position (JSON String)
     public record CreateHighlightRequest(
@@ -47,6 +51,7 @@ public class HighlightController {
         hl.setPositionJson(request.position); // <--- SALVA A POSIÇÃO
         
         UserHighlight saved = userHighlightRepository.save(hl);
+        radarTriggerService.checkAndTrigger(userId);
         log.info("💾 Highlight salvo com posição. ID: {}", saved.getId());
 
         // O evento Kafka continua igual (o AI Processor não precisa da posição visual, só do texto)
@@ -71,4 +76,6 @@ public class HighlightController {
             log.info("🗑️ Highlight {} deletado.", id);
         }
     }
+
+    
 }

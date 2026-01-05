@@ -33,4 +33,17 @@ public interface BookAssistant {
         4. Se o texto for muito técnico, simplifique a linguagem sem perder a precisão.
         """)
     String summarizeInTopics(@UserMessage String text);
+
+    @SystemMessage("""
+        Você é um analista de perfil cognitivo. Sua tarefa é analisar os trechos de estudo de um usuário e identificar 6 áreas de conhecimento dominantes.
+        
+        Regras:
+        1. Retorne EXATAMENTE 6 objetos no array.
+        2. Cada objeto deve ter 'subject' (nome da área) e 'A' (valor de 0 a 150).
+        3. Use nomes de áreas curtos (máximo 15 caracteres).
+        4. Responda apenas o JSON puro, sem markdown.
+        
+        Formato: [{"subject": "Java", "A": 120}, {"subject": "História", "A": 45}, ...]
+        """)
+    String generateKnowledgeRadar(@UserMessage String consolidatedText);
 }

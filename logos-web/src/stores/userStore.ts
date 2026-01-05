@@ -1,17 +1,23 @@
 import { create } from 'zustand'
 import api from "@/lib/api"
-import { toast } from "sonner"
 
 interface UserProfile {
   userId: string
   avatarUrl: string
   bio: string
+  // ESTATÍSTICAS REAIS
+  stats: {
+    highlights: number
+    summaries: number
+    connections: number
+  }
+  // DADOS DO RADAR
+  radar: Array<{ subject: string, A: number }>
 }
 
 interface UserState {
   profile: UserProfile | null
   isLoading: boolean
-  
   fetchProfile: () => Promise<void>
   updateAvatar: (url: string) => Promise<void>
 }
@@ -33,15 +39,11 @@ export const useUserStore = create<UserState>((set) => ({
 
   updateAvatar: async (url: string) => {
     try {
-      // Atualização Otimista
+      // Atualização otimista
       set(state => ({ 
         profile: state.profile ? { ...state.profile, avatarUrl: url } : null 
       }))
-
       await api.put("/users/profile/avatar", { avatarUrl: url })
-      toast.success("Visual atualizado!")
-    } catch (e) {
-      toast.error("Erro ao salvar avatar")
-    }
+    } catch (e) { console.error(e) }
   }
 }))
