@@ -1,31 +1,26 @@
 package com.ai.organizer.ingestion;
 
 import com.ai.organizer.ingestion.dto.UrlIngestionRequest;
-import com.ai.organizer.ingestion.service.BlobStorageService; // <--- Nossa Interface Genérica
+import com.ai.organizer.ingestion.service.BlobStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.http.codec.multipart.FilePart;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.security.MessageDigest;
-
 import java.net.URL;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.security.MessageDigest;
 
 @Service
 public class IngestionService {
 
-    // Adeus S3AsyncClient! 👋
-    // Olá Interface Genérica! (Injeta o GoogleStorageService automaticamente)
-    private final BlobStorageService blobStorage; 
-    
+    private final BlobStorageService blobStorage;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private static final Logger log = LoggerFactory.getLogger(IngestionService.class);
@@ -38,8 +33,11 @@ public class IngestionService {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Processa upload direto de arquivo (Drag & Drop)
+     */
     public Mono<String> processUpload(FilePart filePart, String userId) {
-        // 1. Carrega o arquivo para a memória
+        // 1. Carrega o arquivo para a memória de forma reativa
         return DataBufferUtils.join(filePart.content())
             .flatMap(dataBuffer -> {
                 try {
@@ -47,31 +45,38 @@ public class IngestionService {
                     dataBuffer.read(bytes);
                     DataBufferUtils.release(dataBuffer);
 
-                    // 2. Calcula Hash
+                    // 2. Captura Tamanho (Para controle de quota)
+                    long fileSize = bytes.length;
+
+                    // 3. Calcula Hash SHA-256 (Identidade única do conteúdo)
                     MessageDigest digest = MessageDigest.getInstance("SHA-256");
                     byte[] hashBytes = digest.digest(bytes);
                     String hash = bytesToHex(hashBytes);
                     
-                    // Nome do arquivo no Google Cloud
+                    // Define caminho no Google Cloud
                     String storageFilename = "uploads/" + hash + "/" + filePart.filename();
-                    String contentType = filePart.headers().getContentType().toString();
+                    String contentType = filePart.headers().getContentType() != null 
+                            ? filePart.headers().getContentType().toString() 
+                            : "application/octet-stream";
 
-                    // 3. Upload para o Google Cloud (Bloqueante envolvido em Reactive)
-                    // Usamos publishOn(boundedElastic) porque o SDK do Google é bloqueante
+                    // 4. Upload para o Google Cloud (Bloqueante envolvido em thread pool elástica)
                     return Mono.fromRunnable(() -> {
                         blobStorage.upload(storageFilename, bytes, contentType);
+                        log.info("☁️ Upload concluído no GCS: {} ({} bytes)", storageFilename, fileSize);
                     }).subscribeOn(Schedulers.boundedElastic())
                     .then(Mono.defer(() -> {
                         try {
-                            // 4. Sucesso -> Envia evento Kafka
+                            // 5. Sucesso -> Envia evento Kafka com o tamanho do arquivo
                             IngestionEvent event = new IngestionEvent(
                                 hash, 
-                                storageFilename, // Agora é o caminho no GCS
+                                storageFilename, // Path no GCS
                                 filePart.filename(), 
                                 userId, 
-                                System.currentTimeMillis()
+                                System.currentTimeMillis(),
+                                fileSize // <--- NOVO CAMPO
                             );
                             
+                            // Serializa para JSON String (evita problemas de tipo no consumer)
                             String jsonEvent = objectMapper.writeValueAsString(event);
                             kafkaTemplate.send("document.ingestion", hash, jsonEvent);
                             
@@ -87,10 +92,13 @@ public class IngestionService {
             });
     }
 
+    /**
+     * Processa ingestão via URL (Botão Salvar da Pesquisa)
+     */
     public Mono<String> processUrlUpload(UrlIngestionRequest request, String userId) {
         // Envolvemos em Mono.fromCallable porque IO de rede (URL.openStream) é bloqueante
         return Mono.fromCallable(() -> {
-            System.out.println("🌐 Baixando PDF remoto: " + request.title());
+            log.info("🌐 Baixando PDF remoto: {}", request.title());
             
             // 1. Download do arquivo remoto para memória
             try (InputStream in = new URL(request.pdfUrl()).openStream();
@@ -103,26 +111,30 @@ public class IngestionService {
                 }
                 byte[] fileBytes = out.toByteArray();
 
-                // 2. Calcula Hash SHA-256 (Identidade única)
+                // 2. Captura Tamanho
+                long fileSize = fileBytes.length;
+
+                // 3. Calcula Hash
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
                 byte[] hashBytes = digest.digest(fileBytes);
                 String hash = bytesToHex(hashBytes);
 
-                // 3. Define nome no Google Storage
-                // Sanitiza o título para não quebrar o sistema de arquivos
+                // 4. Sanitiza nome do arquivo
                 String safeFilename = request.title().replaceAll("[^a-zA-Z0-9.-]", "_") + ".pdf";
                 String storagePath = "uploads/" + hash + "/" + safeFilename;
 
-                // 4. Upload para o Bucket (Usando nossa interface genérica)
+                // 5. Upload para o Bucket
                 blobStorage.upload(storagePath, fileBytes, "application/pdf");
+                log.info("☁️ Download remoto salvo no GCS: {} ({} bytes)", storagePath, fileSize);
 
-                // 5. Dispara evento Kafka (Igual ao upload manual)
+                // 6. Dispara evento Kafka
                 IngestionEvent event = new IngestionEvent(
                     hash,
                     storagePath, 
                     request.title() + ".pdf", // Nome bonito para a biblioteca
                     userId,
-                    System.currentTimeMillis()
+                    System.currentTimeMillis(),
+                    fileSize // <--- NOVO CAMPO
                 );
 
                 String jsonEvent = objectMapper.writeValueAsString(event);
@@ -132,6 +144,7 @@ public class IngestionService {
             }
         }).subscribeOn(Schedulers.boundedElastic()); // Executa em thread pool apropriada para I/O
     }
+
     private String bytesToHex(byte[] hash) {
         StringBuilder hexString = new StringBuilder(2 * hash.length);
         for (byte b : hash) {

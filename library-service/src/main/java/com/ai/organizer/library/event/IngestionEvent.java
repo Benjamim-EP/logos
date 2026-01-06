@@ -6,5 +6,6 @@ public record IngestionEvent(
     String s3Key,
     String originalName,
     String userId,
-    long timestamp
+    long timestamp,
+    long fileSize
 ) {}

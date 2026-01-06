@@ -35,6 +35,9 @@ public class Document {
     @Column(name = "storage_path")
     private String storagePath; 
 
+    @Column(name = "file_size")
+    private Long fileSize; 
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -49,10 +52,11 @@ public class Document {
     private String coverPath; // Novo campo!
 
     // --- CONSTRUTOR ATUALIZADO (4 Argumentos) ---
-    public Document(String title, String fileHash, String userId, String storagePath) {
+    public Document(String title, String fileHash, String userId, String storagePath, Long fileSize) {
         this.title = title;
         this.fileHash = fileHash;
         this.userId = userId;
         this.storagePath = storagePath;
+        this.fileSize = fileSize;
     }
 }

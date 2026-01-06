@@ -2,10 +2,7 @@ package com.ai.organizer.library.controller;
 
 import com.ai.organizer.library.domain.UserProfile;
 import com.ai.organizer.library.dto.ProfileDTO;
-import com.ai.organizer.library.repository.StarGalaxyLinkRepository;
-import com.ai.organizer.library.repository.UserHighlightRepository;
-import com.ai.organizer.library.repository.UserSummaryRepository;
-import com.ai.organizer.library.repository.UserProfileRepository;
+import com.ai.organizer.library.repository.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller responsável pela gestão do Perfil do Usuário e Dashboard Analítico.
- * Aplica princípios de 'Derived Data' (DDIA, Cap 12) para consolidar estatísticas.
+ * Controller responsável pela gestão do Perfil do Usuário, Dashboard Analítico e Controle de Storage.
  */
 @RestController
 @RequestMapping("/api/users/profile")
@@ -32,10 +28,11 @@ public class UserProfileController {
     private final UserHighlightRepository highlightRepository;
     private final UserSummaryRepository summaryRepository;
     private final StarGalaxyLinkRepository linkRepository;
+    private final DocumentRepository documentRepository; // Injeção para calcular storage
     private final ObjectMapper objectMapper;
 
     /**
-     * Recupera o perfil completo com estatísticas reais e dados do Radar de Conhecimento.
+     * Recupera o perfil completo com estatísticas reais, storage usado e dados do Radar.
      */
     @GetMapping
     public ProfileDTO getProfile(@AuthenticationPrincipal Jwt jwt) {
@@ -44,7 +41,7 @@ public class UserProfileController {
 
         log.info("📊 Consolidando dashboard de perfil para o usuário: {}", userId);
 
-        // 1. Recupera o Perfil ou cria um Default (Princípio: Null Object Pattern / Defaulting)
+        // 1. Recupera o Perfil ou cria um Default (Lazy Creation)
         UserProfile profile = repository.findById(userId)
                 .orElseGet(() -> {
                     log.info("🌱 Primeiro acesso detectado para {}. Criando perfil base.", username);
@@ -52,15 +49,21 @@ public class UserProfileController {
                     return new UserProfile(userId, defaultAvatar, "Explorador da Galáxia", null);
                 });
 
-        // 2. Coleta Estatísticas REAIS via Aggregation Queries (DDIA, Cap 3)
-        // Evitamos Table Scan completo usando índices nos campos de userId
+        // 2. Cálculo de Storage (Novidade da Fase de Storage)
+        Long usedBytes = documentRepository.getTotalStorageUsed(userId);
+        long usedMB = usedBytes != null ? usedBytes / (1024 * 1024) : 0;
+        long limitMB = 100; // Limite fixo por enquanto (SaaS Free Tier)
+
+        // 3. Coleta Estatísticas REAIS via Aggregation Queries
         ProfileDTO.UserStats stats = new ProfileDTO.UserStats(
                 highlightRepository.countByUserId(userId),
                 summaryRepository.countByUserId(userId),
-                linkRepository.countByUserId(userId)
+                linkRepository.countByUserId(userId),
+                usedMB,    // Storage Usado
+                limitMB    // Limite Total
         );
 
-        // 3. Processa dados do Radar (Cérebro da Visualização)
+        // 4. Processa dados do Radar (Cérebro da Visualização)
         List<Map<String, Object>> radar = new ArrayList<>();
         try {
             if (profile.getRadarData() != null && !profile.getRadarData().isEmpty()) {
@@ -78,7 +81,6 @@ public class UserProfileController {
             }
         } catch (Exception e) {
             log.error("❌ Erro ao processar radar_data para o usuário {}: {}", userId, e.getMessage());
-            // Fallback para não quebrar a UI
         }
 
         return new ProfileDTO(
@@ -107,10 +109,9 @@ public class UserProfileController {
         return repository.save(profile);
     }
 
-    // --- Helpers de Extração de Token (Princípio: Information Hiding) ---
+    // --- Helpers de Extração de Token ---
 
     private String getUserId(Jwt jwt) {
-        // preferred_username é o padrão para Keycloak, 'sub' é o fallback OIDC
         String claim = jwt.getClaimAsString("preferred_username");
         return claim != null ? claim : jwt.getSubject();
     }

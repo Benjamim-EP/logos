@@ -10,5 +10,6 @@ public record IngestionEvent(
     String s3Key,        // Caminho do arquivo no MinIO
     String originalName, // Nome original do arquivo
     String userId,       // ID do usuário que fez o upload
-    long timestamp       // Momento do upload
+    long timestamp,      // Momento do upload
+    long fileSize
 ) {}

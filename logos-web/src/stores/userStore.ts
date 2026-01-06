@@ -10,6 +10,8 @@ interface UserProfile {
     highlights: number
     summaries: number
     connections: number
+    storageUsed: number  
+    storageLimit: number
   }
   // DADOS DO RADAR
   radar: Array<{ subject: string, A: number }>

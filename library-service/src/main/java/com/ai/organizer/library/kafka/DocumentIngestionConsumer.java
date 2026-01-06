@@ -36,7 +36,8 @@ public class DocumentIngestionConsumer {
                 event.originalName(),
                 event.fileHash(),
                 event.userId(),
-                event.s3Key() // Este campo do evento contém o path no GCS (ex: uploads/hash/file.pdf)
+                event.s3Key(),
+                event.fileSize() 
             );
 
             documentRepository.save(doc);

@@ -40,8 +40,9 @@ export async function searchPapers(query: string, field?: string) {
 
   const params = new URLSearchParams({
     search: searchQuery,
-    per_page: '12',
-    filter: 'has_fulltext:true' // Só queremos papers com PDF
+    per_page: '15',
+    filter: 'has_fulltext:true',
+    sort: 'publication_date:desc' // <--- TRAZ OS MAIS RECENTES
   })
 
   try {

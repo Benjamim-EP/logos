@@ -13,6 +13,8 @@ public record ProfileDTO(
     public record UserStats(
         long highlights,
         long summaries,
-        long connections
+        long connections,
+        long storageUsed, 
+        long storageLimit 
     ) {}
 }
