@@ -2,6 +2,7 @@ package com.ai.organizer.processor.kafka;
 
 import com.ai.organizer.processor.HighlightEvent;
 import com.ai.organizer.processor.service.ProcessorService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,17 +17,27 @@ public class HighlightConsumer {
     private final ProcessorService processorService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "highlight.created", groupId = "ai-processor-highlights")
-    public void consume(String message) { // Recebe String
+    // Alterei o groupId para v2 para pular mensagens antigas travadas
+    @KafkaListener(topics = "highlight.created", groupId = "ai-processor-highlights-v2")
+    public void consume(String message) {
         try {
-            // Converte manualmente
-            HighlightEvent event = objectMapper.readValue(message, HighlightEvent.class);
+            log.info("🖍️ [HIGHLIGHT] Mensagem recebida: {}", message);
+
+            // 1. TRATAMENTO DE DUPLA SERIALIZAÇÃO
+            JsonNode jsonNode = objectMapper.readTree(message);
+            if (jsonNode.isTextual()) {
+                log.info("⚠️ JSON encapsulado detectado. Realizando segundo parse...");
+                jsonNode = objectMapper.readTree(jsonNode.asText());
+            }
+
+            // 2. CONVERSÃO PARA O RECORD
+            HighlightEvent event = objectMapper.treeToValue(jsonNode, HighlightEvent.class);
             
-            log.info("🖍️ Highlight recebido: {}", event.content());
+            log.info("✅ Highlight ID {} validado. Iniciando vetorização...", event.highlightId());
             processorService.processHighlight(event);
             
         } catch (Exception e) {
-            log.error("❌ Erro ao ler highlight JSON: {}", message, e);
+            log.error("❌ Erro ao processar highlight JSON: {}", message, e);
         }
     }
 }

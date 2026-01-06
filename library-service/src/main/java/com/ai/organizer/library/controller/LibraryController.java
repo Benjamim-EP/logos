@@ -2,8 +2,10 @@ package com.ai.organizer.library.controller;
 
 import com.ai.organizer.library.domain.Document;
 import com.ai.organizer.library.domain.Highlight;
+import com.ai.organizer.library.domain.UserHighlight;
 import com.ai.organizer.library.repository.DocumentRepository;
 import com.ai.organizer.library.repository.HighlightRepository;
+import com.ai.organizer.library.repository.UserHighlightRepository;
 import com.ai.organizer.library.service.BlobStorageService; // <--- Interface copiada do ingestion/ai-processor
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LibraryController {
 
-    private final HighlightRepository highlightRepository;
+    private final UserHighlightRepository userHighlightRepository;
     private final DocumentRepository documentRepository;
     private final BlobStorageService blobStorageService; // <--- Injeção do Serviço de Storage
 
@@ -58,16 +60,14 @@ public class LibraryController {
      * Usado quando o usuário abre o livro para ver suas marcações passadas.
      */
     @GetMapping("/books/{fileHash}/highlights")
-    public List<Highlight> getBookHighlights(
+    public List<UserHighlight> getBookHighlights(
             @PathVariable String fileHash, 
             @AuthenticationPrincipal Jwt jwt) {
         
         String userId = extractUserId(jwt);
         
-        // Filtra highlights do usuário para este arquivo específico
-        return highlightRepository.findByUserId(userId).stream()
-                .filter(h -> h.getFileHash().equals(fileHash))
-                .collect(Collectors.toList());
+        // Usa o método do novo repositório
+        return userHighlightRepository.findByUserIdAndFileHash(userId, fileHash);
     }
 
     /**

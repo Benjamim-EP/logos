@@ -1,15 +1,13 @@
-// library-service/src/main/java/com/ai/organizer/library/controller/HighlightController.java
-
 package com.ai.organizer.library.controller;
 
 import com.ai.organizer.library.domain.UserHighlight;
 import com.ai.organizer.library.event.HighlightEvent;
 import com.ai.organizer.library.repository.UserHighlightRepository;
 import com.ai.organizer.library.service.RadarTriggerService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,46 +22,66 @@ public class HighlightController {
     private final UserHighlightRepository userHighlightRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RadarTriggerService radarTriggerService;
-    
 
-    // DTO Atualizado: Agora recebe position (JSON String)
+    // DTO Interno
     public record CreateHighlightRequest(
         String fileHash, 
         String content, 
         String type, 
-        String position // <--- NOVO
+        String position 
     ) {}
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public void createHighlight(
+    public ResponseEntity<Long> createHighlight(
             @RequestBody CreateHighlightRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         String userId = jwt.getClaimAsString("preferred_username");
-        log.info("Recebendo highlight do usuário: {} para o arquivo: {}", userId, request.fileHash());
-
+        
+        // 1. PERSISTÊNCIA CRÍTICA (Banco de Dados)
         UserHighlight hl = new UserHighlight();
         hl.setFileHash(request.fileHash);
         hl.setUserId(userId);
-        hl.setContent(request.content.length() > 3900 ? request.content.substring(0, 3900) : request.content);
-        hl.setType(request.type);
-        hl.setPositionJson(request.position); // <--- SALVA A POSIÇÃO
         
+        // Proteção contra textos gigantes que estouram colunas
+        String safeContent = request.content != null && request.content.length() > 3900 
+                ? request.content.substring(0, 3900) 
+                : request.content;
+                
+        hl.setContent(safeContent);
+        hl.setType(request.type);
+        hl.setPositionJson(request.position);
+        
+        // Salva e garante o ID
         UserHighlight saved = userHighlightRepository.save(hl);
-        radarTriggerService.checkAndTrigger(userId);
-        log.info("💾 Highlight salvo com posição. ID: {}", saved.getId());
+        log.info("💾 Highlight salvo no SQL. ID: {}", saved.getId());
 
-        // O evento Kafka continua igual (o AI Processor não precisa da posição visual, só do texto)
-        HighlightEvent event = new HighlightEvent(
-            saved.getId(),
-            saved.getFileHash(),
-            saved.getUserId(),
-            saved.getContent(),
-            saved.getType()
-        );
+        // 2. PROCESSAMENTO ASSÍNCRONO (Blindado)
+        // Se isso falhar, NÃO retornamos erro 500 para o usuário
+        try {
+            // Gatilho do Radar (Envia Kafka)
+            radarTriggerService.checkAndTrigger(userId);
+            
+            // Evento para IA (Envia Kafka)
+            HighlightEvent event = new HighlightEvent(
+                saved.getId(),
+                saved.getFileHash(),
+                saved.getUserId(),
+                saved.getContent(),
+                saved.getType()
+            );
+            kafkaTemplate.send("highlight.created", saved.getId().toString(), event);
+            
+            log.info("🚀 Eventos de integração disparados com sucesso.");
 
-        kafkaTemplate.send("highlight.created", saved.getId().toString(), event);
+        } catch (Exception e) {
+            // Apenas logamos o erro. O dado está salvo, o usuário pode continuar lendo.
+            // O sistema é "Eventually Consistent", podemos reprocessar depois.
+            log.error("⚠️ Falha nos eventos secundários (Kafka/Radar): {}", e.getMessage());
+        }
+        
+        // Retorna sucesso 201 com o ID
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved.getId());
     }
 
     @DeleteMapping("/{id}")
@@ -71,11 +89,14 @@ public class HighlightController {
     public void deleteHighlight(@PathVariable Long id) {
         if (userHighlightRepository.existsById(id)) {
             userHighlightRepository.deleteById(id);
-            // Formato da mensagem: "TIPO:ID"
-            kafkaTemplate.send("data.deleted", "HIGHLIGHT:" + id);
-            log.info("🗑️ Highlight {} deletado.", id);
+            
+            // Tenta avisar o Pinecone, se falhar, ok, deletou do SQL pelo menos
+            try {
+                kafkaTemplate.send("data.deleted", "HIGHLIGHT:" + id);
+                log.info("🗑️ Evento de deleção enviado para Highlight {}", id);
+            } catch (Exception e) {
+                log.error("Erro ao enviar evento de deleção", e);
+            }
         }
     }
-
-    
 }

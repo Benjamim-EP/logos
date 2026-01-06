@@ -1,6 +1,9 @@
 package com.ai.organizer.library.client;
 
 import com.ai.organizer.library.client.dto.AiGravityResponse;
+
+import java.util.Map;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -45,5 +48,19 @@ public class AiProcessorClient {
             return jwtToken.getToken().getTokenValue();
         }
         return "";
+    }
+
+     public void registerGalaxy(String id, String name, String userId) {
+        try {
+            var payload = Map.of("id", id, "name", name, "userId", userId);
+            restClient.post()
+                    .uri("/galaxy/register")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getJwtTokenFromContext())
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            System.err.println("⚠️ Falha ao registrar galáxia no Pinecone: " + e.getMessage());
+        }
     }
 }

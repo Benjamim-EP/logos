@@ -1,6 +1,8 @@
 package com.ai.organizer.processor.web;
 
 import com.ai.organizer.processor.web.dto.GravityResponse;
+
+import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -80,4 +82,23 @@ public class AiGalaxyController {
         }
         return new GravityResponse.StarMatch(starId, match.score());
     }
+
+     @PostMapping("/register")
+    public void registerGalaxy(@RequestBody RegisterGalaxyRequest request) {
+        log.info("🪐 Indexando nova galáxia no Pinecone: {}", request.name());
+        
+        // 1. Vetoriza o nome da Galáxia
+        var embedding = embeddingModel.embed(request.name()).content();
+        
+        // 2. Salva com tipo 'galaxy' para ser encontrável
+        Metadata metadata = Metadata.from("userId", request.userId())
+                .put("type", "galaxy") // <--- TIPO ESPECIAL
+                .put("galaxyId", request.id()); // ID do Postgres
+
+        TextSegment segment = TextSegment.from(request.name(), metadata);
+        embeddingStore.add(embedding, segment);
+    }
+
+    // DTO Interno
+    public record RegisterGalaxyRequest(String id, String name, String userId) {}
 }

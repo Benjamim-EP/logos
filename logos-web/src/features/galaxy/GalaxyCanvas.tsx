@@ -60,6 +60,15 @@ export function GalaxyCanvas() {
     }
   }, []) 
 
+  useEffect(() => {
+      const handleRefresh = () => {
+          console.log("🌌 Atualização da galáxia solicitada externamente.");
+          initializeUniverse();
+      }
+      window.addEventListener('refresh-galaxy', handleRefresh)
+      return () => window.removeEventListener('refresh-galaxy', handleRefresh)
+  }, [])
+
   // 2. Listener de Eventos Customizados (Comunicação entre StarNode e Canvas)
   useEffect(() => {
     const handleOpenRequest = async (e: Event) => {

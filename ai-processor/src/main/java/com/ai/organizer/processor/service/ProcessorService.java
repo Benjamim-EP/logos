@@ -3,6 +3,7 @@ package com.ai.organizer.processor.service;
 import com.ai.organizer.processor.CoverGeneratedEvent;
 import com.ai.organizer.processor.HighlightEvent;
 import com.ai.organizer.processor.IngestionEvent;
+import com.ai.organizer.processor.event.StarLinkedEvent; // <--- Import Novo
 import com.ai.organizer.processor.ai.BookAssistant;
 import com.ai.organizer.processor.domain.HighlightEntity;
 import com.ai.organizer.processor.repository.HighlightRepository;
@@ -13,7 +14,9 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder; // <--- Import Novo
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +28,6 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Slf4j
@@ -200,18 +202,57 @@ public class ProcessorService {
                 TextSegment segment = TextSegment.from(event.content(), metadata);
                 Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
+                // 1. Salva no Pinecone
                 embeddingStore.addAll(
                     Collections.singletonList(embeddingResponse.content()),
                     Collections.singletonList(segment)
                 );
                 
                 log.info("✅ Highlight vetorizado no Pinecone.");
+
+                // 2. BUSCA REVERSA (SHOOTING STAR) - O Elo Perdido!
+                findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
                 
             } else {
                 log.warn("⚠️ Processamento de imagem em highlight ainda não implementado.");
             }
         } catch (Exception e) {
             log.error("❌ Erro ao processar highlight: {}", e.getMessage(), e);
+        }
+    }
+
+    private void findAndLinkGalaxies(Embedding highlightVector, String userId, String highlightId) {
+        log.info("🔎 [SHOOTING STAR] Procurando Galáxias próximas para o Highlight ID: {}", highlightId);
+        try {
+            // Busca vetores do tipo 'galaxy'
+            EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(highlightVector)
+                    .filter(MetadataFilterBuilder.metadataKey("type").isEqualTo("galaxy"))
+                    .minScore(0.35) 
+                    .maxResults(5)
+                    .build();
+
+            var matches = embeddingStore.search(request).matches();
+
+            log.info("   -> Encontradas {} galáxias candidatas no Pinecone.", matches.size());
+
+            for (var match : matches) {
+                if (match.embedded() == null || match.embedded().metadata() == null) continue;
+
+                String galaxyUserId = match.embedded().metadata().getString("userId");
+                String galaxyId = match.embedded().metadata().getString("galaxyId");
+                
+                // Verifica se a galáxia pertence ao mesmo usuário
+                if (userId.equals(galaxyUserId) && galaxyId != null) {
+                    StarLinkedEvent linkEvent = new StarLinkedEvent(galaxyId, highlightId, match.score());
+                    String json = objectMapper.writeValueAsString(linkEvent);
+                    
+                    kafkaTemplate.send("star.linked", galaxyId, json);
+                    log.info("🔗 LINK DETECTADO: Highlight {} atraído por Galáxia {}", highlightId, galaxyId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Erro na busca reversa de galáxias", e);
         }
     }
 

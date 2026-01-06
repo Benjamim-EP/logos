@@ -17,14 +17,13 @@ import {
   List, ChevronRight, Trash2, Sparkles, RefreshCw, 
   MousePointer2, TextCursor 
 } from "lucide-react"
-import { usePdfStore } from "@/stores/pdfStore"
 import type { Note } from "@/types/galaxy"
 import api from "@/lib/api"
 import { toast } from "sonner"
 
 import "react-pdf-highlighter/dist/style.css"
 
-// Configuração do Worker do PDF.js
+// Configuração do Worker do PDF.js (Versão estável para esta lib)
 const pdfVersion = "3.11.174" 
 try {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfVersion}/build/pdf.worker.min.js`
@@ -65,12 +64,13 @@ function HighlightTip({ onOpen, onConfirm }: { onOpen: () => void, onConfirm: (a
 }
 
 export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfReaderViewProps) {
-  const { getHighlights, addHighlight, removeHighlight } = usePdfStore()
   
+  // ESTADO UNIFICADO: Não usamos mais a store local, usamos estado direto da API
   const [visualHighlights, setVisualHighlights] = useState<IHighlight[]>([])
   const [summaries, setSummaries] = useState<any[]>([]) 
   const [activeTab, setActiveTab] = useState("highlights")
   
+  // Modos de interação
   const [interactionMode, setInteractionMode] = useState<'select' | 'interact'>('select')
   
   const [zoom, setZoom] = useState(1.0) 
@@ -79,10 +79,12 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
 
   const highlighterRef = useRef<any>(null)
 
+  // 1. Carregar dados REAIS do Banco ao abrir
   useEffect(() => {
     fetchData()
   }, [note.id])
 
+  // 2. Auto-scroll se vier da Galáxia
   useEffect(() => {
     if (initialPosition && highlighterRef.current) {
         setTimeout(() => {
@@ -92,38 +94,58 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
   }, [initialPosition])
 
   const fetchData = async () => {
-      const localHighlights = getHighlights(note.id)
-      let remoteSummaries: any[] = []
       try {
+          // Busca Resumos
           setIsLoadingSummaries(true)
-          const { data } = await api.get(`/library/summaries/${note.id}`)
-          setSummaries(data)
-          remoteSummaries = data;
+          const resSummaries = await api.get(`/library/summaries/${note.id}`)
+          setSummaries(resSummaries.data)
+          
+          // Busca Highlights (Endpoint que retorna lista de UserHighlight)
+          const resHighlights = await api.get(`/library/books/${note.id}/highlights`)
+          
+          // Transforma dados do Banco (UserHighlight) para dados Visuais (IHighlight)
+          const dbHighlights = resHighlights.data.map((h: any) => {
+             let pos = null;
+             try { pos = JSON.parse(h.positionJson) } catch(e) {}
+             if(!pos) return null;
+
+             return {
+                 id: String(h.id),
+                 position: pos,
+                 // CORREÇÃO: O campo no UserHighlight é 'content', não 'originalText'
+                 content: { text: h.content }, 
+                 comment: { text: "", emoji: "" },
+                 isSummary: false
+             }
+          }).filter(Boolean)
+
+          // Transforma Resumos em Highlights "Fantasmas" (Borda Ciano)
+          const summaryHighlights = resSummaries.data
+            .filter((s: any) => s.positionJson)
+            .map((s: any) => {
+                let pos;
+                try { pos = JSON.parse(s.positionJson) } catch (e) { return null }
+                if (!pos) return null;
+
+                return {
+                    id: `summary-${s.id}`,
+                    position: pos,
+                    content: { text: "Resumo IA" },
+                    comment: { text: s.generatedText, emoji: "🤖" },
+                    isSummary: true,
+                    dbId: s.id
+                } as any
+            })
+            .filter(Boolean)
+
+          // Junta tudo na tela
+          setVisualHighlights([...dbHighlights, ...summaryHighlights])
+
       } catch (e) {
           console.error(e)
       } finally {
           setIsLoadingSummaries(false)
       }
-
-      const summaryHighlights = remoteSummaries
-        .filter(s => s.positionJson)
-        .map(s => {
-            let pos;
-            try { pos = JSON.parse(s.positionJson) } catch (e) { return null }
-            if (!pos) return null;
-
-            return {
-                id: `summary-${s.id}`,
-                position: pos,
-                content: { text: "Resumo IA" },
-                comment: { text: s.generatedText, emoji: "🤖" },
-                isSummary: true,
-                dbId: s.id
-            } as any
-        })
-        .filter(Boolean)
-
-      setVisualHighlights([...localHighlights, ...summaryHighlights])
   }
 
   const handleSelectionAction = async (highlight: IHighlight, action: 'highlight' | 'summarize') => {
@@ -132,18 +154,33 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
     const positionStr = JSON.stringify(highlight.position);
 
     if (action === 'highlight') {
-        addHighlight(note.id, highlight)
-        setVisualHighlights(prev => [...prev, highlight])
         try {
-            await api.post("/library/highlights", {
+            // 1. Salva no Banco
+            const { data: newId } = await api.post("/library/highlights", {
                 fileHash: note.id,
                 content: text,
                 type: "TEXT",
                 position: positionStr
             })
+            
             toast.success("Trecho salvo")
-        } catch (e) { toast.error("Erro ao salvar") }
-    } 
+            
+            // 2. ATUALIZAÇÃO ROBUSTA:
+            // Adiciona visualmente na hora (Optimistic)
+            const newHighlight = { ...highlight, id: String(newId) }
+            setVisualHighlights(prev => [...prev, newHighlight])
+            
+            // 3. Mas também recarrega do banco para garantir consistência
+            setTimeout(() => fetchData(), 500)
+            
+            // 4. Avisa a Galáxia
+            window.dispatchEvent(new Event('refresh-galaxy'));
+
+        } catch (e) { 
+            console.error(e)
+            toast.error("Erro ao salvar marcação. Verifique o console.") 
+        }
+    }  
     else if (action === 'summarize') {
         try {
             toast.info("IA lendo trecho...", { description: "Gerando resumo..." })
@@ -158,7 +195,11 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
             setIsSidebarOpen(true)
             setActiveTab("summaries")
             
-            setTimeout(fetchData, 1000) 
+            // Avisa a galáxia (embora ainda pending)
+            window.dispatchEvent(new Event('refresh-galaxy'));
+
+            // Polling simples para atualizar status
+            setTimeout(fetchData, 2000) 
 
         } catch (e) {
             toast.error("Falha ao solicitar resumo")
@@ -171,17 +212,28 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
           await api.delete(`/library/summaries/${summaryId}`)
           toast.success("Resumo apagado")
           fetchData()
+          window.dispatchEvent(new Event('refresh-galaxy'));
       } catch (e) { toast.error("Erro ao apagar") }
   }
 
   const handleDeleteHighlight = async (h: IHighlight) => {
-      removeHighlight(note.id, h.id)
-      setVisualHighlights(prev => prev.filter(x => x.id !== h.id))
+      try {
+          // Aqui usamos o ID real que veio do banco no fetchData
+          await api.delete(`/library/highlights/${h.id}`)
+          
+          setVisualHighlights(prev => prev.filter(x => x.id !== h.id))
+          toast.success("Marcação removida")
+          window.dispatchEvent(new Event('refresh-galaxy'));
+
+      } catch (e) {
+          toast.error("Erro ao excluir. Tente recarregar a página.")
+      }
   }
 
   return (
     <div className="fixed inset-x-0 bottom-0 top-16 z-50 bg-zinc-950 flex flex-col border-t border-white/10 animate-in slide-in-from-bottom-10 duration-300">
       
+      {/* HEADER */}
       <div className="h-14 border-b border-white/10 bg-black/90 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
@@ -194,14 +246,14 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                 <button 
                     onClick={() => setInteractionMode('select')}
                     className={`p-1.5 rounded ${interactionMode === 'select' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                    title="Modo Seleção (Criar)"
+                    title="Modo Seleção"
                 >
                     <TextCursor className="w-3 h-3" />
                 </button>
                 <button 
                     onClick={() => setInteractionMode('interact')}
                     className={`p-1.5 rounded ${interactionMode === 'interact' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                    title="Modo Interação (Ler Resumos)"
+                    title="Modo Interação"
                 >
                     <MousePointer2 className="w-3 h-3" />
                 </button>
@@ -216,7 +268,7 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
         <div className="flex items-center gap-2">
           <Button variant={isSidebarOpen ? "secondary" : "ghost"} size="sm" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-xs gap-2">
             <List className="w-4 h-4" /> 
-            {isSidebarOpen ? "Fechar Painel" : "Ver Notas & IA"}
+            {isSidebarOpen ? "Fechar" : "Painel"}
           </Button>
           <Button size="icon" variant="ghost" onClick={onClose} className="hover:bg-white/10 text-gray-400"><X className="w-5 h-5" /></Button>
         </div>
@@ -224,6 +276,7 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
 
       <div className="flex-1 relative bg-zinc-900 w-full h-full flex overflow-hidden">
         
+        {/* PDF CONTAINER */}
         <div className="flex-1 relative h-full overflow-auto bg-gray-900/50 flex justify-center">
             <div style={{ position: 'relative', width: `${60 * zoom}vw`, minWidth: '600px', marginBottom: '50px' }}>
                 <PdfLoader 
@@ -250,7 +303,6 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                                 ) : null
                             )}
                             
-                            // CORREÇÃO CRÍTICA AQUI: Separando Highlight de AreaHighlight
                             highlightTransform={(highlight, index, setTip, hideTip, _, __, isScrolledTo) => {
                                 const isSummary = (highlight as any).isSummary;
                                 const isTextHighlight = !Boolean(highlight.content && highlight.content.image);
@@ -270,17 +322,9 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                                 const component = (
                                     <div className={containerClass} onClick={handleSummaryClick}>
                                         {isTextHighlight ? (
-                                            <Highlight 
-                                                isScrolledTo={isScrolledTo} 
-                                                position={highlight.position} 
-                                                comment={highlight.comment} 
-                                            />
+                                            <Highlight isScrolledTo={isScrolledTo} position={highlight.position} comment={highlight.comment} />
                                         ) : (
-                                            <AreaHighlight
-                                                isScrolledTo={isScrolledTo}
-                                                highlight={highlight}
-                                                onChange={() => {}} // Callback vazio para satisfazer o tipo
-                                            />
+                                            <AreaHighlight isScrolledTo={isScrolledTo} highlight={highlight} onChange={() => {}} />
                                         )}
                                     </div>
                                 );
@@ -289,7 +333,7 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                                     <Popup 
                                         popupContent={
                                             <div className="text-black text-xs p-2 bg-white rounded shadow max-w-xs">
-                                                {isSummary ? "✨ Clique para ver o resumo da IA" : highlight.comment?.text}
+                                                {isSummary ? "✨ Resumo IA" : "Anotação"}
                                             </div>
                                         } 
                                         onMouseOver={(content) => setTip(highlight, () => content)} 
@@ -307,25 +351,21 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
             </div>
         </div>
 
+        {/* SIDEBAR */}
         {isSidebarOpen && (
             <div className="w-96 bg-[#0a0a0a] border-l border-white/10 h-full flex flex-col z-[201] absolute right-0 top-0 bottom-0 md:relative shadow-2xl">
                 
                 <div className="flex border-b border-white/10">
-                    <button 
-                        onClick={() => setActiveTab("highlights")}
-                        className={`flex-1 py-3 text-xs font-medium transition-colors ${activeTab === "highlights" ? "text-blue-400 border-b-2 border-blue-500 bg-white/5" : "text-gray-500 hover:text-gray-300"}`}
-                    >
+                    <button onClick={() => setActiveTab("highlights")} className={`flex-1 py-3 text-xs font-medium transition-colors ${activeTab === "highlights" ? "text-blue-400 border-b-2 border-blue-500 bg-white/5" : "text-gray-500 hover:text-gray-300"}`}>
                         Marcações ({visualHighlights.filter((h:any) => !h.isSummary).length})
                     </button>
-                    <button 
-                        onClick={() => setActiveTab("summaries")}
-                        className={`flex-1 py-3 text-xs font-medium transition-colors ${activeTab === "summaries" ? "text-cyan-400 border-b-2 border-cyan-500 bg-white/5" : "text-gray-500 hover:text-gray-300"}`}
-                    >
-                        Resumos IA ({summaries.length})
+                    <button onClick={() => setActiveTab("summaries")} className={`flex-1 py-3 text-xs font-medium transition-colors ${activeTab === "summaries" ? "text-cyan-400 border-b-2 border-cyan-500 bg-white/5" : "text-gray-500 hover:text-gray-300"}`}>
+                        Resumos ({summaries.length})
                     </button>
                 </div>
 
                 <ScrollArea className="flex-1 p-4">
+                    {/* CONTEÚDO: RESUMOS */}
                     {activeTab === "summaries" && (
                         <div className="space-y-4">
                             <div className="flex justify-end">
@@ -335,75 +375,38 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                             </div>
                             
                             {summaries.length === 0 && (
-                                <div className="text-center text-gray-500 text-xs py-10">
-                                    Selecione um texto no PDF e clique em "Resumir" para gerar inteligência.
-                                </div>
+                                <div className="text-center text-gray-500 text-xs py-10">Nenhum resumo.</div>
                             )}
 
                             {summaries.map((s: any) => (
-                                <div key={s.id} className="bg-gradient-to-br from-cyan-900/10 to-transparent border border-cyan-500/20 rounded-lg p-4 group relative hover:border-cyan-500/40 transition-colors">
-                                    <button 
-                                        onClick={() => handleDeleteSummary(s.id)}
-                                        className="absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                        title="Apagar Resumo"
-                                    >
-                                        <Trash2 className="w-3 h-3" />
-                                    </button>
-
+                                <div key={s.id} className="bg-gradient-to-br from-cyan-900/10 to-transparent border border-cyan-500/20 rounded-lg p-4 group relative hover:border-cyan-500/40">
+                                    <button onClick={() => handleDeleteSummary(s.id)} className="absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3" /></button>
                                     <div className="flex justify-between items-center mb-3">
-                                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
-                                            {s.sourceType === 'TEXT_SELECTION' ? 'Seleção' : 'Intervalo'}
-                                        </span>
-                                        {s.status === 'PENDING' ? (
-                                            <span className="flex items-center gap-1 text-[10px] text-yellow-500"><Loader2 className="w-3 h-3 animate-spin"/> Gerando</span>
-                                        ) : (
-                                            <span className="text-[10px] text-green-500 font-mono">Concluído</span>
-                                        )}
+                                        <span className="text-[10px] font-bold text-cyan-400 uppercase">{s.sourceType}</span>
+                                        {s.status === 'PENDING' ? <span className="text-[10px] text-yellow-500 flex gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Gerando</span> : <span className="text-[10px] text-green-500">Concluído</span>}
                                     </div>
-                                    
                                     {s.status === 'COMPLETED' ? (
-                                        <div className="prose prose-invert prose-sm text-xs text-gray-300 max-h-60 overflow-y-auto custom-scrollbar leading-relaxed">
+                                        <div className="prose prose-invert prose-sm text-xs text-gray-300 max-h-60 overflow-y-auto custom-scrollbar">
                                             <ReactMarkdown>{s.generatedText}</ReactMarkdown>
                                         </div>
-                                    ) : (
-                                        <p className="text-xs text-gray-500 italic">A IA está lendo e sintetizando o conteúdo...</p>
-                                    )}
-                                    
-                                    <div className="mt-3 pt-3 border-t border-white/5 text-[10px] text-gray-600 flex justify-between">
-                                        <span>{new Date(s.createdAt).toLocaleTimeString()}</span>
-                                    </div>
+                                    ) : <p className="text-xs text-gray-500">Processando...</p>}
                                 </div>
                             ))}
                         </div>
                     )}
 
+                    {/* CONTEÚDO: MARCAÇÕES */}
                     {activeTab === "highlights" && (
                         <div className="space-y-3">
                             {visualHighlights.filter((h: any) => !h.isSummary).map((h) => (
-                                <div 
-                                    key={h.id} 
-                                    className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 cursor-pointer group"
-                                    onClick={() => { if(highlighterRef.current) highlighterRef.current.scrollTo(h) }}
-                                >
+                                <div key={h.id} className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 cursor-pointer group" onClick={() => { if(highlighterRef.current) highlighterRef.current.scrollTo(h) }}>
                                     <div className="flex justify-between items-start mb-2">
-                                        <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1 rounded font-mono">
-                                            Pág. {h.position.pageNumber}
-                                        </span>
-                                        <Trash2 
-                                            className="w-3 h-3 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" 
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteHighlight(h) }} 
-                                        />
+                                        <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1 rounded font-mono">Pág. {h.position.pageNumber}</span>
+                                        <Trash2 className="w-3 h-3 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDeleteHighlight(h) }} />
                                     </div>
-                                    <blockquote className="text-xs text-gray-300 border-l-2 border-yellow-500/50 pl-2 italic line-clamp-3 leading-relaxed">
-                                        "{h.content.text}"
-                                    </blockquote>
+                                    <blockquote className="text-xs text-gray-300 border-l-2 border-yellow-500/50 pl-2 italic line-clamp-3">"{h.content.text}"</blockquote>
                                 </div>
                             ))}
-                            {visualHighlights.filter((h: any) => !h.isSummary).length === 0 && (
-                                <div className="text-center text-gray-500 text-xs py-10">
-                                    Nenhuma marcação encontrada.
-                                </div>
-                            )}
                         </div>
                     )}
                 </ScrollArea>
