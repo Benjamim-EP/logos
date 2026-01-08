@@ -261,7 +261,8 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
             content: content,
             type: type,
             dbId: dbId,
-            positionPdf: positionPdf // <--- CORREÇÃO AQUI: Passando a posição!
+            positionPdf: item.position,
+            fileHash: note.id 
         }
     }
     

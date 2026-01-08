@@ -14,6 +14,8 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,65 +42,69 @@ public class AiGalaxyController {
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
                     .queryEmbedding(embeddingResponse.content())
                     .maxResults(100) 
-                    .minScore(0.6) // Voltamos para um score razoável
+                    .minScore(0.35) 
                     .build();
 
             EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
 
-            // 3. Mapeamento com FILTRAGEM DEFENSIVA (Modern Java in Action - Cap 5: Streams)
             List<GravityResponse.StarMatch> matches = result.matches().stream()
-                    // FILTRO CRÍTICO: Só aceita se houver conteúdo embutido (evita o NPE)
+                    // Filtra matches vazios ou corrompidos
                     .filter(m -> m.embedded() != null && m.embedded().metadata() != null)
                     .map(this::toMatch)
-                    // Só aceita se conseguimos extrair um ID válido do banco
+                    // Filtra IDs nulos
                     .filter(m -> m.highlightId() != null)
                     .collect(Collectors.toList());
 
-            log.info("🧲 Sucesso. Retornando {} conexões válidas de {} totais do Pinecone.", 
-                     matches.size(), result.matches().size());
+            log.info("🧲 Sucesso. Retornando {} conexões válidas.", matches.size());
             
             return new GravityResponse(term, matches);
 
         } catch (Exception e) {
             log.error("❌ ERRO NO AI PROCESSOR:", e);
-            throw new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Erro na IA: " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro na IA: " + e.getMessage());
         }
     }
 
+    // --- CORREÇÃO AQUI ---
     private GravityResponse.StarMatch toMatch(EmbeddingMatch<TextSegment> match) {
         String starId = null;
-        if (match.embedded() != null && match.embedded().metadata() != null) {
-            // Tenta pegar de uma das duas fontes possíveis
-            String hId = match.embedded().metadata().getString("highlightId");
-            String sId = match.embedded().metadata().getString("summaryId");
+        String textContent = "";
 
-            if (sId != null) {
-                // Se for resumo, mandamos com o prefixo que o frontend já usa
-                starId = "summary-" + sId;
-            } else if (hId != null) {
-                starId = hId;
+        if (match.embedded() != null) {
+            textContent = match.embedded().text(); // Pega o texto do vetor
+            
+            if (match.embedded().metadata() != null) {
+                String hId = match.embedded().metadata().getString("highlightId");
+                String sId = match.embedded().metadata().getString("summaryId");
+                String dbId = match.embedded().metadata().getString("dbId");
+
+                if (sId != null) {
+                    starId = "summary-" + sId;
+                } else if (hId != null) {
+                    starId = hId;
+                } else if (dbId != null) {
+                    starId = dbId;
+                }
             }
         }
-        return new GravityResponse.StarMatch(starId, match.score());
+        
+        // Passa os 3 argumentos agora: ID, Score, Texto
+        return new GravityResponse.StarMatch(starId, match.score(), textContent);
     }
 
-     @PostMapping("/register")
+    @PostMapping("/register")
     public void registerGalaxy(@RequestBody RegisterGalaxyRequest request) {
         log.info("🪐 Indexando nova galáxia no Pinecone: {}", request.name());
         
-        // 1. Vetoriza o nome da Galáxia
         var embedding = embeddingModel.embed(request.name()).content();
         
-        // 2. Salva com tipo 'galaxy' para ser encontrável
         Metadata metadata = Metadata.from("userId", request.userId())
-                .put("type", "galaxy") // <--- TIPO ESPECIAL
-                .put("galaxyId", request.id()); // ID do Postgres
+                .put("type", "galaxy") 
+                .put("galaxyId", request.id()); 
 
         TextSegment segment = TextSegment.from(request.name(), metadata);
         embeddingStore.add(embedding, segment);
     }
 
-    // DTO Interno
     public record RegisterGalaxyRequest(String id, String name, String userId) {}
 }

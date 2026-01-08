@@ -69,17 +69,17 @@ public class HighlightProcessorService {
         Metadata metadata = Metadata.from("userId", event.userId())
                 .put("fileHash", event.fileHash())
                 .put("type", "highlight")
-                .put("highlightId", String.valueOf(entity.getId()));
+                .put("highlightId", String.valueOf(entity.getId()))
+                // --- ESSA LINHA É CRUCIAL PARA NOVOS REGISTROS ---
+                .put("text", event.content()); 
+                // -------------------------------------------------
 
         TextSegment segment = TextSegment.from(event.content(), metadata);
         Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
-        // Salva no Pinecone
         String pineconeId = embeddingStore.add(embeddingResponse.content(), segment);
-        log.info("✅ Vetor salvo no Pinecone com ID gerado: {}", pineconeId);
+        log.info("✅ Vetor salvo no Pinecone com ID: {}", pineconeId);
         
-        // --- NOVA LÓGICA: BUSCA REVERSA (SHOOTING STAR) ---
-        // Assim que salva a estrela, procura se existe alguma galáxia perto dela
         findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(entity.getId()));
     }
 

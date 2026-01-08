@@ -9,6 +9,7 @@ public record GravityResponse(
 ) {
     public record StarMatch(
         String highlightId, // O ID que vincula com a estrela na tela
-        Double score        // A força da gravidade (0.0 a 1.0)
+        Double score,
+        String text 
     ) {}
 }

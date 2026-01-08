@@ -19,7 +19,7 @@ public class HighlightEntity {
 
     private String userId;
     
-    @Column(name = "original_text", length = 4000)
+    @Column(name = "content", length = 4000)
     private String originalText;
 
     // --- NOVOS CAMPOS ---

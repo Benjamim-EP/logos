@@ -2,8 +2,10 @@ package com.ai.organizer.library.client;
 
 import com.ai.organizer.library.client.dto.AiGravityResponse;
 
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,35 @@ public class AiProcessorClient {
         // Aponta para o Gateway (8000) ou direto para o AI Processor (8081)
         // Se usar 8081 direto, você pula o Gateway mas ainda precisa do Token pois o AI Processor é um Resource Server
         this.restClient = builder.baseUrl("http://localhost:8081/api/ai").build();
+    }
+
+    public List<AiGravityResponse.StarMatch> getWorkbenchSuggestions(String text, String fileHash, String userId) {
+        var payload = Map.of(
+            "text", text,
+            "fileHash", fileHash,
+            "userId", userId,
+            "topK", 5
+        );
+
+        try {
+            return restClient.post()
+                    .uri("/workbench/suggest-links") // Chama o novo controller do AI Processor
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + getJwtTokenFromContext())
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<AiGravityResponse.StarMatch>>() {}); 
+        } catch (Exception e) {
+            System.err.println("⚠️ Erro ao buscar sugestões no AI Processor: " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    private String getJwtTokenFromContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof JwtAuthenticationToken jwtToken) {
+            return jwtToken.getToken().getTokenValue();
+        }
+        return "";
     }
 
     public AiGravityResponse getGravityMatches(String term) {
@@ -39,16 +70,7 @@ public class AiProcessorClient {
         }
     }
 
-    /**
-     * Helper para extrair o valor bruto do Token JWT do contexto de segurança
-     */
-    private String getJwtTokenFromContext() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication instanceof JwtAuthenticationToken jwtToken) {
-            return jwtToken.getToken().getTokenValue();
-        }
-        return "";
-    }
+    
 
      public void registerGalaxy(String id, String name, String userId) {
         try {

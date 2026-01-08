@@ -1,6 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { FileText, Sparkles, ExternalLink, X } from 'lucide-react'
-import { useWorkbenchStore } from '@/stores/workbenchStore'
+import { FileText, Sparkles, ExternalLink, X, BrainCircuit } from 'lucide-react'
+import { useWorkbenchStore, type WorkbenchNodeData } from '@/stores/workbenchStore'
 import { toast } from 'sonner'
 
 // Definição da estrutura dos dados do Nó
@@ -9,6 +9,7 @@ type WorkbenchData = {
   content: string
   type: 'highlight' | 'summary'
   dbId: string
+  fileHash: string
   positionPdf?: {
     pageNumber: number
     boundingRect: any
@@ -17,10 +18,11 @@ type WorkbenchData = {
 }
 
 export function WorkbenchNode({ id, data, selected }: NodeProps<any>) {
-  const { type, content, label, positionPdf } = data as WorkbenchData
+  // Cast dos dados
+  const { type, content, label, positionPdf, fileHash } = data as WorkbenchData
   
-  // Hook para remover o nó do canvas
   const removeNode = useWorkbenchStore(state => state.removeNode)
+  const findSuggestions = useWorkbenchStore(state => state.findSuggestions) // <--- Hook novo
   
   const isSummary = type === 'summary'
 
@@ -34,10 +36,23 @@ export function WorkbenchNode({ id, data, selected }: NodeProps<any>) {
       }
   }
 
-  // Ação: Remover do Canvas
+  // Ação: Remover
   const handleDelete = (e: React.MouseEvent) => {
       e.stopPropagation(); 
-      removeNode(id); // Remove visualmente da store do Workbench
+      removeNode(id);
+  }
+
+  // Ação: IA Sugerir Links
+  const handleAiSuggest = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      // Agora fileHash não será undefined
+      if (content && fileHash) {
+          findSuggestions(id, content, fileHash)
+      } else {
+          // Esse toast só aparece se os dados estiverem corrompidos
+          toast.error("Dados insuficientes para análise contextual.")
+      }
   }
 
   return (
@@ -59,26 +74,34 @@ export function WorkbenchNode({ id, data, selected }: NodeProps<any>) {
             transition-colors relative
             ${isSummary ? 'bg-cyan-950/30 hover:bg-cyan-900/40' : 'bg-yellow-950/20 hover:bg-yellow-900/30'}
         `}
-        title="Clique para localizar no PDF"
       >
-        <div className="flex items-center gap-2">
-            {isSummary ? <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> : <FileText className="w-3.5 h-3.5 text-yellow-500" />}
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isSummary ? 'text-cyan-200' : 'text-yellow-200'}`}>
-            {isSummary ? 'Resumo IA' : 'Trecho'}
+        <div className="flex items-center gap-2 overflow-hidden">
+            {isSummary ? <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> : <FileText className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+            <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${isSummary ? 'text-cyan-200' : 'text-yellow-200'}`}>
+               {isSummary ? 'Resumo IA' : 'Trecho'}
             </span>
         </div>
         
-        <div className="flex items-center gap-2">
-             {/* Ícone Link (Só aparece no hover) */}
+        <div className="flex items-center gap-1 shrink-0">
+             
+             {/* --- BOTÃO CÉREBRO (IA) --- */}
+             <button 
+                onClick={handleAiSuggest}
+                className="text-zinc-500 hover:text-cyan-400 opacity-0 group-hover/node:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
+                title="Sugerir conexões com IA"
+             >
+                <BrainCircuit className="w-3.5 h-3.5" />
+             </button>
+
+             {/* Link */}
              {positionPdf && (
                 <ExternalLink className="w-3 h-3 text-white/50 opacity-0 group-hover/node:opacity-100 transition-opacity" />
              )}
              
-             {/* BOTÃO DELETAR (X) - AGORA ESTÁ AQUI! */}
+             {/* Delete */}
              <button 
                 onClick={handleDelete}
                 className="text-zinc-500 hover:text-red-400 opacity-0 group-hover/node:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
-                title="Remover do Canvas"
              >
                 <X className="w-3.5 h-3.5" />
              </button>
