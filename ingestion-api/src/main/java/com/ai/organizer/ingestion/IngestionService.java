@@ -35,8 +35,9 @@ public class IngestionService {
 
     /**
      * Processa upload direto de arquivo (Drag & Drop)
+     * AGORA RECEBE O IDIOMA COMO PARÂMETRO
      */
-    public Mono<String> processUpload(FilePart filePart, String userId) {
+    public Mono<String> processUpload(FilePart filePart, String userId, String language) {
         // 1. Carrega o arquivo para a memória de forma reativa
         return DataBufferUtils.join(filePart.content())
             .flatMap(dataBuffer -> {
@@ -66,14 +67,15 @@ public class IngestionService {
                     }).subscribeOn(Schedulers.boundedElastic())
                     .then(Mono.defer(() -> {
                         try {
-                            // 5. Sucesso -> Envia evento Kafka com o tamanho do arquivo
+                            // 5. Sucesso -> Envia evento Kafka com o tamanho do arquivo E O IDIOMA
                             IngestionEvent event = new IngestionEvent(
                                 hash, 
                                 storageFilename, // Path no GCS
                                 filePart.filename(), 
                                 userId, 
                                 System.currentTimeMillis(),
-                                fileSize // <--- NOVO CAMPO
+                                fileSize,
+                                language // <--- PASSANDO O IDIOMA AQUI
                             );
                             
                             // Serializa para JSON String (evita problemas de tipo no consumer)
@@ -134,7 +136,8 @@ public class IngestionService {
                     request.title() + ".pdf", // Nome bonito para a biblioteca
                     userId,
                     System.currentTimeMillis(),
-                    fileSize // <--- NOVO CAMPO
+                    fileSize,
+                    "en" // Default para URL externa por enquanto (ou passe via request se quiser)
                 );
 
                 String jsonEvent = objectMapper.writeValueAsString(event);

@@ -3,7 +3,7 @@ package com.ai.organizer.processor.service;
 import com.ai.organizer.processor.CoverGeneratedEvent;
 import com.ai.organizer.processor.HighlightEvent;
 import com.ai.organizer.processor.IngestionEvent;
-import com.ai.organizer.processor.event.StarLinkedEvent; // <--- Import Novo
+import com.ai.organizer.processor.event.StarLinkedEvent;
 import com.ai.organizer.processor.ai.BookAssistant;
 import com.ai.organizer.processor.domain.HighlightEntity;
 import com.ai.organizer.processor.repository.HighlightRepository;
@@ -16,7 +16,7 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder; // <--- Import Novo
+import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -38,19 +38,17 @@ public class ProcessorService {
     private final BookAssistant bookAssistant;
     private final StringRedisTemplate redisTemplate;
     
-    // STORAGE AGNÓSTICO (Substitui S3Client)
+    // STORAGE AGNÓSTICO
     private final BlobStorageService blobStorageService; 
     
-    // GERADOR DE CAPAS (Novo Fase 1)
+    // GERADOR DE CAPAS
     private final CoverGeneratorService coverGenerator;
 
     private final HighlightRepository highlightRepository;
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     
-    // Para avisar a biblioteca sobre a capa (Fase 2)
     private final KafkaTemplate<String, Object> kafkaTemplate;
-
     private final ObjectMapper objectMapper; 
 
     /**
@@ -65,16 +63,14 @@ public class ProcessorService {
         // 1. FinOps Check (Cache)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
             log.info("💰 CACHE HIT: Documento já processado. Recuperando do Redis.");
-            // Mesmo com cache hit, poderíamos verificar se a capa existe, 
-            // mas por performance assumimos que se tem cache, já foi processado.
             return; 
         }
 
-        log.info("🤖 CACHE MISS: Iniciando processamento para: {}", event.originalName());
+        log.info("🤖 CACHE MISS: Iniciando processamento para: {} (Idioma: {})", 
+                event.originalName(), event.preferredLanguage());
 
         try {
             // 2. Baixar o arquivo (Binário Bruto)
-            // Precisamos dos bytes para gerar a capa E para extrair texto se for arquivo simples
             log.debug("Baixando arquivo do storage: {}", event.s3Key());
             byte[] fileBytes = blobStorageService.download(event.s3Key());
 
@@ -83,23 +79,24 @@ public class ProcessorService {
                 generateAndUploadCover(fileBytes, event.fileHash());
             }
 
-            // 4. Estratégia de Conteúdo
+            // 4. Estratégia de Conteúdo e Internacionalização
             String content;
             String analysisResult;
             boolean isPdfOrImage = isBinaryFile(event.originalName());
 
+            // Mapeamento Sênior de Idioma: Converte "pl" para "Polish" para a IA
+            String targetLanguage = mapLanguageForAi(event.preferredLanguage());
+
             if (isPdfOrImage) {
                 log.info("📂 Binário detectado. Conteúdo bruto disponível no Storage.");
-                content = "[PDF/Imagem Original] - Conteúdo disponível no Storage.";
                 
-                analysisResult = """
-                    {
-                        "summary": "Documento importado. Disponível para leitura e marcação.",
-                        "tags": ["Importado", "Documento"],
-                        "sentiment": "Neutro"
-                    }
-                """;
-                // Futuro: Adicionar extração de texto do PDF aqui (PDFBox TextStripper)
+                // --- INTERNACIONALIZAÇÃO DO FALLBACK ---
+                // Agora a mensagem de "Conteúdo no Storage" respeita o idioma do usuário
+                content = getLocalizedContentMessage(targetLanguage);
+                
+                // O JSON falso gerado também respeita o idioma
+                analysisResult = getLocalizedAnalysisFallback(targetLanguage);
+                
             } else {
                 // É texto puro (.txt, .md, .csv)
                 content = new String(fileBytes, StandardCharsets.UTF_8);
@@ -107,8 +104,10 @@ public class ProcessorService {
                 // Corte de segurança para IA
                 String textToAnalyze = content.length() > 2000 ? content.substring(0, 2000) : content;
                 
-                log.info("🧠 Enviando texto para análise da OpenAI...");
-                analysisResult = bookAssistant.analyzeText(textToAnalyze);
+                log.info("🧠 Solicitando análise da OpenAI em: {}", targetLanguage);
+                
+                // EXECUÇÃO DA IA COM IDIOMA DINÂMICO
+                analysisResult = bookAssistant.analyzeText(textToAnalyze, targetLanguage);
             }
 
             // 5. Salvar Cache no Redis
@@ -130,7 +129,6 @@ public class ProcessorService {
             }
 
             // 7. Persistência Vetorial (Pinecone - RAG)
-            // Apenas para arquivos de texto simples. PDFs são vetorizados via Highlights (Fluxo 2).
             if (savedEntity != null && !isPdfOrImage) {
                 log.info("▶️ Gerando Embedding do Documento Inteiro...");
                 
@@ -138,6 +136,7 @@ public class ProcessorService {
                                             .put("fileHash", event.fileHash())
                                             .put("source", event.originalName())
                                             .put("type", "document")
+                                            .put("language", targetLanguage)
                                             .put("dbId", String.valueOf(savedEntity.getId()));
 
                 TextSegment segment = TextSegment.from(content, metadata);
@@ -151,43 +150,13 @@ public class ProcessorService {
             }
             
         } catch (Exception e) {
-            log.error("Erro crítico no processamento.", e);
-            throw new RuntimeException("Erro de Processamento", e);
+            log.error("❌ Erro crítico no processamento do documento {}: {}", event.fileHash(), e.getMessage());
+            throw new RuntimeException("Falha no fluxo de ingestão", e);
         }
     }
 
     /**
-     * Lógica auxiliar para gerar e salvar a capa
-     */
-    private void generateAndUploadCover(byte[] pdfBytes, String fileHash) {
-        try {
-            byte[] coverBytes = coverGenerator.generateCoverFromPdf(pdfBytes);
-            
-            if (coverBytes != null) {
-                String coverPath = "covers/" + fileHash + ".webp";
-                
-                // Salva no GCS
-                blobStorageService.upload(coverPath, coverBytes, "image/webp");
-                log.info("🖼️ Capa salva no Storage: {}", coverPath);
-                
-                // --- CORREÇÃO AQUI ---
-                CoverGeneratedEvent event = new CoverGeneratedEvent(fileHash, coverPath);
-                
-                // Serializa manualmente para JSON String antes de enviar
-                String jsonEvent = objectMapper.writeValueAsString(event);
-                
-                kafkaTemplate.send("document.cover.generated", fileHash, jsonEvent); 
-                log.info("📨 Evento de capa enviado para Kafka: {}", jsonEvent);
-            }
-        } catch (Exception e) {
-            log.warn("⚠️ Não foi possível gerar a capa, mas o fluxo segue sem ela.", e);
-        }
-    }
-
-    
-
-    /**
-     * FLUXO 2: Processamento de Highlights (Marcações)
+     * FLUXO 2: Processamento de Highlights
      */
     public void processHighlight(HighlightEvent event) {
         try {
@@ -197,7 +166,8 @@ public class ProcessorService {
                 Metadata metadata = Metadata.from("userId", event.userId())
                         .put("fileHash", event.fileHash())
                         .put("type", "highlight")
-                        .put("highlightId", String.valueOf(event.highlightId()));
+                        .put("highlightId", String.valueOf(event.highlightId()))
+                        .put("text", event.content());
 
                 TextSegment segment = TextSegment.from(event.content(), metadata);
                 Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
@@ -210,7 +180,7 @@ public class ProcessorService {
                 
                 log.info("✅ Highlight vetorizado no Pinecone.");
 
-                // 2. BUSCA REVERSA (SHOOTING STAR) - O Elo Perdido!
+                // 2. Busca Reversa
                 findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
                 
             } else {
@@ -224,7 +194,6 @@ public class ProcessorService {
     private void findAndLinkGalaxies(Embedding highlightVector, String userId, String highlightId) {
         log.info("🔎 [SHOOTING STAR] Procurando Galáxias próximas para o Highlight ID: {}", highlightId);
         try {
-            // Busca vetores do tipo 'galaxy'
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
                     .queryEmbedding(highlightVector)
                     .filter(MetadataFilterBuilder.metadataKey("type").isEqualTo("galaxy"))
@@ -242,7 +211,6 @@ public class ProcessorService {
                 String galaxyUserId = match.embedded().metadata().getString("userId");
                 String galaxyId = match.embedded().metadata().getString("galaxyId");
                 
-                // Verifica se a galáxia pertence ao mesmo usuário
                 if (userId.equals(galaxyUserId) && galaxyId != null) {
                     StarLinkedEvent linkEvent = new StarLinkedEvent(galaxyId, highlightId, match.score());
                     String json = objectMapper.writeValueAsString(linkEvent);
@@ -258,10 +226,78 @@ public class ProcessorService {
 
     public void fallbackOpenAI(IngestionEvent event, Throwable t) {
         log.error("🔥 FALLBACK ATIVADO: OpenAI indisponível. Erro: {}", t.getMessage());
-        // Lógica de fallback para não travar o sistema
     }
 
-    // --- Helpers ---
+    // --- Helpers de Internacionalização (Sênior Level) ---
+
+    private String mapLanguageForAi(String langCode) {
+        if (langCode == null || langCode.isBlank()) return "English";
+        String baseCode = langCode.toLowerCase().split("-")[0];
+        return switch (baseCode) {
+            case "pt" -> "Portuguese";
+            case "pl" -> "Polish";
+            case "es" -> "Spanish";
+            case "de" -> "German";
+            case "fr" -> "French";
+            default -> "English";
+        };
+    }
+
+    private String getLocalizedContentMessage(String language) {
+        return switch (language) {
+            case "Polish" -> "[Oryginalny PDF/Obraz] - Treść dostępna w magazynie.";
+            case "Portuguese" -> "[PDF/Imagem Original] - Conteúdo disponível no Storage.";
+            default -> "[Original PDF/Image] - Content available in Storage.";
+        };
+    }
+
+    private String getLocalizedAnalysisFallback(String language) {
+        if ("Polish".equals(language)) {
+            return """
+                {
+                    "summary": "Dokument zaimportowany. Dostępny do czytania i oznaczania.",
+                    "tags": ["Zaimportowane", "Dokument"],
+                    "sentiment": "Neutralny"
+                }
+            """;
+        } else if ("Portuguese".equals(language)) {
+            return """
+                {
+                    "summary": "Documento importado. Disponível para leitura e marcação.",
+                    "tags": ["Importado", "Documento"],
+                    "sentiment": "Neutro"
+                }
+            """;
+        } else {
+            return """
+                {
+                    "summary": "Document imported. Available for reading and highlighting.",
+                    "tags": ["Imported", "Document"],
+                    "sentiment": "Neutral"
+                }
+            """;
+        }
+    }
+
+    private void generateAndUploadCover(byte[] pdfBytes, String fileHash) {
+        try {
+            byte[] coverBytes = coverGenerator.generateCoverFromPdf(pdfBytes);
+            
+            if (coverBytes != null) {
+                String coverPath = "covers/" + fileHash + ".webp";
+                blobStorageService.upload(coverPath, coverBytes, "image/webp");
+                log.info("🖼️ Capa salva no Storage: {}", coverPath);
+                
+                CoverGeneratedEvent event = new CoverGeneratedEvent(fileHash, coverPath);
+                String jsonEvent = objectMapper.writeValueAsString(event);
+                
+                kafkaTemplate.send("document.cover.generated", fileHash, jsonEvent); 
+                log.info("📨 Evento de capa enviado para Kafka: {}", jsonEvent);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Não foi possível gerar a capa, mas o fluxo segue sem ela.", e);
+        }
+    }
 
     private boolean isBinaryFile(String filename) {
         if (filename == null) return false;

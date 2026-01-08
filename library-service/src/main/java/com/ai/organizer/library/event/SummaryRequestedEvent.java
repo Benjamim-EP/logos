@@ -7,5 +7,6 @@ public record SummaryRequestedEvent(
     String sourceType,    // "TEXT_SELECTION" ou "PAGE_RANGE"
     String textContent,   // O texto selecionado (se houver)
     Integer startPage,    // Página inicial (se range)
-    Integer endPage       // Página final (se range)
+    Integer endPage,
+    String preferredLanguage
 ) {}

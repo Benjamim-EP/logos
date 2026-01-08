@@ -1,17 +1,16 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react' // <--- Importe Suspense
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from "react-oidc-context"
-// --- IMPORTS NOVOS DO REACT QUERY ---
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import './lib/i18n' // <--- Garanta que a config está importada
 
-// 1. Instância do Cliente (Gerenciador de Cache)
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // Evita recarregar dados só de trocar de aba
-      retry: 1, // Tenta mais uma vez se der erro
+      refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 })
@@ -25,12 +24,21 @@ const oidcConfig = {
   }
 }
 
+// Componente de Loading Simples para o i18n
+const LoadingTranslation = () => (
+  <div className="h-screen w-full bg-[#050505] flex items-center justify-center text-white">
+    <div className="animate-pulse">Carregando idiomas...</div>
+  </div>
+)
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {/* 2. Envolvemos a aplicação com o Provider do React Query */}
     <QueryClientProvider client={queryClient}>
       <AuthProvider {...oidcConfig}>
-        <App />
+        {/* ENVOLVA O APP COM SUSPENSE */}
+        <Suspense fallback={<LoadingTranslation />}>
+          <App />
+        </Suspense>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

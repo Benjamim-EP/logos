@@ -7,5 +7,6 @@ public record IngestionEvent(
     String originalName,
     String userId,
     long timestamp,
-    long fileSize
+    long fileSize,
+    String preferredLanguage
 ) {}

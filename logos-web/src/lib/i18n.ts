@@ -4,21 +4,33 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import Backend from 'i18next-http-backend';
 
 i18n
-  .use(Backend) // Carrega arquivos JSON da pasta public/locales
-  .use(LanguageDetector) // Detecta idioma do browser/localStorage
+  .use(Backend)
+  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    fallbackLng: 'en',
-    debug: false,
+    fallbackLng: 'en', // Se não achar o idioma, usa inglês
+    debug: true, // IMPORTANTE: Mantenha true para ver o erro no console do Chrome
+    
     interpolation: {
-      escapeValue: false, // React já protege contra XSS
+      escapeValue: false,
     },
+    
+    // Configurações de detecção
     detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'], // Salva a escolha do usuário aqui
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
     },
+    
     backend: {
-      loadPath: '/locales/{{lng}}.json', // Onde ficarão os arquivos
+      // Tenta carregar da raiz. O Vite serve a pasta 'public' na raiz '/'.
+      loadPath: '/locales/{{lng}}.json',
+      
+      // Opcional: Adicione um timestamp para evitar cache do navegador durante dev
+      queryStringParams: { v: '1.0.0' }
+    },
+
+    react: {
+      useSuspense: true 
     }
   });
 

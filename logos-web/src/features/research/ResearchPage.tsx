@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react"
 import { useResearchStore, type ResearchPaper } from "@/stores/researchStore"
-import { useUserStore } from "@/stores/userStore" // Para pegar o storage real
+import { useUserStore } from "@/stores/userStore"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Search, Save, Check, FileText, ExternalLink, Loader2, UploadCloud } from "lucide-react"
 import { FileUploader } from "@/components/ui/file-uploader"
-import { StorageIndicator } from "@/components/common/StorageIndicator" // Componente Novo
+import { StorageIndicator } from "@/components/common/StorageIndicator"
 import api from "@/lib/api"
 import { toast } from "sonner" 
+import { useTranslation } from "react-i18next" // <--- ADD
 
 const AREAS = [
-  { value: "all", label: "Todas as Áreas" },
+  { value: "all", label: "search_area" }, // <--- Mudamos para chave de tradução
   { value: "Artificial Intelligence", label: "IA & Machine Learning" },
   { value: "Medicine", label: "Medicina" },
   { value: "Law", label: "Direito" },
@@ -21,17 +22,17 @@ const AREAS = [
 ]
 
 export function ResearchPage() {
+  const { t } = useTranslation() // <--- ADD
   const { results, search, isLoading, savePaper } = useResearchStore()
-  const { profile, fetchProfile } = useUserStore() // Dados reais de storage
+  const { profile, fetchProfile } = useUserStore()
   
   const [query, setQuery] = useState("")
   const [area, setArea] = useState("all")
 
-  // Carrega "Novidades" ao entrar e atualiza storage
   useEffect(() => {
     fetchProfile()
     if (results.length === 0) {
-        search("artificial intelligence", "all") // Busca inicial padrão para não ficar vazio
+        search("artificial intelligence", "all")
     }
   }, [])
 
@@ -46,38 +47,31 @@ export function ResearchPage() {
     formData.append("file", file)
     try {
       await api.post("/ingestion", formData, { headers: { "Content-Type": "multipart/form-data" } })
-      toast.success("Upload iniciado!", { description: "Processando..." })
-      setTimeout(() => fetchProfile(), 2000) // Atualiza storage
+      toast.success(t('toasts.upload_started'), { description: t('toasts.upload_desc') })
+      setTimeout(() => fetchProfile(), 2000)
     } catch (error) {
-      toast.error("Falha no envio")
+      toast.error(t('toasts.upload_error'))
     }
   }
 
   return (
-    // CORREÇÃO SCROLL: h-full e overflow-y-auto
     <div className="h-full w-full bg-[#050505] text-white p-6 md:p-12 overflow-y-auto custom-scrollbar">
       
-      {/* HEADER & STORAGE */}
       <div className="max-w-6xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-end gap-6">
         <div>
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-            Laboratório de Pesquisa
+            {t('research.title')}
           </h1>
           <p className="text-gray-400 mt-2">
-            Ingestão de arquivos próprios e busca semântica global.
+            {t('research.subtitle')}
           </p>
         </div>
 
-        {/* INDICADOR DE STORAGE REAL */}
         <div className="w-full md:w-72">
-            <StorageIndicator 
-                used={profile?.stats?.storageUsed || 0} 
-                limit={profile?.stats?.storageLimit || 100} 
-            />
+            <StorageIndicator used={profile?.stats?.storageUsed || 0} limit={profile?.stats?.storageLimit || 100} />
         </div>
       </div>
 
-      {/* ÁREA DE UPLOAD */}
       <div className="max-w-4xl mx-auto mb-16">
         <div className="bg-gradient-to-b from-white/5 to-transparent p-[1px] rounded-2xl">
             <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-1 shadow-2xl">
@@ -85,9 +79,9 @@ export function ResearchPage() {
                     <div className="p-3 bg-purple-500/10 rounded-full mb-4">
                         <UploadCloud className="w-8 h-8 text-purple-400" />
                     </div>
-                    <h2 className="text-xl font-bold mb-2 text-white">Upload de Conhecimento</h2>
+                    <h2 className="text-xl font-bold mb-2 text-white">{t('research.upload_title')}</h2>
                     <p className="text-sm text-gray-400 mb-6 max-w-md">
-                        Arraste PDFs técnicos, artigos ou imagens para processamento vetorial imediato.
+                        {t('research.upload_desc')}
                     </p>
                     <div className="w-full max-w-lg">
                         <FileUploader onUpload={handleFileUpload} />
@@ -97,7 +91,6 @@ export function ResearchPage() {
         </div>
       </div>
 
-      {/* BARRA DE PESQUISA */}
       <div className="max-w-4xl mx-auto mb-12 sticky top-0 z-30 pt-4 bg-[#050505]/95 backdrop-blur">
         <form onSubmit={handleSearch} className="flex gap-2 p-2 bg-zinc-900/90 border border-white/15 rounded-full shadow-2xl transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
             <Select value={area} onValueChange={setArea}>
@@ -105,7 +98,9 @@ export function ResearchPage() {
                     <SelectValue placeholder="Área" />
                 </SelectTrigger>
                 <SelectContent>
-                    {AREAS.map(a => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
+                    {AREAS.map(a => <SelectItem key={a.value} value={a.value}>
+                        {a.value === 'all' ? t('research.search_area') : a.label}
+                    </SelectItem>)}
                 </SelectContent>
             </Select>
             
@@ -114,7 +109,7 @@ export function ResearchPage() {
             <Input 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Pesquisar papers (ex: Quantum Computing)..." 
+                placeholder={t('research.search_placeholder')}
                 className="border-0 bg-transparent focus-visible:ring-0 text-white placeholder:text-gray-500 flex-1 h-10 text-base"
             />
             
@@ -124,10 +119,9 @@ export function ResearchPage() {
         </form>
       </div>
 
-      {/* GRID DE RESULTADOS */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 gap-4 pb-20">
         <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-2">
-            {isLoading ? "Buscando..." : query ? "Resultados da Busca" : "Publicações Recentes"}
+            {isLoading ? t('common.loading') : query ? t('research.results') : t('research.recent')}
         </h3>
         
         {results.map((paper) => (
@@ -160,7 +154,7 @@ export function ResearchPage() {
                         size="sm"
                         className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-xs"
                     >
-                        <FileText className="w-3.5 h-3.5 mr-2" /> Ler PDF (Fonte)
+                        <FileText className="w-3.5 h-3.5 mr-2" /> {t('research.read_pdf')}
                     </Button>
 
                     <Button 
@@ -171,9 +165,9 @@ export function ResearchPage() {
                         className={`w-full text-xs ${paper.isSaved ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'border-white/10 hover:border-white/30 text-gray-400'}`}
                     >
                         {paper.isSaved ? (
-                            <><Check className="w-3.5 h-3.5 mr-2" /> Salvo</>
+                            <><Check className="w-3.5 h-3.5 mr-2" /> {t('research.saved')}</>
                         ) : (
-                            <><Save className="w-3.5 h-3.5 mr-2" /> Salvar ({paper.sizeMB}MB)</>
+                            <><Save className="w-3.5 h-3.5 mr-2" /> {t('research.save')} ({paper.sizeMB}MB)</>
                         )}
                     </Button>
                 </div>

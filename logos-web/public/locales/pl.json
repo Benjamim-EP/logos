@@ -1,15 +1,94 @@
 {
-  "shelf": {
-    "title": "Biblioteka Cyfrowa",
-    "subtitle": "Zarządzaj swoimi książkami i dokumentami",
-    "add_book": "Dodaj książkę"
+  "nav": {
+    "galaxy": "Galaktyka",
+    "library": "Biblioteka",
+    "store": "Sklep",
+    "research": "Badania",
+    "profile": "Profil",
+    "logout": "Wyloguj się",
+    "welcome": "Witaj",
+    "guest": "Odkrywca"
   },
   "common": {
-    "loading": "Inicjowanie systemów...",
-    "logout": "Wyloguj się"
+    "loading": "Ładowanie...",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "back": "Wróć",
+    "delete": "Usuń",
+    "error": "Błąd",
+    "success": "Sukces"
   },
-  "ai": {
-    "suggestions": "Sugestie AI",
-    "analyzing": "Analizowanie połączeń..."
+  "library": {
+    "title": "Biblioteka Cyfrowa",
+    "subtitle": "Zarządzaj swoimi książkami i artykułami.",
+    "add_book": "Dodaj Książkę",
+    "empty_state": "Twoja biblioteka jest pusta.",
+    "empty_action": "Kliknij tutaj, aby dodać pierwszy dokument.",
+    "syncing": "Synchronizacja z Rdzeniem...",
+    "error_loading": "Błąd ładowania biblioteki.",
+    "upload_title": "Prześlij Dokument",
+    "read_original": "Czytaj Oryginał",
+    "storage": "Magazyn"
+  },
+  "toasts": {
+    "upload_started": "Rozpoczęto przesyłanie!",
+    "upload_desc": "Przetwarzanie okładki i wektorów w tle...",
+    "upload_error": "Błąd przesyłania",
+    "upload_error_desc": "Sprawdź rozmiar pliku."
+  },
+  "galaxy": {
+    "config_view": "Konfiguruj Widok",
+    "quick_nav": "Szybka Nawigacja",
+    "click_travel": "Kliknij punkty, aby podróżować",
+    "filters": "Filtry",
+    "visible_galaxies": "Widoczne Galaktyki",
+    "sort": "Sortowanie (Priorytet)",
+    "sort_newest": "Najnowsze (Data)",
+    "sort_oldest": "Najstarsze",
+    "sort_relevance": "Trafność Semantyczna",
+    "create_btn": "Utwórz Nową Galaktykę",
+    "create_placeholder": "Nazwa Galaktyki (np. Java, Historia)",
+    "close_panel": "Zamknij panel"
+  },
+  "store": {
+    "hero_title": "Wszechświat Bazowy",
+    "hero_desc": "Nie zaczynaj od zera. Zdobądź struktury wiedzy przetworzone przez naszą SI i buduj notatki na istniejącej mądrości.",
+    "search_placeholder": "Szukaj wszechświatów (np. Prawo, Filozofia)...",
+    "nodes": "Węzły (Gwiazdy)",
+    "vectors": "Wektory Przeliczone",
+    "preview": "Podgląd",
+    "add": "Dodaj",
+    "free": "Darmowe"
+  },
+  "research": {
+    "title": "Laboratorium Badawcze",
+    "subtitle": "Przesyłanie własnych plików i globalne wyszukiwanie semantyczne.",
+    "upload_title": "Przesyłanie Wiedzy",
+    "upload_desc": "Przeciągnij techniczne pliki PDF, artykuły lub obrazy w celu natychmiastowego przetwarzania wektorowego.",
+    "drop_zone": "Przeciągnij PDF/Obraz lub kliknij, aby wybrać",
+    "max_size": "Maks. 10MB • PDF, PNG, JPG",
+    "search_area": "Wszystkie Obszary",
+    "search_placeholder": "Szukaj publikacji (np. Obliczenia Kwantowe)...",
+    "results": "Wyniki Wyszukiwania",
+    "recent": "Ostatnie Publikacje",
+    "read_pdf": "Czytaj PDF (Źródło)",
+    "saved": "Zapisano",
+    "save": "Zapisz"
+  },
+  "profile": {
+    "back_galaxy": "Wróć do Galaktyki",
+    "identity": "Tożsamość Wizualna",
+    "bio_default": "Mapowanie wiedzy...",
+    "stats_highlights": "ZAZNACZENIA",
+    "stats_summaries": "PODSUMOWANIA AI",
+    "stats_connections": "POŁĄCZENIA",
+    "radar_title": "Osie Wiedzy",
+    "radar_desc": "Analiza wektorowa Twojego profilu poznawczego",
+    "info_radar": "Twój Radar Wiedzy jest automatycznie rekalibrowany co 30 nowych interakcji.",
+    "next_evolution": "NASTĘPNA EWOLUCJA",
+    "remaining_marks": "pozostałych zaznaczeń do nowego mapowania.",
+    "network_status": "STATUS SIECI",
+    "synced": "Zsynchronizowano przez Confluent"
   }
 }

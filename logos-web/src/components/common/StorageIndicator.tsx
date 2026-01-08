@@ -1,5 +1,6 @@
 import { HardDrive } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { useTranslation } from "react-i18next" // <--- Import
 
 interface StorageIndicatorProps {
   used: number // em MB
@@ -8,6 +9,8 @@ interface StorageIndicatorProps {
 }
 
 export function StorageIndicator({ used, limit, className }: StorageIndicatorProps) {
+  const { t } = useTranslation() 
+  
   const percentage = Math.min(100, (used / limit) * 100)
   const isCritical = percentage > 90
 
@@ -16,7 +19,7 @@ export function StorageIndicator({ used, limit, className }: StorageIndicatorPro
         <div className="flex justify-between text-xs mb-2">
             <span className="flex items-center gap-2 text-gray-300 font-medium">
                 <HardDrive className={`w-3 h-3 ${isCritical ? 'text-red-500' : 'text-purple-400'}`}/> 
-                Armazenamento
+                {t('library.storage')} {/* <--- Traduzido */}
             </span>
             <span className={isCritical ? "text-red-400 font-bold" : "text-green-400 font-mono"}>
                 {used}MB / {limit}MB

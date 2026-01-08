@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "galaxy": "Galaxy",
+    "library": "Library",
+    "store": "Store",
+    "research": "Research",
+    "profile": "Profile",
+    "logout": "Logout",
+    "welcome": "Welcome",
+    "guest": "Explorer"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "delete": "Delete",
+    "error": "Error",
+    "success": "Success"
+  },
+  "library": {
+    "title": "Digital Library",
+    "subtitle": "Manage your books, papers, and documents.",
+    "add_book": "Add Book",
+    "empty_state": "Your library is empty.",
+    "empty_action": "Click here to add your first document.",
+    "syncing": "Syncing with the Core...",
+    "error_loading": "Error loading library.",
+    "upload_title": "Document Upload",
+    "read_original": "Read Original",
+    "storage": "Storage"
+  },
+  "toasts": {
+    "upload_started": "Upload started!",
+    "upload_desc": "Processing cover and vectors in background...",
+    "upload_error": "Upload failed",
+    "upload_error_desc": "Check file size."
+  },
+  "galaxy": {
+    "config_view": "Configure View",
+    "quick_nav": "Quick Navigation",
+    "click_travel": "Click points to travel",
+    "filters": "Filters",
+    "visible_galaxies": "Visible Galaxies",
+    "sort": "Sorting (Priority)",
+    "sort_newest": "Newest (Date)",
+    "sort_oldest": "Oldest",
+    "sort_relevance": "Semantic Relevance",
+    "create_btn": "Create New Galaxy",
+    "create_placeholder": "Galaxy Name (e.g. Java, History)",
+    "close_panel": "Close panel"
+  },
+  "store": {
+    "hero_title": "Base Universe",
+    "hero_desc": "Don't start from scratch. Acquire knowledge structures pre-processed by our AI and build your notes upon existing wisdom.",
+    "search_placeholder": "Search universes (e.g. Law, Philosophy)...",
+    "nodes": "Nodes (Stars)",
+    "vectors": "Pre-calculated Vectors",
+    "preview": "Preview",
+    "add": "Add",
+    "free": "Free"
+  },
+  "research": {
+    "title": "Research Lab",
+    "subtitle": "Ingest your own files and perform global semantic search.",
+    "upload_title": "Knowledge Upload",
+    "upload_desc": "Drag technical PDFs, articles, or images for immediate vector processing.",
+    "drop_zone": "Drag your PDF/Image or click to select",
+    "max_size": "Max 10MB • PDF, PNG, JPG",
+    "search_area": "All Areas",
+    "search_placeholder": "Search papers (e.g. Quantum Computing)...",
+    "results": "Search Results",
+    "recent": "Recent Publications",
+    "read_pdf": "Read PDF (Source)",
+    "saved": "Saved",
+    "save": "Save"
+  },
+  "profile": {
+    "back_galaxy": "Back to Galaxy",
+    "identity": "Visual Identity",
+    "bio_default": "Mapping knowledge...",
+    "stats_highlights": "HIGHLIGHTS",
+    "stats_summaries": "AI SUMMARIES",
+    "stats_connections": "CONNECTIONS",
+    "radar_title": "Knowledge Axes",
+    "radar_desc": "Vector analysis of your cognitive profile",
+    "info_radar": "Your Knowledge Radar is automatically recalibrated every 30 new interactions.",
+    "next_evolution": "NEXT EVOLUTION",
+    "remaining_marks": "marks remaining for new mapping.",
+    "network_status": "NETWORK STATUS",
+    "synced": "Synced via Confluent"
+  }
+}

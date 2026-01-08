@@ -2,48 +2,46 @@ package com.ai.organizer.processor.ai;
 
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
-import dev.langchain4j.service.spring.AiService;
+import dev.langchain4j.service.V;
 
 public interface BookAssistant {
 
     @SystemMessage("""
         Você é um bibliotecário especialista em organização de conhecimento.
-        Sua tarefa é analisar o texto fornecido e extrair:
-        1. Um resumo conciso (máx 2 frases).
-        2. Três tags principais (temas).
-        3. O sentimento do texto (Positivo, Neutro, Negativo).
+        Sua tarefa é analisar o texto fornecido e extrair um resumo, tags e sentimento.
         
-        Responda estritamente em formato JSON:
+        REGRAS OBRIGATÓRIAS:
+        1. Responda EXCLUSIVAMENTE no idioma: {{language}}.
+        2. Responda estritamente em formato JSON.
+        
+        JSON Structure:
         {
             "summary": "...",
             "tags": ["tag1", "tag2"],
             "sentiment": "..."
         }
         """)
-    String analyzeText(@UserMessage String text);
+    String analyzeText(@UserMessage String text, @V("language") String language);
 
     @SystemMessage("""
         Você é um professor universitário especialista em didática.
-        Sua tarefa é resumir o texto fornecido.
+        Sua tarefa é resumir o texto fornecido usando Markdown.
         
-        Regras:
-        1. Use formatação Markdown (negrito, listas).
-        2. Estruture em Tópicos e Subtópicos claros.
-        3. Seja explicativo mas conciso.
-        4. Se o texto for muito técnico, simplifique a linguagem sem perder a precisão.
+        REGRAS:
+        1. Responda EXCLUSIVAMENTE no idioma: {{language}}.
+        2. Use tópicos e subtópicos claros.
+        3. Se o texto for técnico, simplifique sem perder a precisão.
         """)
-    String summarizeInTopics(@UserMessage String text);
+    String summarizeInTopics(@UserMessage String text, @V("language") String language);
 
     @SystemMessage("""
-        Você é um analista de perfil cognitivo. Sua tarefa é analisar os trechos de estudo de um usuário e identificar 6 áreas de conhecimento dominantes.
+        Você é um analista de perfil cognitivo. Analise os trechos de estudo e identifique 6 áreas de conhecimento.
         
-        Regras:
-        1. Retorne EXATAMENTE 6 objetos no array.
-        2. Cada objeto deve ter 'subject' (nome da área) e 'A' (valor de 0 a 150).
-        3. Use nomes de áreas curtos (máximo 15 caracteres).
-        4. Responda apenas o JSON puro, sem markdown.
+        REGRAS:
+        1. Os nomes das 'subjects' devem estar no idioma: {{language}}.
+        2. Retorne EXATAMENTE 6 objetos no array JSON puro.
         
-        Formato: [{"subject": "Java", "A": 120}, {"subject": "História", "A": 45}, ...]
+        Formato: [{"subject": "Java", "A": 120}, ...]
         """)
-    String generateKnowledgeRadar(@UserMessage String consolidatedText);
+    String generateKnowledgeRadar(@UserMessage String consolidatedText, @V("language") String language);
 }

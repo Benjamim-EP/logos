@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "galaxy": "Galáxia",
+    "library": "Biblioteca",
+    "store": "Loja",
+    "research": "Pesquisa",
+    "profile": "Perfil",
+    "logout": "Encerrar Sessão",
+    "welcome": "Bem-vindo",
+    "guest": "Explorador"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "delete": "Excluir",
+    "error": "Erro",
+    "success": "Sucesso"
+  },
+  "library": {
+    "title": "Biblioteca Digital",
+    "subtitle": "Gerencie seus livros, artigos e documentos.",
+    "add_book": "Adicionar Livro",
+    "empty_state": "Sua biblioteca está vazia.",
+    "empty_action": "Clique aqui para adicionar seu primeiro documento.",
+    "syncing": "Sincronizando com o Núcleo...",
+    "error_loading": "Erro ao carregar biblioteca.",
+    "upload_title": "Upload de Documento",
+    "read_original": "Ler Original",
+    "storage": "Armazenamento"
+  },
+  "toasts": {
+    "upload_started": "Upload iniciado!",
+    "upload_desc": "Processando capa e vetores em segundo plano...",
+    "upload_error": "Falha no envio",
+    "upload_error_desc": "Verifique o tamanho do arquivo."
+  },
+  "galaxy": {
+    "config_view": "Configurar Visualização",
+    "quick_nav": "Navegação Rápida",
+    "click_travel": "Clique nos pontos para viajar",
+    "filters": "Filtros",
+    "visible_galaxies": "Galáxias Visíveis",
+    "sort": "Ordenação (Prioridade)",
+    "sort_newest": "Mais Recentes (Data)",
+    "sort_oldest": "Mais Antigos",
+    "sort_relevance": "Relevância Semântica",
+    "create_btn": "Criar Nova Galáxia",
+    "create_placeholder": "Nome da Galáxia (ex: Java, História)",
+    "close_panel": "Fechar painel"
+  },
+  "store": {
+    "hero_title": "Universo Base",
+    "hero_desc": "Não comece do zero. Adquira estruturas de conhecimento pré-processadas por nossa IA e construa suas anotações sobre a sabedoria existente.",
+    "search_placeholder": "Buscar universos (ex: Direito, Filosofia)...",
+    "nodes": "Nós (Estrelas)",
+    "vectors": "Vetores Pré-calculados",
+    "preview": "Prévia",
+    "add": "Adicionar",
+    "free": "Grátis"
+  },
+  "research": {
+    "title": "Laboratório de Pesquisa",
+    "subtitle": "Ingestão de arquivos próprios e busca semântica global.",
+    "upload_title": "Upload de Conhecimento",
+    "upload_desc": "Arraste PDFs técnicos, artigos ou imagens para processamento vetorial imediato.",
+    "drop_zone": "Arraste seu PDF/Imagem ou clique para selecionar",
+    "max_size": "Máximo 10MB • PDF, PNG, JPG",
+    "search_area": "Todas as Áreas",
+    "search_placeholder": "Pesquisar papers (ex: Computação Quântica)...",
+    "results": "Resultados da Busca",
+    "recent": "Publicações Recentes",
+    "read_pdf": "Ler PDF (Fonte)",
+    "saved": "Salvo",
+    "save": "Salvar"
+  },
+  "profile": {
+    "back_galaxy": "Voltar para Galáxia",
+    "identity": "Identidade Visual",
+    "bio_default": "Mapeando o conhecimento...",
+    "stats_highlights": "MARCAÇÕES",
+    "stats_summaries": "RESUMOS IA",
+    "stats_connections": "CONEXÕES",
+    "radar_title": "Eixos de Conhecimento",
+    "radar_desc": "Análise vetorial do seu perfil cognitivo",
+    "info_radar": "Seu Radar de Conhecimento é recalibrado automaticamente a cada 30 novas interações.",
+    "next_evolution": "PRÓXIMA EVOLUÇÃO",
+    "remaining_marks": "marcações restantes para novo mapeamento.",
+    "network_status": "STATUS DA REDE",
+    "synced": "Sincronizado via Confluent"
+  }
+}

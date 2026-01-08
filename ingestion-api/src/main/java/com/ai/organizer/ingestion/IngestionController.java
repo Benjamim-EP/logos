@@ -26,19 +26,11 @@ public class IngestionController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<String> upload(
             @RequestPart("file") FilePart file,
-            // CORREÇÃO SÊNIOR: Não lemos mais Header manual. Injetamos o JWT.
+            @RequestHeader(name = "Accept-Language", defaultValue = "en") String lang, // <--- CAPTURA O HEADER
             @AuthenticationPrincipal Jwt jwt
     ) {
-        // Extraímos o ID real do usuário do token (campo 'sub' é o ID único)
-        // Se quiser o email/username, use jwt.getClaimAsString("preferred_username")
         String userId = jwt.getClaimAsString("preferred_username"); 
-        
-        // Logs de auditoria (opcional)
-        System.out.println("🔐 Upload autenticado por: " + userId);
-
-        return service.processUpload(file, userId)
-                .doOnSuccess(hash -> System.out.println("✅ Upload concluído. Hash: " + hash))
-                .doOnError(e -> System.err.println("❌ Erro no upload: " + e.getMessage()));
+        return service.processUpload(file, userId, lang); // <--- PASSA PARA O SERVICE
     }
 
     @PostMapping("/url")

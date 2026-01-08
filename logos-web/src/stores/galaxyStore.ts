@@ -7,7 +7,6 @@ import { getNearestNotes, seededRandom } from "@/lib/math"
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
 
-// Estrutura para o cálculo de força vindo do Backend
 interface PhysicsLink {
   galaxyId: string
   highlightId: string
@@ -24,7 +23,7 @@ interface GalaxyState {
   isLoading: boolean
   isGravityLoading: boolean
   focusNode: Note | null
-  tempCentralizedId: string | null // ID da nota que está agindo como centro temporário
+  tempCentralizedId: string | null
   viewMode: ViewMode
   
   // --- FILTROS ---
@@ -34,7 +33,10 @@ interface GalaxyState {
 
   // --- ACTIONS ---
   initializeUniverse: () => Promise<void>
-  createGalaxy: (name: string) => Promise<void>
+  
+  // CORREÇÃO AQUI: A assinatura agora aceita 3 argumentos
+  createGalaxy: (name: string, x: number, y: number) => Promise<void>
+  
   deleteGalaxy: (galaxyId: string) => Promise<void>
   centralizeNode: (note: Note | null) => void 
   
@@ -48,39 +50,6 @@ interface GalaxyState {
     visibleClusters: Cluster[],
     visibleSubClusters: SubCluster[] 
   }
-}
-
-// --- FUNÇÃO AUXILIAR: Encontrar espaço vazio no universo ---
-function findEmptySpace(clusters: Cluster[], minDistance: number = 800): { x: number, y: number } {
-    let bestX = 0;
-    let bestY = 0;
-    let maxDist = 0;
-    
-    // Se for a primeira, nasce no centro
-    if (clusters.length === 0) return { x: 0, y: 0 };
-
-    for (let i = 0; i < 30; i++) {
-        const x = (Math.random() - 0.5) * 4000;
-        const y = (Math.random() - 0.5) * 4000;
-        
-        let minDistToOthers = 999999;
-        
-        for (const c of clusters) {
-            const dist = Math.sqrt(Math.pow(c.x - x, 2) + Math.pow(c.y - y, 2));
-            if (dist < minDistToOthers) minDistToOthers = dist;
-        }
-
-        if (minDistToOthers > minDistance) {
-            return { x, y };
-        }
-
-        if (minDistToOthers > maxDist) {
-            maxDist = minDistToOthers;
-            bestX = x;
-            bestY = y;
-        }
-    }
-    return { x: bestX, y: bestY };
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
@@ -98,9 +67,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   sortOrder: 'newest',
   maxVisibleNotes: 800,
 
-  /**
-   * INICIALIZAÇÃO: Carrega Estrelas (Highlights + Resumos), Galáxias e Links.
-   */
   initializeUniverse: async () => {
     if (get().isLoading) return;
 
@@ -117,9 +83,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         const stars = starsRes.data
         const { galaxies, links } = stateRes.data
 
-        console.log(`📡 Dados: ${stars.length} estrelas, ${galaxies.length} galáxias, ${links.length} conexões.`)
-
-        // 2. Mapeia Galáxias
         const clusters: Cluster[] = galaxies.map((g: any) => ({
             id: String(g.id),
             label: g.name,
@@ -129,7 +92,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             isActive: g.isActive
         }))
 
-        // 3. Indexa Links
         const linkMap = new Map<string, PhysicsLink[]>()
         links.forEach((l: any) => {
             if (!linkMap.has(l.highlightId)) {
@@ -138,12 +100,10 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             linkMap.get(l.highlightId)?.push(l)
         })
 
-        // 4. MOTOR FÍSICO
         const notes: Note[] = stars.map((star: any) => {
              const starId = String(star.id)
              const myLinks = linkMap.get(starId)
 
-             // A. Parse seguro do JSON de posição
              let parsedPosition = null;
              try {
                 if (star.positionJson) {
@@ -151,15 +111,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 }
              } catch (e) { }
 
-             // B. Dados Básicos
-             // O backend envia "type" (TEXT, IMAGE, RESUME). Colocamos nas tags.
              let tags = [star.type]; 
-             
              let x = 0;
              let y = 0;
              let clusterId = "chaos";
 
-             // C. Lógica de Posicionamento (Organizado vs Caos)
              if (myLinks && myLinks.length > 0) {
                  let vectorX = 0;
                  let vectorY = 0;
@@ -177,17 +133,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                  })
 
                  if (totalScore > 0) {
-                     // Baricentro
                      const centerX = vectorX / totalScore;
                      const centerY = vectorY / totalScore;
-
-                     // Física de Órbita: "The Orbital Nebula"
-                     // Garante que não fiquem em cima do texto (innerSafeZone)
                      const innerSafeZone = 200; 
                      const scoreEffect = (1 - Math.min(totalScore, 0.95)) * 800;
                      const dispersionRadius = innerSafeZone + scoreEffect;
                      
-                     // Ângulo Determinístico
                      const stableAngle = seededRandom(starId + "disp", 0, Math.PI * 2);
                      const jitter = seededRandom(starId + "jitter", -50, 50);
 
@@ -198,10 +149,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                      clusterId = "organized"; 
                  }
              } else {
-                 // Caos Estável
                  const stableAngle = seededRandom(starId + "ang", 0, Math.PI * 2);
                  const stableRadius = seededRandom(starId + "rad", 2500, 4500); 
-                 
                  x = stableRadius * Math.cos(stableAngle);
                  y = stableRadius * Math.sin(stableAngle);
              }
@@ -210,7 +159,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 id: starId,
                 title: star.documentTitle || "Documento Sem Título",
                 preview: star.content || "",
-                tags: tags, // Contém "RESUME" se for resumo
+                tags: tags,
                 createdAt: star.createdAt,
                 x: x,
                 y: y,
@@ -237,23 +186,27 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     }
   },
 
-  createGalaxy: async (name: string) => {
+  // --- CORREÇÃO AQUI NA IMPLEMENTAÇÃO ---
+  createGalaxy: async (name: string, x: number, y: number) => {
     if (!name.trim()) return
     set({ isGravityLoading: true })
+    
     try {
-        const currentClusters = get().clusters;
-        const pos = findEmptySpace(currentClusters, 1000);
-        
+        // Agora usamos o X e Y passados pelo componente (que já calculou uma posição aleatória)
         await api.post('/galaxy/management', {
             name,
             color: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
-            x: pos.x,
-            y: pos.y
+            x: x, 
+            y: y
         })
+        
         toast.success(`Galáxia "${name}" criada!`)
         get().initializeUniverse()
+        
     } catch (e: any) {
-        toast.error("Falha ao criar galáxia")
+        // Tratamento de erro melhorado
+        const msg = e.response?.data?.message || "Falha ao criar galáxia";
+        toast.error(msg);
     } finally {
         set({ isGravityLoading: false })
     }

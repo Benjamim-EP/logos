@@ -78,9 +78,12 @@ public class SummaryProcessorService {
                 textToSummarize = textToSummarize.substring(0, 30000); 
             }
 
+            String langCode = json.path("preferredLanguage").asText("en");
+            String fullLanguage = mapLanguage(langCode);
+
             // 5. Chama a OpenAI
             log.info("🤖 Enviando para OpenAI...");
-            String summaryText = aiAssistant.summarizeInTopics(textToSummarize);
+            String summaryText = aiAssistant.summarizeInTopics(textToSummarize, fullLanguage);
 
             // 6. Vetoriza o Resumo
             Metadata metadata = Metadata.from("userId", userId)
@@ -113,4 +116,15 @@ public class SummaryProcessorService {
             log.error("Erro ao enviar evento de conclusão", e);
         }
     }
+
+    private String mapLanguage(String langCode) {
+        if (langCode == null) return "English";
+        return switch (langCode.toLowerCase().split("-")[0]) {
+            case "pt" -> "Portuguese";
+            case "pl" -> "Polish";
+            case "es" -> "Spanish";
+            default -> "English";
+        };
+    }
+
 }

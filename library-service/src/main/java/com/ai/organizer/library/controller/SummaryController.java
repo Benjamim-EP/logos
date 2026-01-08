@@ -30,10 +30,11 @@ public class SummaryController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public UserSummary requestSummary(
             @RequestBody CreateSummaryRequest request,
+            @RequestHeader(name = "Accept-Language", defaultValue = "en") String lang, // <--- 1. Captura o idioma
             @AuthenticationPrincipal Jwt jwt
     ) {
         String userId = extractUserId(jwt);
-        log.info("🧠 Solicitando resumo ({}) para user: {}", request.sourceType(), userId);
+        log.info("🧠 Solicitando resumo ({}) para user: {} [Lang: {}]", request.sourceType(), userId, lang);
 
         SummarySourceType type = SummarySourceType.valueOf(request.sourceType());
         String rangeLabel = (type == SummarySourceType.PAGE_RANGE) 
@@ -47,28 +48,26 @@ public class SummaryController {
                 type,
                 rangeLabel
         );
-        // Se for seleção de texto, já salvamos o input como referência (opcional, mas bom pra debug)
-        // Mas o generatedText ficará null até a IA responder.
         summary.setPositionJson(request.position());
         
         summary = summaryRepository.save(summary);
 
         // 2. Dispara evento para o AI Processor
         try {
+            // CORREÇÃO: Adicionado o argumento 'lang' no final do construtor
             SummaryRequestedEvent event = new SummaryRequestedEvent(
                     summary.getId(),
                     request.fileHash(),
                     userId,
                     request.sourceType(),
-                    request.content(), // Texto selecionado
+                    request.content(), 
                     request.startPage(),
-                    request.endPage()
+                    request.endPage(),
+                    lang // <--- 2. Passa o idioma para o Evento
             );
 
-            // Serializa para JSON String (padrão que adotamos para evitar erros de classe)
             String jsonEvent = objectMapper.writeValueAsString(event);
             
-            // Envia para novo tópico
             kafkaTemplate.send("summary.requested", summary.getId().toString(), jsonEvent);
             log.info("📨 Evento de resumo enviado para Kafka ID: {}", summary.getId());
 
@@ -85,15 +84,16 @@ public class SummaryController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSummary(@PathVariable Long id) {
-        // 1. Busca para validar e pegar dados (opcional)
         if (summaryRepository.existsById(id)) {
-            // 2. Apaga do Postgres
             summaryRepository.deleteById(id);
             
-            // 3. Avisa o AI Processor para apagar do Pinecone
-            // (Vamos criar esse evento simples agora)
-            kafkaTemplate.send("data.deleted", "SUMMARY:" + id);
-            log.info("🗑️ Resumo {} deletado. Evento de limpeza enviado.", id);
+            // Avisa o AI Processor para apagar do Pinecone
+            try {
+                kafkaTemplate.send("data.deleted", "SUMMARY:" + id);
+                log.info("🗑️ Resumo {} deletado. Evento de limpeza enviado.", id);
+            } catch (Exception e) {
+                log.error("Erro ao enviar evento de deleção", e);
+            }
         }
     }
 

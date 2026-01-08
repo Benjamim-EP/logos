@@ -11,5 +11,6 @@ public record IngestionEvent(
     String originalName, // Nome original do arquivo
     String userId,       // ID do usuário que fez o upload
     long timestamp,      // Momento do upload
-    long fileSize
+    long fileSize,
+    String preferredLanguage
 ) {}
