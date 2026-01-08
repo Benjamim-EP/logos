@@ -1,5 +1,6 @@
 import axios from "axios"
 import { useAuthStore } from "@/stores/authStore"
+import i18n from "./i18n"
 
 // Aponta para o API GATEWAY (8000)
 // O Gateway vai rotear:
@@ -16,6 +17,8 @@ api.interceptors.request.use((config) => {
   if (user?.token) {
     config.headers.Authorization = `Bearer ${user.token}`
   }
+
+  config.headers['Accept-Language'] = i18n.language || 'en';
   
   return config
 }, (error) => {

@@ -1,0 +1,15 @@
+{
+  "shelf": {
+    "title": "Biblioteka Cyfrowa",
+    "subtitle": "Zarządzaj swoimi książkami i dokumentami",
+    "add_book": "Dodaj książkę"
+  },
+  "common": {
+    "loading": "Inicjowanie systemów...",
+    "logout": "Wyloguj się"
+  },
+  "ai": {
+    "suggestions": "Sugestie AI",
+    "analyzing": "Analizowanie połączeń..."
+  }
+}
