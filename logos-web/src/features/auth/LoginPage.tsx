@@ -1,15 +1,24 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "react-oidc-context"
-import { Atom, Loader2, Sparkles, Chrome } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { motion } from "framer-motion"
+import { 
+  Atom, 
+  Loader2, 
+  ShieldCheck, 
+  Globe, 
+  Mail, 
+  ArrowRight, 
+  CheckCircle2 
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 
 export function LoginPage() {
   const auth = useAuth()
   const navigate = useNavigate()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState<"google" | "standard" | null>(null)
 
   // Redireciona automaticamente se já estiver autenticado
   useEffect(() => {
@@ -18,21 +27,11 @@ export function LoginPage() {
     }
   }, [auth.isAuthenticated, navigate])
 
-  // Fluxo Padrão (Vai para a tela de Login do Keycloak)
-  const handleRealLogin = async () => {
-    setIsLoading(true)
-    try {
-      await auth.signinRedirect() 
-    } catch (err) {
-      console.error("Erro ao iniciar login:", err)
-      setIsLoading(false)
-    }
-  }
-
-  // Fluxo Google Direto (Identity Brokering)
-  // O parâmetro 'kc_idp_hint' diz ao Keycloak para usar o Google imediatamente
+  // --- ESTRATÉGIA 1: DIRECT IDENTITY BROKERING ---
+  // O parâmetro 'kc_idp_hint: google' diz ao Keycloak:
+  // "Não mostre sua tela de login, mande o usuário direto para o Google."
   const handleGoogleLogin = async () => {
-    setIsLoading(true)
+    setIsLoading("google")
     try {
       await auth.signinRedirect({
         extraQueryParams: {
@@ -41,95 +40,166 @@ export function LoginPage() {
       })
     } catch (err) {
       console.error("Erro ao iniciar login Google:", err)
-      setIsLoading(false)
+      setIsLoading(null)
+    }
+  }
+
+  // --- ESTRATÉGIA 2: STANDARD FLOW ---
+  // Leva para a tela do Keycloak onde o usuário pode:
+  // 1. Digitar E-mail/Senha
+  // 2. Clicar em "Register" (Criar conta)
+  // 3. Clicar em "Forgot Password"
+  const handleStandardLogin = async () => {
+    setIsLoading("standard")
+    try {
+      await auth.signinRedirect() 
+    } catch (err) {
+      console.error("Erro ao iniciar login padrão:", err)
+      setIsLoading(null)
     }
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#050505]">
+    <div className="min-h-screen w-full flex relative overflow-hidden bg-[#050505]">
       
-      {/* --- BACKGROUND CÓSMICO --- */}
+      {/* --- BACKGROUND DINÂMICO --- */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[120px] animate-pulse delay-1000"></div>
-
-      {/* --- CARD DE VIDRO (Glassmorphism) --- */}
-      <Card className="w-[380px] bg-black/40 backdrop-blur-xl border-white/10 shadow-2xl relative z-10 text-white">
-        
-        <CardHeader className="text-center space-y-1">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-white/5 rounded-full border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-              <Atom className="w-8 h-8 text-blue-400 animate-spin-slow" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-            Logos Enterprise
-          </CardTitle>
-          <CardDescription className="text-gray-400">
-            Acesso seguro à plataforma de inteligência.
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          <div className="text-center text-xs text-gray-500 bg-white/5 p-3 rounded-lg border border-white/5">
-             Para acessar sua Galáxia e Biblioteca, você será redirecionado para o nosso provedor de identidade corporativo.
-          </div>
-          
-          {/* Indicador de Segurança */}
-          <div className="flex items-center justify-center gap-2 text-[10px] text-green-500/80 uppercase tracking-widest font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Conexão Segura via OIDC (Keycloak)
-          </div>
-        </CardContent>
-          
-        <CardFooter className="flex flex-col gap-3">
-          {/* Botão Principal */}
-          <Button 
-            onClick={handleRealLogin} 
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-12 shadow-lg shadow-purple-900/20"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Conectando...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Login com Keycloak
-              </>
-            )}
-          </Button>
-
-          {/* Divisor */}
-          <div className="relative w-full py-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-transparent px-2 text-gray-600 font-medium">Ou</span>
-            </div>
-          </div>
-
-          {/* Botão Social Google */}
-          <Button 
-            onClick={handleGoogleLogin} 
-            variant="outline"
-            className="w-full border-white/10 bg-white/5 hover:bg-white/10 hover:text-white h-11 gap-3 transition-all hover:border-white/20"
-            disabled={isLoading}
-          >
-            <Chrome className="w-4 h-4 text-white" />
-            Entrar com Google
-          </Button>
-        </CardFooter>
-      </Card>
       
-      {/* Footer da Página */}
-      <div className="absolute bottom-6 text-gray-600 text-xs">
-        &copy; 2025 Logos Platform • Secure Access
+      {/* Orbes de Luz */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/10 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/10 rounded-full blur-[120px] animate-pulse delay-1000" />
+
+      {/* --- COLUNA ESQUERDA (Branding) --- */}
+      <div className="hidden lg:flex w-1/2 flex-col justify-between p-12 relative z-10 border-r border-white/5 bg-black/20 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-600/20 rounded-lg border border-blue-500/20">
+            <Atom className="w-6 h-6 text-blue-400" />
+          </div>
+          <span className="font-bold text-xl tracking-tight text-white">Logos Platform</span>
+        </div>
+
+        <div className="space-y-6">
+          <h1 className="text-5xl font-bold leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
+            Organize seu conhecimento com Inteligência Artificial.
+          </h1>
+          <p className="text-lg text-gray-400 max-w-md leading-relaxed">
+            Uma arquitetura Cloud-Native distribuída para ingestão, processamento e conexão semântica de dados.
+          </p>
+          
+          <div className="flex gap-4 pt-4">
+             <FeatureBadge icon={Globe} text="Cloud Native" />
+             <FeatureBadge icon={ShieldCheck} text="Secure Identity" />
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-600 font-mono">
+          v2.0.0 • Powered by Google Cloud Run & Neon
+        </div>
       </div>
 
+      {/* --- COLUNA DIREITA (Formulário) --- */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative z-20">
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md space-y-8"
+        >
+          {/* Header Mobile */}
+          <div className="lg:hidden flex justify-center mb-8">
+            <Atom className="w-12 h-12 text-blue-500" />
+          </div>
+
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight text-white">Bem-vindo de volta</h2>
+            <p className="text-sm text-gray-400">
+              Acesse sua galáxia pessoal de documentos.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* BOTÃO GOOGLE (Destaque) */}
+            <Button 
+              onClick={handleGoogleLogin} 
+              disabled={!!isLoading}
+              className="w-full h-12 bg-white text-black hover:bg-gray-200 font-semibold text-base transition-transform active:scale-95 flex items-center justify-center gap-3"
+            >
+              {isLoading === 'google' ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+              )}
+              Continuar com Google
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="bg-white/10" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-[#050505] px-2 text-gray-500">ou entre com e-mail</span>
+              </div>
+            </div>
+
+            {/* BOTÃO E-MAIL (Secundário) */}
+            <Button 
+              onClick={handleStandardLogin} 
+              disabled={!!isLoading}
+              variant="outline"
+              className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 hover:text-white text-gray-300 font-normal justify-between group"
+            >
+              <span className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Usar e-mail e senha
+              </span>
+              {isLoading === 'standard' ? (
+                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                 <ArrowRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
+              )}
+            </Button>
+          </div>
+
+          {/* Footer de Registro */}
+          <div className="text-center text-sm text-gray-500 mt-6">
+            Não tem uma conta?{" "}
+            <button 
+                onClick={handleStandardLogin} // O mesmo link leva para a tela onde tem "Register"
+                className="text-blue-400 hover:text-blue-300 hover:underline font-medium transition-colors"
+            >
+              Criar conta agora
+            </button>
+          </div>
+
+        </motion.div>
+      </div>
     </div>
   )
+}
+
+function FeatureBadge({ icon: Icon, text }: { icon: any, text: string }) {
+    return (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
+            <Icon className="w-3.5 h-3.5 text-blue-400" />
+            {text}
+        </div>
+    )
 }

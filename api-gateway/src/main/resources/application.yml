@@ -10,9 +10,9 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # URL do Keycloak que emite os tokens
-          issuer-uri: http://localhost:8085/realms/logos-realm
-          jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
+          # A URL DA NUVEM
+          issuer-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm
+          jwk-set-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm/protocol/openid-connect/certs
 
   # Roteamento Dinâmico
   cloud:

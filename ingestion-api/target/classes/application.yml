@@ -9,8 +9,9 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # URL pública do Keycloak para validar a assinatura do token
-          jwk-set-uri: http://localhost:8085/realms/logos-realm/protocol/openid-connect/certs
+          # A URL DA NUVEM
+          issuer-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm
+          jwk-set-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm/protocol/openid-connect/certs
   cloud:
     gcp:
       storage:

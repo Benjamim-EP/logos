@@ -1,28 +1,8 @@
 version: '3.8'
 
 services:
-  # --- 1. REDIS STACK (Cache + Vetor Local) ---
-  # Usado para cache de respostas da IA e controle de idempotência
-  redis:
-    image: redis/redis-stack:latest
-    container_name: redis
-    ports:
-      - "6379:6379"
-      - "8001:8001" # Interface Visual (RedisInsight)
 
-  # --- 2. IDENTITY PROVIDER (Keycloak) ---
-  # Gerencia autenticação (JWT)
-  keycloak:
-    image: quay.io/keycloak/keycloak:23.0.0
-    container_name: keycloak
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8085:8080" # Porta 8085
-    command: start-dev
-
-  # --- 3. OBSERVABILITY (Zipkin) ---
+  # ---OBSERVABILITY (Zipkin) ---
   # Rastreamento distribuído
   zipkin:
     image: openzipkin/zipkin
