@@ -12,6 +12,4 @@ library-service/src/main/resources/application.yml
 conceito_kafka.txt
 conceito_ia.txt
 conceito_arch.txt
-ai-processor/credentials.json
-ingestion-api/credentials.json
-library-service/credentials.json
+**/credentials.json

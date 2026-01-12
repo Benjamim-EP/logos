@@ -33,10 +33,11 @@ echo [1/5] Iniciando Library Service...
 start "CORE - LIBRARY" cmd /k "color 0A && cd library-service && title [LIBRARY] OTel On && set JAVA_TOOL_OPTIONS=%OHEL_ARGS% -Dotel.service.name=library-service && mvn spring-boot:run"
 timeout /t 3 >nul
 
-:: 2. INGESTION API
-echo [2/5] Iniciando Ingestion API...
-start "API - INGESTION" cmd /k "color 0B && cd ingestion-api && title [INGESTION] OTel On && set JAVA_TOOL_OPTIONS=%OHEL_ARGS% -Dotel.service.name=ingestion-api && mvn spring-boot:run"
-timeout /t 3 >nul
+:: 2. INGESTION SERVICE (GO)
+echo [2/5] Iniciando Ingestion Service (Go Lang)...
+:: O Go roda compilado ou via 'go run'. Para dev, 'go run' é ok.
+start "API - INGESTION (GO)" cmd /k "color 0B && cd ingestion-go && title [INGESTION] Go Native && go run main.go"
+timeout /t 2 >nul
 
 :: 3. AI PROCESSOR
 echo [3/5] Iniciando AI Processor...
