@@ -19,8 +19,7 @@ public class AiProcessorClient {
     private final RestClient restClient;
 
     public AiProcessorClient(RestClient.Builder builder) {
-        // Aponta para o Gateway (8000) ou direto para o AI Processor (8081)
-        // Se usar 8081 direto, você pula o Gateway mas ainda precisa do Token pois o AI Processor é um Resource Server
+        
         this.restClient = builder.baseUrl("http://localhost:8081/api/ai").build();
     }
 
@@ -34,7 +33,7 @@ public class AiProcessorClient {
 
         try {
             return restClient.post()
-                    .uri("/workbench/suggest-links") // Chama o novo controller do AI Processor
+                    .uri("/workbench/suggest-links") 
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + getJwtTokenFromContext())
                     .body(payload)
                     .retrieve()
@@ -54,13 +53,13 @@ public class AiProcessorClient {
     }
 
     public AiGravityResponse getGravityMatches(String term) {
-        // 1. Recupera o Token JWT da requisição atual (do SecurityContext do Spring)
+        
         String token = getJwtTokenFromContext();
 
         try {
             return restClient.post()
                     .uri("/galaxy/gravity")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token) // <--- REPASSA O TOKEN
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token) 
                     .body(term)
                     .retrieve()
                     .body(AiGravityResponse.class);

@@ -52,9 +52,9 @@ public class SummaryController {
         
         summary = summaryRepository.save(summary);
 
-        // 2. Dispara evento para o AI Processor
+        
         try {
-            // CORREÇÃO: Adicionado o argumento 'lang' no final do construtor
+            
             SummaryRequestedEvent event = new SummaryRequestedEvent(
                     summary.getId(),
                     request.fileHash(),
@@ -63,7 +63,7 @@ public class SummaryController {
                     request.content(), 
                     request.startPage(),
                     request.endPage(),
-                    lang // <--- 2. Passa o idioma para o Evento
+                    lang 
             );
 
             String jsonEvent = objectMapper.writeValueAsString(event);
@@ -87,7 +87,6 @@ public class SummaryController {
         if (summaryRepository.existsById(id)) {
             summaryRepository.deleteById(id);
             
-            // Avisa o AI Processor para apagar do Pinecone
             try {
                 kafkaTemplate.send("data.deleted", "SUMMARY:" + id);
                 log.info("🗑️ Resumo {} deletado. Evento de limpeza enviado.", id);

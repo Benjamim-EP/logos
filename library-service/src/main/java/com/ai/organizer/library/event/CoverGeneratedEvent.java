@@ -2,5 +2,5 @@ package com.ai.organizer.library.event; // Ajuste o pacote conforme o serviço (
 
 public record CoverGeneratedEvent(
     String fileHash,
-    String coverPath // Caminho no GCS (ex: covers/12345.webp)
+    String coverPath 
 ) {}

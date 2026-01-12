@@ -16,12 +16,12 @@ public class GcpConfig {
     @Value("${spring.cloud.gcp.credentials.location}")
     private Resource credentialsLocation;
 
-    @Value("${gcp.storage.bucket-name}") // Opcional: Se precisar do Project ID, pode injetar aqui
+    @Value("${gcp.storage.bucket-name}") 
     private String bucketName;
 
     @Bean
     public Storage storage() throws IOException {
-        // Carrega as credenciais do arquivo definido no application.yml
+        
         GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsLocation.getInputStream());
 
         return StorageOptions.newBuilder()

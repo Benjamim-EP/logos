@@ -1,4 +1,4 @@
-package com.ai.organizer.library.event; // (ou processor.event)
+package com.ai.organizer.library.event;
 
 public record StarLinkedEvent(
     String galaxyId,

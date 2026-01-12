@@ -1,6 +1,5 @@
 package com.ai.organizer.library.kafka;
 
-import com.ai.organizer.library.domain.Document;
 import com.ai.organizer.library.event.CoverGeneratedEvent;
 import com.ai.organizer.library.repository.DocumentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +24,7 @@ public class CoverConsumer {
             CoverGeneratedEvent event = objectMapper.readValue(message, CoverGeneratedEvent.class);
             log.info("🖼️ Recebido aviso de capa para: {}", event.fileHash());
 
-            // Atualiza o documento
+            
             documentRepository.findByFileHash(event.fileHash()).ifPresentOrElse(doc -> {
                 doc.setCoverPath(event.coverPath());
                 documentRepository.save(doc);

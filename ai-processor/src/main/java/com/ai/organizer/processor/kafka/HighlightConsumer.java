@@ -17,20 +17,17 @@ public class HighlightConsumer {
     private final ProcessorService processorService;
     private final ObjectMapper objectMapper;
 
-    // Alterei o groupId para v2 para pular mensagens antigas travadas
     @KafkaListener(topics = "highlight.created", groupId = "ai-processor-highlights-v2")
     public void consume(String message) {
         try {
             log.info("🖍️ [HIGHLIGHT] Mensagem recebida: {}", message);
 
-            // 1. TRATAMENTO DE DUPLA SERIALIZAÇÃO
             JsonNode jsonNode = objectMapper.readTree(message);
             if (jsonNode.isTextual()) {
                 log.info("⚠️ JSON encapsulado detectado. Realizando segundo parse...");
                 jsonNode = objectMapper.readTree(jsonNode.asText());
             }
 
-            // 2. CONVERSÃO PARA O RECORD
             HighlightEvent event = objectMapper.treeToValue(jsonNode, HighlightEvent.class);
             
             log.info("✅ Highlight ID {} validado. Iniciando vetorização...", event.highlightId());

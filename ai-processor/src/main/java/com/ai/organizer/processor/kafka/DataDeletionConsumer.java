@@ -19,7 +19,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataDeletionConsumer {
 
-    // IMPORTANTE: Tipamos como TextSegment para poder acessar os metadados na busca
     private final EmbeddingStore<TextSegment> embeddingStore;
 
     @KafkaListener(topics = "data.deleted", groupId = "ai-processor-cleanup-v3")
@@ -32,18 +31,17 @@ public class DataDeletionConsumer {
             String type = parts[0].trim();
             String id = parts[1].trim();
 
-            // 1. Define o filtro de metadados baseado no tipo
+           
             String metadataKey = "HIGHLIGHT".equals(type) ? "highlightId" : "summaryId";
             Filter metadataFilter = MetadataFilterBuilder.metadataKey(metadataKey).isEqualTo(id);
 
-            // 2. BUSCA: Como removeAll(Filter) não funciona, buscamos os IDs primeiro
-            // Usamos um vetor de busca vazio (dummy) de 1536 posições (OpenAI standard)
+            
             float[] dummyVector = new float[1536]; 
             
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
                     .queryEmbedding(dev.langchain4j.data.embedding.Embedding.from(dummyVector))
                     .filter(metadataFilter)
-                    .maxResults(10) // Normalmente é 1 para 1, mas usamos 10 por segurança
+                    .maxResults(10) 
                     .build();
 
             EmbeddingSearchResult<TextSegment> searchResult = embeddingStore.search(searchRequest);
@@ -54,12 +52,11 @@ public class DataDeletionConsumer {
                 return;
             }
 
-            // 3. EXCLUSÃO POR ID: Agora apagamos cada um encontrado
+           
             for (EmbeddingMatch<TextSegment> match : matches) {
                 String pineconeVectorId = match.embeddingId();
                 log.info("🗑️ Apagando ID Vetorial: {}", pineconeVectorId);
-                
-                // O método remove(id) é suportado!
+        
                 embeddingStore.remove(pineconeVectorId);
             }
 

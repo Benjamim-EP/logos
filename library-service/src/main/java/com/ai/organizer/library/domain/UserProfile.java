@@ -14,14 +14,14 @@ public class UserProfile {
 
     @Id
     @Column(name = "user_id")
-    private String userId; // ID vindo do Keycloak (Subject)
+    private String userId; 
 
     @Column(name = "avatar_url")
     private String avatarUrl;
 
     @Column(name = "bio")
-    private String bio; // Já deixamos pronto para o futuro
+    private String bio; 
 
     @Column(name = "radar_data", columnDefinition = "TEXT")
-    private String radarData; // JSON: [{"subject": "Java", "value": 100}, ...]
+    private String radarData; 
 }

@@ -1,7 +1,7 @@
-package com.ai.organizer.processor; // (Ou library.event dependendo do projeto)
+package com.ai.organizer.processor; 
 
 public record SummaryCompletedEvent(
     Long summaryId,
     String generatedText,
-    String status // "COMPLETED" ou "FAILED"
+    String status 
 ) {}

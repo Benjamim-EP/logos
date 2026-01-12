@@ -25,16 +25,12 @@ public class RadarProcessorService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Consome solicitações de atualização de radar.
-     * Recebe uma lista de snippets (marcações) e gera os 6 eixos de conhecimento.
-     */
     @KafkaListener(topics = "radar.update.requested", groupId = "ai-processor-radar-group")
     public void processRadarRequest(String message) {
         log.info("🧠 [RADAR] Recebida solicitação de análise de perfil.");
 
         try {
-            // 1. Desserialização Manual
+
             JsonNode jsonNode = objectMapper.readTree(message);
             
             if (jsonNode.isTextual()) {
@@ -42,8 +38,7 @@ public class RadarProcessorService {
             }
 
             String userId = jsonNode.get("userId").asText();
-            
-            // Recupera a lista de snippets
+      
             var snippetsNode = jsonNode.get("snippets");
             String consolidatedText = "";
             
@@ -59,16 +54,10 @@ public class RadarProcessorService {
             }
 
             log.info("🤖 Analisando {} caracteres para gerar o radar de {}", consolidatedText.length(), userId);
-
-            // 2. Inteligência Artificial: Extração de Tópicos e Pesos
-            // CORREÇÃO: Passamos "English" (ou outro idioma) como segundo argumento obrigatório
-            // Futuramente você pode buscar o idioma do usuário no banco antes de chamar a IA
             String radarJson = aiAssistant.generateKnowledgeRadar(consolidatedText, "English");
 
-            // 3. Sanitização do retorno da IA
             String cleanRadarJson = radarJson.replace("```json", "").replace("```", "").trim();
 
-            // 4. Envio do Evento de Conclusão
             RadarUpdateCompletedEvent completionEvent = new RadarUpdateCompletedEvent(userId, cleanRadarJson);
             String responseMessage = objectMapper.writeValueAsString(completionEvent);
 

@@ -23,18 +23,18 @@ public class UserSummary {
     @Column(nullable = false)
     private String userId;
 
-    // O texto final gerado pela IA (Markdown)
+    
     @Column(columnDefinition = "TEXT")
     private String generatedText;
 
-    // Metadados da solicitação
+   
     @Enumerated(EnumType.STRING)
     private SummarySourceType sourceType;
 
-    // Ex: "10-15" ou null se for seleção de texto
+   
     private String pageRange;
 
-    // PENDING, COMPLETED, FAILED
+    
     private String status;
 
     private LocalDateTime createdAt;

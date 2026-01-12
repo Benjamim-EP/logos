@@ -1,4 +1,3 @@
-
 package com.ai.organizer.library.kafka;
 
 import com.ai.organizer.library.domain.Document;
@@ -21,17 +20,17 @@ public class DocumentIngestionConsumer {
     @KafkaListener(topics = "document.ingestion", groupId = "library-service-group")
     public void consume(String message) {
         try {
-            // Desserializa manualmente para ter controle de erro
+            
             IngestionEvent event = objectMapper.readValue(message, IngestionEvent.class);
             log.info("📚 Ingestão recebida na Biblioteca: {}", event.originalName());
 
-            // Idempotência: Se já existe, não cria de novo
+            
             if (documentRepository.findByFileHash(event.fileHash()).isPresent()) {
                 log.info("Documento já existe na biblioteca: {}", event.fileHash());
                 return;
             }
 
-            // Cria o documento minimalista
+            
             Document doc = new Document(
                 event.originalName(),
                 event.fileHash(),

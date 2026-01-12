@@ -22,13 +22,12 @@ public class HighlightEntity {
     @Column(name = "content", length = 4000)
     private String originalText;
 
-    // --- NOVOS CAMPOS ---
     @Enumerated(EnumType.STRING)
     private ContentType type;
 
     @Enumerated(EnumType.STRING)
     private ProcessingStatus status;
-    // --------------------
+    
 
     @Column(name = "ai_analysis_json", length = 4000)
     private String aiAnalysisJson;

@@ -9,6 +9,6 @@ public record AiGravityResponse(
     public record StarMatch(
         String highlightId,
         Double score,
-        String text // <--- VOCÊ ESQUECEU ESSE CAMPO AQUI!
+        String text
     ) {}
 }

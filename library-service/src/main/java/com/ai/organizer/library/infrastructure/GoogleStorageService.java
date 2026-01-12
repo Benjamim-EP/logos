@@ -1,6 +1,6 @@
 package com.ai.organizer.library.infrastructure;
 
-import com.ai.organizer.library.service.BlobStorageService; // Importa a interface deste serviço
+import com.ai.organizer.library.service.BlobStorageService; 
 import com.google.cloud.storage.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
@@ -30,7 +30,7 @@ public class GoogleStorageService implements BlobStorageService {
                 .build();
         
         storage.create(blobInfo, content);
-        // System.out.println("☁️ Uploaded to GCS: " + filename); // Opcional no Library
+        
     }
 
     @Override
@@ -47,7 +47,7 @@ public class GoogleStorageService implements BlobStorageService {
 
     @Override
     public URL getSignedUrl(String filename, int minutesToExpire) {
-        // Validação defensiva para não quebrar se o caminho vier nulo do banco
+        
         if (filename == null || filename.isEmpty()) {
             throw new IllegalArgumentException("O nome do arquivo não pode ser nulo para gerar URL assinada.");
         }
@@ -55,8 +55,7 @@ public class GoogleStorageService implements BlobStorageService {
         BlobId blobId = BlobId.of(bucketName, filename);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         
-        // Gera uma URL assinada (V4) que permite leitura sem autenticação por X minutos
-        // O Frontend usará essa URL para exibir o PDF no iframe/leitor
+        
         return storage.signUrl(
                 blobInfo, 
                 minutesToExpire, 

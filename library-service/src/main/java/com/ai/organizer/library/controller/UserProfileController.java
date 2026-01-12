@@ -28,12 +28,9 @@ public class UserProfileController {
     private final UserHighlightRepository highlightRepository;
     private final UserSummaryRepository summaryRepository;
     private final StarGalaxyLinkRepository linkRepository;
-    private final DocumentRepository documentRepository; // Injeção para calcular storage
+    private final DocumentRepository documentRepository;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Recupera o perfil completo com estatísticas reais, storage usado e dados do Radar.
-     */
     @GetMapping
     public ProfileDTO getProfile(@AuthenticationPrincipal Jwt jwt) {
         String userId = getUserId(jwt);
@@ -41,7 +38,7 @@ public class UserProfileController {
 
         log.info("📊 Consolidando dashboard de perfil para o usuário: {}", userId);
 
-        // 1. Recupera o Perfil ou cria um Default (Lazy Creation)
+       
         UserProfile profile = repository.findById(userId)
                 .orElseGet(() -> {
                     log.info("🌱 Primeiro acesso detectado para {}. Criando perfil base.", username);
@@ -49,27 +46,27 @@ public class UserProfileController {
                     return new UserProfile(userId, defaultAvatar, "Explorador da Galáxia", null);
                 });
 
-        // 2. Cálculo de Storage (Novidade da Fase de Storage)
+        
         Long usedBytes = documentRepository.getTotalStorageUsed(userId);
         long usedMB = usedBytes != null ? usedBytes / (1024 * 1024) : 0;
-        long limitMB = 100; // Limite fixo por enquanto (SaaS Free Tier)
+        long limitMB = 100;
 
-        // 3. Coleta Estatísticas REAIS via Aggregation Queries
+        
         ProfileDTO.UserStats stats = new ProfileDTO.UserStats(
                 highlightRepository.countByUserId(userId),
                 summaryRepository.countByUserId(userId),
                 linkRepository.countByUserId(userId),
-                usedMB,    // Storage Usado
-                limitMB    // Limite Total
+                usedMB,    
+                limitMB    
         );
 
-        // 4. Processa dados do Radar (Cérebro da Visualização)
+        
         List<Map<String, Object>> radar = new ArrayList<>();
         try {
             if (profile.getRadarData() != null && !profile.getRadarData().isEmpty()) {
                 radar = objectMapper.readValue(profile.getRadarData(), new TypeReference<>() {});
             } else {
-                // Radar Padrão: Eixos de evolução de aprendizado para novos usuários
+                
                 radar = List.of(
                     Map.of("subject", "Conhecimento", "A", 40),
                     Map.of("subject", "Curiosidade", "A", 70),
@@ -92,9 +89,7 @@ public class UserProfileController {
         );
     }
 
-    /**
-     * Atualiza o Avatar do usuário.
-     */
+   
     @PutMapping("/avatar")
     public UserProfile updateAvatar(@RequestBody Map<String, String> payload, @AuthenticationPrincipal Jwt jwt) {
         String userId = getUserId(jwt);
@@ -109,7 +104,7 @@ public class UserProfileController {
         return repository.save(profile);
     }
 
-    // --- Helpers de Extração de Token ---
+    
 
     private String getUserId(Jwt jwt) {
         String claim = jwt.getClaimAsString("preferred_username");

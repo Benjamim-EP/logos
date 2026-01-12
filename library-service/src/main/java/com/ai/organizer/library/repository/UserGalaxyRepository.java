@@ -10,6 +10,5 @@ import java.util.Optional;
 public interface UserGalaxyRepository extends JpaRepository<UserGalaxy, Long> {
     List<UserGalaxy> findByUserIdAndIsActiveTrue(String userId);
     
-    // Para validar duplicidade de nome por usuário
     boolean existsByUserIdAndNameIgnoreCase(String userId, String name);
 }

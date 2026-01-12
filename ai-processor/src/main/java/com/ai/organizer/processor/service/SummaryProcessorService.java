@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 
 @Service
 @Slf4j
@@ -29,21 +28,15 @@ public class SummaryProcessorService {
     public void processSummaryRequest(String message) {
         Long summaryId = null;
         try {
-            // 1. LOG DE DEBUG
             log.info("📨 Payload Bruto Recebido: {}", message);
 
             JsonNode json = objectMapper.readTree(message);
 
-            // --- CORREÇÃO CRÍTICA: DUPLA SERIALIZAÇÃO ---
-            // Se o Jackson leu como um "TextNode" (String pura), significa que 
-            // recebemos um JSON dentro de uma String. Precisamos fazer o parse do conteúdo.
             if (json.isTextual()) {
                 log.info("⚠️ Detectada serialização dupla (TextNode). Realizando segundo parse...");
                 json = objectMapper.readTree(json.asText());
             }
-            // ---------------------------------------------
 
-            // 2. Extração Segura de ID
             if (json.has("summaryId")) {
                 summaryId = json.get("summaryId").asLong();
             } else if (json.has("id")) {
@@ -58,14 +51,11 @@ public class SummaryProcessorService {
 
             log.info("🧠 Processando resumo ID: {} | Tipo: {}", summaryId, sourceType);
 
-            // 3. Obtém o texto base
             String textToSummarize = "";
 
             if ("PAGE_RANGE".equals(sourceType)) {
-                // TODO: Implementar lógica de download do PDF e extração de páginas aqui
                 throw new UnsupportedOperationException("Resumo por página requer update do evento com storagePath.");
             } else {
-                // TEXT_SELECTION
                 textToSummarize = json.path("textContent").asText();
             }
 
@@ -73,7 +63,6 @@ public class SummaryProcessorService {
                 throw new IllegalArgumentException("Texto para resumo está vazio.");
             }
 
-            // 4. Valida tamanho
             if (textToSummarize.length() > 30000) {
                 textToSummarize = textToSummarize.substring(0, 30000); 
             }
@@ -81,11 +70,10 @@ public class SummaryProcessorService {
             String langCode = json.path("preferredLanguage").asText("en");
             String fullLanguage = mapLanguage(langCode);
 
-            // 5. Chama a OpenAI
             log.info("🤖 Enviando para OpenAI...");
             String summaryText = aiAssistant.summarizeInTopics(textToSummarize, fullLanguage);
 
-            // 6. Vetoriza o Resumo
+
             Metadata metadata = Metadata.from("userId", userId)
                     .put("fileHash", fileHash)
                     .put("type", "resume") 
@@ -95,13 +83,11 @@ public class SummaryProcessorService {
             var embedding = embeddingModel.embed(segment).content();
             embeddingStore.add(embedding, segment);
 
-            // 7. Sucesso -> Avisa Library
             sendCompletionEvent(summaryId, summaryText, "COMPLETED");
             log.info("✅ Resumo concluído e vetorizado!");
 
         } catch (Exception e) {
             log.error("❌ Falha ao gerar resumo: {}", e.getMessage());
-            // Agora que conseguimos ler o ID (se o erro não foi no parse), podemos avisar o front do erro
             if (summaryId != null) {
                 sendCompletionEvent(summaryId, "Falha na IA: " + e.getMessage(), "FAILED");
             }

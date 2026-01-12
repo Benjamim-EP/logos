@@ -23,7 +23,7 @@ public class HighlightController {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RadarTriggerService radarTriggerService;
 
-    // DTO Interno
+    
     public record CreateHighlightRequest(
         String fileHash, 
         String content, 
@@ -38,12 +38,12 @@ public class HighlightController {
     ) {
         String userId = jwt.getClaimAsString("preferred_username");
         
-        // 1. PERSISTÊNCIA CRÍTICA (Banco de Dados)
+        
         UserHighlight hl = new UserHighlight();
         hl.setFileHash(request.fileHash);
         hl.setUserId(userId);
         
-        // Proteção contra textos gigantes que estouram colunas
+        
         String safeContent = request.content != null && request.content.length() > 3900 
                 ? request.content.substring(0, 3900) 
                 : request.content;
@@ -52,17 +52,16 @@ public class HighlightController {
         hl.setType(request.type);
         hl.setPositionJson(request.position);
         
-        // Salva e garante o ID
+        
         UserHighlight saved = userHighlightRepository.save(hl);
         log.info("💾 Highlight salvo no SQL. ID: {}", saved.getId());
 
-        // 2. PROCESSAMENTO ASSÍNCRONO (Blindado)
-        // Se isso falhar, NÃO retornamos erro 500 para o usuário
+        
         try {
-            // Gatilho do Radar (Envia Kafka)
+            
             radarTriggerService.checkAndTrigger(userId);
             
-            // Evento para IA (Envia Kafka)
+            
             HighlightEvent event = new HighlightEvent(
                 saved.getId(),
                 saved.getFileHash(),
@@ -75,12 +74,11 @@ public class HighlightController {
             log.info("🚀 Eventos de integração disparados com sucesso.");
 
         } catch (Exception e) {
-            // Apenas logamos o erro. O dado está salvo, o usuário pode continuar lendo.
-            // O sistema é "Eventually Consistent", podemos reprocessar depois.
+           
             log.error("⚠️ Falha nos eventos secundários (Kafka/Radar): {}", e.getMessage());
         }
         
-        // Retorna sucesso 201 com o ID
+        
         return ResponseEntity.status(HttpStatus.CREATED).body(saved.getId());
     }
 
@@ -90,7 +88,7 @@ public class HighlightController {
         if (userHighlightRepository.existsById(id)) {
             userHighlightRepository.deleteById(id);
             
-            // Tenta avisar o Pinecone, se falhar, ok, deletou do SQL pelo menos
+           
             try {
                 kafkaTemplate.send("data.deleted", "HIGHLIGHT:" + id);
                 log.info("🗑️ Evento de deleção enviado para Highlight {}", id);

@@ -34,7 +34,7 @@ public class WorkbenchController {
         String userId = extractUserId(jwt);
         return repository.findByUserIdAndFileHash(userId, fileHash)
                 .map(state -> new WorkbenchDTO(state.getNodesJson(), state.getEdgesJson()))
-                .orElse(new WorkbenchDTO("[]", "[]")); // Retorna vazio se não existir
+                .orElse(new WorkbenchDTO("[]", "[]"));
     }
 
     @PostMapping("/suggest")

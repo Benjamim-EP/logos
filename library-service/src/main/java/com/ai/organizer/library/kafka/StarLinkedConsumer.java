@@ -25,15 +25,13 @@ public class StarLinkedConsumer {
     @Transactional
     public void consumeLink(String message) {
         try {
-            // Sanitiza aspas (aquele problema do Kafka)
+            
             String clean = message.startsWith("\"") ? message.substring(1, message.length()-1).replace("\\\"", "\"") : message;
             
             StarLinkedEvent event = objectMapper.readValue(clean, StarLinkedEvent.class);
             
-            // Busca a galáxia no banco para fazer a relação
             UserGalaxy galaxy = galaxyRepository.findById(Long.valueOf(event.galaxyId())).orElseThrow();
 
-            // Salva o link
             StarGalaxyLink link = new StarGalaxyLink(galaxy, event.starId(), event.score());
             linkRepository.save(link);
             

@@ -20,21 +20,21 @@ public class UserGalaxy {
     private Long id;
 
     @Column(nullable = false)
-    private String name; // Ex: "Arquitetura", "Java"
+    private String name; 
 
     @Column(name = "user_id", nullable = false)
     private String userId;
 
-    private String color; // Ex: "#FF5733"
+    private String color; 
 
-    // Coordenadas persistidas (Onde o usuário deixou a galáxia na tela)
+    
     @Column(name = "pos_x")
     private Double x;
 
     @Column(name = "pos_y")
     private Double y;
 
-    // Referência ao vetor no Pinecone (Para não gastar OpenAI de novo)
+    
     @Column(name = "vector_id")
     private String vectorId;
 

@@ -48,10 +48,10 @@ public class AiGalaxyController {
             EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
 
             List<GravityResponse.StarMatch> matches = result.matches().stream()
-                    // Filtra matches vazios ou corrompidos
+                    
                     .filter(m -> m.embedded() != null && m.embedded().metadata() != null)
                     .map(this::toMatch)
-                    // Filtra IDs nulos
+
                     .filter(m -> m.highlightId() != null)
                     .collect(Collectors.toList());
 
@@ -65,13 +65,12 @@ public class AiGalaxyController {
         }
     }
 
-    // --- CORREÇÃO AQUI ---
     private GravityResponse.StarMatch toMatch(EmbeddingMatch<TextSegment> match) {
         String starId = null;
         String textContent = "";
 
         if (match.embedded() != null) {
-            textContent = match.embedded().text(); // Pega o texto do vetor
+            textContent = match.embedded().text(); 
             
             if (match.embedded().metadata() != null) {
                 String hId = match.embedded().metadata().getString("highlightId");
@@ -88,7 +87,6 @@ public class AiGalaxyController {
             }
         }
         
-        // Passa os 3 argumentos agora: ID, Score, Texto
         return new GravityResponse.StarMatch(starId, match.score(), textContent);
     }
 

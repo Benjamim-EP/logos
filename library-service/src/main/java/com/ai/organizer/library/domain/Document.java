@@ -19,19 +19,18 @@ public class Document {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // O nome original do arquivo (ex: "Clean Architecture.pdf")
+    
     @Column(nullable = false)
     private String title;
 
-    // O elo de ligação com o arquivo físico e os highlights
+    
     @Column(name = "file_hash", nullable = false, unique = true)
     private String fileHash;
 
     @Column(nullable = false)
     private String userId;
 
-    // --- NOVO CAMPO: Caminho no Google Cloud Storage ---
-    // Ex: "uploads/abc123/livro.pdf"
+    
     @Column(name = "storage_path")
     private String storagePath; 
 
@@ -49,9 +48,7 @@ public class Document {
     }
 
     @Column(name = "cover_path")
-    private String coverPath; // Novo campo!
-
-    // --- CONSTRUTOR ATUALIZADO (4 Argumentos) ---
+    private String coverPath; 
     public Document(String title, String fileHash, String userId, String storagePath, Long fileSize) {
         this.title = title;
         this.fileHash = fileHash;

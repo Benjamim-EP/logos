@@ -21,7 +21,6 @@ import (
     "crypto/tls"
 )
 
-// Estrutura idêntica ao Record Java (IngestionEvent)
 type IngestionEvent struct {
 	FileHash          string `json:"fileHash"`
 	S3Key             string `json:"s3Key"`
@@ -39,10 +38,10 @@ var (
 )
 
 func main() {
-    // Carrega .env se existir (dev local)
+   
 	godotenv.Load()
 
-	// Configurações
+
 	bucketName = os.Getenv("GCP_BUCKET_NAME")
 	if bucketName == "" {
 		log.Fatal("GCP_BUCKET_NAME is required")
@@ -51,15 +50,12 @@ func main() {
 	initKafka()
 	initStorage()
 
-	// Setup Web Server (Gin)
 	r := gin.Default()
     
-    // Rota de Health Check (Padrão Kubernetes)
     r.GET("/actuator/health", func(c *gin.Context) {
         c.JSON(200, gin.H{"status": "UP", "runtime": "Go"})
     })
 
-	// Rota de Upload
 	r.POST("/api/ingestion", handleUpload)
 
 	port := os.Getenv("PORT")
@@ -72,22 +68,13 @@ func main() {
 }
 
 func handleUpload(c *gin.Context) {
-	// 1. Recebe o arquivo e metadados
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(400, gin.H{"error": "File is required"})
 		return
 	}
 
-    // Extrai Headers (Auth e Lang)
-    // Em produção real, validaríamos o JWT. Aqui confiamos no Gateway.
-    // O Gateway passa o token, e podemos extrair o "sub" (userId) se decodificarmos.
-    // Para simplificar o MVP e manter compatibilidade com o teste local,
-    // vamos pegar um Header simulado ou extrair do JWT se você quiser implementar o parser.
-    // Por enquanto, vamos assumir que o Gateway validou.
-    // TODO: Implementar JWT Decode para extrair userId real do header Authorization.
-    
-    // Workaround para teste local: Pegamos um header X-User-Id ou usamos um default
+
     userId := extractUserIdFromToken(c.GetHeader("Authorization"))
     
     lang := c.GetHeader("Accept-Language")
@@ -102,27 +89,24 @@ func handleUpload(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Calcula Hash (SHA256) enquanto lê? 
-    // Go é esperto. Para não ler duas vezes, vamos ler para um buffer ou calcular on-the-fly.
-    // Abordagem simples: Ler para memória (limitado a 10MB pelo componente frontend)
-    // Se fosse arquivo de 1GB, usaríamos TeeReader.
+	
     fileBytes, _ := io.ReadAll(file)
     fileSize := int64(len(fileBytes))
     
     hash := sha256.Sum256(fileBytes)
     hashString := hex.EncodeToString(hash[:])
 
-    // Reinicia ponteiro de leitura para upload
+   
     file.Seek(0, 0)
 
-	// 3. Upload para Google Cloud Storage
+	
 	storagePath := fmt.Sprintf("uploads/%s/%s", hashString, fileHeader.Filename)
 	ctx := context.Background()
 	
 	wc := storageClient.Bucket(bucketName).Object(storagePath).NewWriter(ctx)
 	wc.ContentType = fileHeader.Header.Get("Content-Type")
 	
-    // Escreve os bytes no GCS
+    
 	if _, err := wc.Write(fileBytes); err != nil {
 		c.JSON(500, gin.H{"error": "Failed to upload to GCS"})
 		return
@@ -134,12 +118,12 @@ func handleUpload(c *gin.Context) {
 
 	log.Printf("☁️ Upload GCS: %s (%d bytes)", storagePath, fileSize)
 
-	// 4. Publica no Kafka
+	
 	event := IngestionEvent{
 		FileHash:          hashString,
 		S3Key:             storagePath,
 		OriginalName:      fileHeader.Filename,
-		UserId:            userId, // Em prod, virá do JWT
+		UserId:            userId, 
 		Timestamp:         time.Now().UnixMilli(),
 		FileSize:          fileSize,
 		PreferredLanguage: lang,
@@ -172,7 +156,7 @@ func initStorage() {
 }
 
 func initKafka() {
-    // Configurações do Confluent Cloud
+    
     broker := os.Getenv("KAFKA_BROKER")
     user := os.Getenv("KAFKA_USER")
     pass := os.Getenv("KAFKA_PASS")
@@ -197,7 +181,6 @@ func initKafka() {
 	})
 }
 
-// Função leve para extrair dados do Payload do JWT (parte do meio)
 func extractUserIdFromToken(authHeader string) string {
     if authHeader == "" {
         return "anonymous"
@@ -214,7 +197,7 @@ func extractUserIdFromToken(authHeader string) string {
         return "invalid-jwt"
     }
 
-    // Decode Payload
+    
     payload, err := base64.RawURLEncoding.DecodeString(tokenParts[1])
     if err != nil {
         return "decode-error"
@@ -223,7 +206,7 @@ func extractUserIdFromToken(authHeader string) string {
     var claims map[string]interface{}
     json.Unmarshal(payload, &claims)
 
-    // Tenta pegar 'preferred_username' ou 'sub'
+    /
     if val, ok := claims["preferred_username"].(string); ok {
         return val
     }

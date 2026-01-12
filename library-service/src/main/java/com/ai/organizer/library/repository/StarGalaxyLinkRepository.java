@@ -9,7 +9,6 @@ import java.util.List;
 
 public interface StarGalaxyLinkRepository extends JpaRepository<StarGalaxyLink, Long> {
     
-    // Busca todos os links que pertencem às galáxias de um usuário específico
     @Query("SELECT l FROM StarGalaxyLink l WHERE l.galaxy.userId = :userId")
     List<StarGalaxyLink> findByUserId(@Param("userId") String userId);
 

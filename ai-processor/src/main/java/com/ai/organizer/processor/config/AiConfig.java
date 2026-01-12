@@ -18,7 +18,6 @@ import java.time.Duration;
 @Configuration
 public class AiConfig {
 
-    // --- 1. CHAT MODEL (O Cérebro - GPT-4o-mini) ---
     @Bean
     public ChatLanguageModel chatLanguageModel(
             @Value("${ai.openai.api-key}") String apiKey,
@@ -27,22 +26,19 @@ public class AiConfig {
         return OpenAiChatModel.builder()
                 .apiKey(apiKey)
                 .modelName(modelName)
-                .timeout(Duration.ofSeconds(60)) // Aumentei o timeout para evitar cortes
-                .logRequests(true)  // Loga o que mandamos para a OpenAI (Debug)
-                .logResponses(true) // Loga o que a OpenAI respondeu (Debug)
+                .timeout(Duration.ofSeconds(60)) 
+                .logRequests(true)  
+                .logResponses(true)
                 .build();
     }
-
-    // --- 2. AI SERVICE (O Assistente Declarativo) ---
-    // Criamos manualmente via AiServices.create() para garantir a injeção correta
+   
     @Bean
     public BookAssistant bookAssistant(ChatLanguageModel chatLanguageModel) {
         return AiServices.builder(BookAssistant.class)
                 .chatLanguageModel(chatLanguageModel)
                 .build();
     }
-
-    // --- 3. EMBEDDING MODEL (Gerador de Vetores) ---
+   
     @Bean
     public EmbeddingModel embeddingModel(@Value("${ai.openai.api-key}") String apiKey) {
         return OpenAiEmbeddingModel.builder()
@@ -50,8 +46,7 @@ public class AiConfig {
                 .modelName("text-embedding-3-small")
                 .build();
     }
-
-    // --- 4. EMBEDDING STORE (Pinecone DB) ---
+    
     @Bean
     public EmbeddingStore<TextSegment> embeddingStore(
             @Value("${ai.pinecone.api-key}") String apiKey,

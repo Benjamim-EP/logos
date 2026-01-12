@@ -11,10 +11,9 @@ import java.util.Optional;
 
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     
-    // Busca eficiente para a estante
+    
     List<Document> findByUserIdOrderByCreatedAtDesc(String userId);
 
-    // Para evitar duplicatas na ingestão (Idempotência)
     Optional<Document> findByFileHash(String fileHash);
 
     @Query("SELECT SUM(d.fileSize) FROM Document d WHERE d.userId = :userId")

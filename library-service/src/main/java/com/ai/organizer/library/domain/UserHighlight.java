@@ -27,7 +27,7 @@ public class UserHighlight {
     @Column(name = "TYPE")
     private String type;
 
-    // --- NOVO CAMPO: Guarda as coordenadas visuais (JSON) ---
+    
     @Column(name = "POSITION_JSON", columnDefinition = "TEXT")
     private String positionJson;
 

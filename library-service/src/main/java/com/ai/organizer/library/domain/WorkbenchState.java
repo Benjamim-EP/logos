@@ -24,11 +24,9 @@ public class WorkbenchState {
     @Column(name = "file_hash", nullable = false)
     private String fileHash;
 
-    // Guarda o array de nós: [{id: "h-1", x: 100, y: 200, type: "highlight"}, ...]
     @Column(name = "nodes_json", columnDefinition = "TEXT")
     private String nodesJson;
 
-    // Guarda as conexões manuais: [{id: "e1-2", source: "h-1", target: "s-5"}, ...]
     @Column(name = "edges_json", columnDefinition = "TEXT")
     private String edgesJson;
 

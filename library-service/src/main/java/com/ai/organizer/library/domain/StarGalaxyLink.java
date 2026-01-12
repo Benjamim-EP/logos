@@ -20,13 +20,12 @@ public class StarGalaxyLink {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // A Galáxia (Âncora) continua sendo uma relação forte
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "galaxy_id", nullable = false)
     private UserGalaxy galaxy;
 
-    // MUDANÇA SÊNIOR: starId agora é agnóstico. 
-    // Pode ser o ID do highlight ("12") ou do resumo ("summary-5")
+    
     @Column(name = "star_id", nullable = false)
     private String starId;
 

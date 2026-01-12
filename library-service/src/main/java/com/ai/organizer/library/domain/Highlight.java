@@ -6,8 +6,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "HIGHLIGHTS", 
-       // CORREÇÃO: Removemos a constraint unique da coluna, 
-       // mas podemos manter um índice para performance.
+       
        indexes = @Index(columnList = "file_hash") 
 )
 @Data
@@ -17,7 +16,7 @@ public class Highlight {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // CORREÇÃO: Removemos unique=true daqui
+    
     @Column(name = "FILE_HASH", nullable = false) 
     private String fileHash;
 
@@ -26,11 +25,11 @@ public class Highlight {
     @Column(name = "original_text", length = 4000)
     private String originalText;
 
-    // Novo: Tipo de conteúdo (TEXT ou IMAGE)
+    
     @Enumerated(EnumType.STRING)
     private ContentType type;
 
-    // Novo: Status do processamento (PENDING, PROCESSED, FAILED)
+    
     @Enumerated(EnumType.STRING)
     private ProcessingStatus status;
 

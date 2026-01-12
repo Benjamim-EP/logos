@@ -34,14 +34,11 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class ProcessorService {
 
-    // --- Injeção de Dependências ---
     private final BookAssistant bookAssistant;
     private final StringRedisTemplate redisTemplate;
-    
-    // STORAGE AGNÓSTICO
+
     private final BlobStorageService blobStorageService; 
-    
-    // GERADOR DE CAPAS
+
     private final CoverGeneratorService coverGenerator;
 
     private final HighlightRepository highlightRepository;
@@ -51,16 +48,10 @@ public class ProcessorService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper; 
 
-    /**
-     * FLUXO 1: Processamento de Arquivos Inteiros (Ingestão)
-     * Chamado quando o usuário faz upload de um PDF/TXT ou salva via URL.
-     */
     @CircuitBreaker(name = "openai", fallbackMethod = "fallbackOpenAI")
     @Retry(name = "openai")
     public void processDocument(IngestionEvent event) {
         String cacheKey = "doc_analysis:" + event.fileHash();
-
-        // 1. FinOps Check (Cache)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
             log.info("💰 CACHE HIT: Documento já processado. Recuperando do Redis.");
             return; 
@@ -70,50 +61,37 @@ public class ProcessorService {
                 event.originalName(), event.preferredLanguage());
 
         try {
-            // 2. Baixar o arquivo (Binário Bruto)
             log.debug("Baixando arquivo do storage: {}", event.s3Key());
             byte[] fileBytes = blobStorageService.download(event.s3Key());
 
-            // 3. GERAÇÃO DE CAPA (Se for PDF)
             if (isPdf(event.originalName())) {
                 generateAndUploadCover(fileBytes, event.fileHash());
             }
 
-            // 4. Estratégia de Conteúdo e Internacionalização
             String content;
             String analysisResult;
             boolean isPdfOrImage = isBinaryFile(event.originalName());
 
-            // Mapeamento Sênior de Idioma: Converte "pl" para "Polish" para a IA
             String targetLanguage = mapLanguageForAi(event.preferredLanguage());
 
             if (isPdfOrImage) {
                 log.info("📂 Binário detectado. Conteúdo bruto disponível no Storage.");
                 
-                // --- INTERNACIONALIZAÇÃO DO FALLBACK ---
-                // Agora a mensagem de "Conteúdo no Storage" respeita o idioma do usuário
                 content = getLocalizedContentMessage(targetLanguage);
-                
-                // O JSON falso gerado também respeita o idioma
                 analysisResult = getLocalizedAnalysisFallback(targetLanguage);
                 
             } else {
-                // É texto puro (.txt, .md, .csv)
                 content = new String(fileBytes, StandardCharsets.UTF_8);
-                
-                // Corte de segurança para IA
+
                 String textToAnalyze = content.length() > 2000 ? content.substring(0, 2000) : content;
                 
                 log.info("🧠 Solicitando análise da OpenAI em: {}", targetLanguage);
-                
-                // EXECUÇÃO DA IA COM IDIOMA DINÂMICO
+
                 analysisResult = bookAssistant.analyzeText(textToAnalyze, targetLanguage);
             }
 
-            // 5. Salvar Cache no Redis
             redisTemplate.opsForValue().set(cacheKey, analysisResult, Duration.ofHours(24));
-            
-            // 6. Persistência Relacional (Postgres)
+
             HighlightEntity savedEntity = null;
             if (!highlightRepository.existsByFileHash(event.fileHash())) {
                 HighlightEntity entity = new HighlightEntity();
@@ -127,8 +105,6 @@ public class ProcessorService {
                 savedEntity = highlightRepository.save(entity);
                 log.info("💾 Metadados salvos no Postgres. ID: {}", savedEntity.getId());
             }
-
-            // 7. Persistência Vetorial (Pinecone - RAG)
             if (savedEntity != null && !isPdfOrImage) {
                 log.info("▶️ Gerando Embedding do Documento Inteiro...");
                 
@@ -155,9 +131,6 @@ public class ProcessorService {
         }
     }
 
-    /**
-     * FLUXO 2: Processamento de Highlights
-     */
     public void processHighlight(HighlightEvent event) {
         try {
             if ("TEXT".equalsIgnoreCase(event.type())) {
@@ -172,15 +145,12 @@ public class ProcessorService {
                 TextSegment segment = TextSegment.from(event.content(), metadata);
                 Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
-                // 1. Salva no Pinecone
                 embeddingStore.addAll(
                     Collections.singletonList(embeddingResponse.content()),
                     Collections.singletonList(segment)
                 );
                 
                 log.info("✅ Highlight vetorizado no Pinecone.");
-
-                // 2. Busca Reversa
                 findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
                 
             } else {
@@ -227,8 +197,6 @@ public class ProcessorService {
     public void fallbackOpenAI(IngestionEvent event, Throwable t) {
         log.error("🔥 FALLBACK ATIVADO: OpenAI indisponível. Erro: {}", t.getMessage());
     }
-
-    // --- Helpers de Internacionalização (Sênior Level) ---
 
     private String mapLanguageForAi(String langCode) {
         if (langCode == null || langCode.isBlank()) return "English";

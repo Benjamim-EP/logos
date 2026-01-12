@@ -11,8 +11,7 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@Primary // Diz ao Spring: "Use esta implementação por padrão"
-// @Profile("prod") // Descomente se quiser usar só em produção
+@Primary
 public class GoogleStorageService implements BlobStorageService {
 
     private final Storage storage;
@@ -31,7 +30,6 @@ public class GoogleStorageService implements BlobStorageService {
                 .setContentType(contentType)
                 .build();
         
-        // Upload direto
         storage.create(blobInfo, content);
         System.out.println("☁️ Uploaded to GCS: " + filename);
     }
@@ -53,7 +51,6 @@ public class GoogleStorageService implements BlobStorageService {
         BlobId blobId = BlobId.of(bucketName, filename);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         
-        // Gera uma URL assinada (V4) que permite leitura sem autenticação por X minutos
         return storage.signUrl(
                 blobInfo, 
                 minutesToExpire, 

@@ -11,13 +11,11 @@ import java.io.IOException;
 @Slf4j
 public class PdfTextExtractorService {
 
-    private static final int MAX_CHARS = 30000; // Limite de custo/token
-
+    private static final int MAX_CHARS = 30000;
     public String extractTextFromRange(byte[] pdfBytes, int startPage, int endPage) throws IOException {
         log.info("📄 Extraindo texto das páginas {} a {}...", startPage, endPage);
 
         try (PDDocument document = PDDocument.load(pdfBytes)) {
-            // Validação de páginas
             int totalPages = document.getNumberOfPages();
             if (startPage < 1 || endPage > totalPages || startPage > endPage) {
                 throw new IllegalArgumentException("Intervalo de páginas inválido. O documento tem " + totalPages + " páginas.");
@@ -29,7 +27,6 @@ public class PdfTextExtractorService {
 
             String text = stripper.getText(document);
 
-            // Validação de Tamanho (Guard Clause)
             if (text.length() > MAX_CHARS) {
                 throw new IllegalArgumentException("Texto muito longo (" + text.length() + " caracteres). O limite é " + MAX_CHARS + " para evitar custos excessivos.");
             }

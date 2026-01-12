@@ -14,14 +14,13 @@ import org.springframework.stereotype.Component;
 public class DocumentConsumer {
 
     private final ProcessorService processorService;
-    private final ObjectMapper objectMapper; // Injeta o conversor JSON
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "document.ingestion", groupId = "ai-processor-group")
-    public void consume(String message) { // Recebe String
+    public void consume(String message) {
         try {
             log.info("📨 Payload bruto recebido: {}", message);
             
-            // Converte manualmente (Seguro contra erros de Header)
             IngestionEvent event = objectMapper.readValue(message, IngestionEvent.class);
             
             log.info("✅ Evento processado: {}", event.originalName());
@@ -29,7 +28,7 @@ public class DocumentConsumer {
             
         } catch (Exception e) {
             log.error("❌ Erro fatal ao processar mensagem JSON: {}", message, e);
-            // Em produção: enviar para uma Dead Letter Queue (DLQ)
+           
         }
     }
 }
