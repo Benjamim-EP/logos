@@ -13,3 +13,4 @@ conceito_kafka.txt
 conceito_ia.txt
 conceito_arch.txt
 **/credentials.json
+.env

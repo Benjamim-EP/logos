@@ -72,10 +72,8 @@ export function LoginPage() {
       {/* --- COLUNA ESQUERDA (Branding) --- */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between p-12 relative z-10 border-r border-white/5 bg-black/20 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600/20 rounded-lg border border-blue-500/20">
-            <Atom className="w-6 h-6 text-blue-400" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-white">Logos Platform</span>
+          <img src="/logo-icon.png" alt="Logos" className="w-10 h-10 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+          <span className="font-bold text-2xl tracking-tight text-white font-sans">LOGOS</span>
         </div>
 
         <div className="space-y-6">
@@ -108,7 +106,7 @@ export function LoginPage() {
         >
           {/* Header Mobile */}
           <div className="lg:hidden flex justify-center mb-8">
-            <Atom className="w-12 h-12 text-blue-500" />
+            <img src="/logo-icon.png" alt="Logos" className="w-16 h-16 animate-pulse-slow" />
           </div>
 
           <div className="text-center space-y-2">

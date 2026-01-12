@@ -43,16 +43,15 @@ export function AppLayout() {
       <header className="h-16 shrink-0 border-b border-white/10 bg-black/50 backdrop-blur-md z-[100] flex items-center justify-between px-6">
         
         {/* Logo */}
-        <Link to={userUniverseLink} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <div className="p-2 bg-blue-600/20 rounded-lg border border-blue-500/20">
-            <Atom className="w-5 h-5 text-blue-400" />
-          </div>
-          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-            Logos
-          </span>
+        <Link to={userUniverseLink} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <div className="relative">
+          <div className="absolute inset-0 bg-blue-500 blur-lg opacity-20 rounded-full"></div>
+          <img src="/logo-icon.png" alt="Logos" className="w-8 h-8 relative z-10" />
+        </div>
+        <span className="font-bold text-xl tracking-widest text-white font-sans">
+          LOGOS
+        </span>
         </Link>
-
-        {/* Menu Principal (Traduzido) */}
         <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5 shadow-lg">
           <Link to={userUniverseLink}>
             <Button variant="ghost" size="sm" className={`rounded-full px-4 ${isGalaxyActive ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
