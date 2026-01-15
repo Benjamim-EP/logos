@@ -41,7 +41,6 @@ export const useUserStore = create<UserState>((set) => ({
 
   updateAvatar: async (url: string) => {
     try {
-      // Atualização otimista
       set(state => ({ 
         profile: state.profile ? { ...state.profile, avatarUrl: url } : null 
       }))

@@ -9,15 +9,13 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # A URL DA NUVEM
-          issuer-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm
-          jwk-set-uri: https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm/protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER}
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER}/protocol/openid-connect/certs
           
   datasource:
-    # A MESMA URL QUE FUNCIONOU NO AI-PROCESSOR (Com SSL e ChannelBinding se necessário)
-    url: jdbc:postgresql://ep-round-mud-af0br44i-pooler.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require
-    username: neondb_owner
-    password: npg_AI1n4JKxGzut
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
     
     hikari:
@@ -27,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update # Pode manter update para ele criar a tabela se não existir
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -35,11 +33,11 @@ spring:
         temp.use_jdbc_metadata_defaults: false
 
   kafka:
-    bootstrap-servers: pkc-921jm.us-east-2.aws.confluent.cloud:9092 # Mesma do ai-processor
+    bootstrap-servers: ${KAFKA_BOOTSTRAP}
     properties:
       security.protocol: SASL_SSL
       sasl.mechanism: PLAIN
-      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="PA57SZCCZEALKVXR" password="cfltajgqBg76kNMVtyBpFhl59XMZeJIPT7il3f3CE69xQNR+Wh8F9eJyUPQBI9Qw";
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASS}";
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -49,24 +47,8 @@ spring:
       storage:
         enabled: true
       credentials:
-        location: file:credentials.json 
-
-management:
-  tracing:
-    sampling:
-      probability: 1.0 # Em produção seria 0.1, mas em Dev queremos ver TUDO
-  zipkin:
-    tracing:
-      endpoint: "http://localhost:9411/api/v2/spans"
+        location: ${GCP_CREDENTIALS_LOCATION}
 
 gcp:
   storage:
-    bucket-name: ogos-knowledge-base
-
-routes:
-        # Rota 1: Library Service (Leitura + Perfil)
-        - id: library-service
-          uri: http://localhost:8082
-          predicates:
-            # ADICIONE AQUI: /api/users/**
-            - Path=/api/library/**, /api/galaxy/**, /api/users/**
+    bucket-name: ${GCP_BUCKET_NAME}

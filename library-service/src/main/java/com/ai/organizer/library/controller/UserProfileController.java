@@ -15,9 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controller responsável pela gestão do Perfil do Usuário, Dashboard Analítico e Controle de Storage.
- */
 @RestController
 @RequestMapping("/api/users/profile")
 @RequiredArgsConstructor
@@ -35,13 +32,9 @@ public class UserProfileController {
     public ProfileDTO getProfile(@AuthenticationPrincipal Jwt jwt) {
         String userId = getUserId(jwt);
         String username = getUserName(jwt);
-
-        log.info("📊 Consolidando dashboard de perfil para o usuário: {}", userId);
-
        
         UserProfile profile = repository.findById(userId)
                 .orElseGet(() -> {
-                    log.info("🌱 Primeiro acesso detectado para {}. Criando perfil base.", username);
                     String defaultAvatar = "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=" + username;
                     return new UserProfile(userId, defaultAvatar, "Explorador da Galáxia", null);
                 });
@@ -94,8 +87,6 @@ public class UserProfileController {
     public UserProfile updateAvatar(@RequestBody Map<String, String> payload, @AuthenticationPrincipal Jwt jwt) {
         String userId = getUserId(jwt);
         String newUrl = payload.get("avatarUrl");
-
-        log.info("🖼️ Atualizando avatar para o usuário: {}", userId);
 
         UserProfile profile = repository.findById(userId)
                 .orElse(new UserProfile(userId, null, "Explorador", null));

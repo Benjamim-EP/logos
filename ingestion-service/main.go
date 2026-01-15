@@ -206,7 +206,6 @@ func extractUserIdFromToken(authHeader string) string {
     var claims map[string]interface{}
     json.Unmarshal(payload, &claims)
 
-    /
     if val, ok := claims["preferred_username"].(string); ok {
         return val
     }
