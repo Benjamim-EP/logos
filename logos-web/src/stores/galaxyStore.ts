@@ -3,6 +3,7 @@ import type { Cluster, Note, SubCluster } from '@/types/galaxy'
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { getNearestNotes, seededRandom } from "@/lib/math"
+import { useAuthStore } from './authStore'
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
@@ -14,27 +15,22 @@ interface PhysicsLink {
 }
 
 interface GalaxyState {
-  // --- DADOS ---
   allNotes: Note[]
   clusters: Cluster[]
   subClusters: SubCluster[]
-  
-  // --- ESTADOS DE UI ---
+
   isLoading: boolean
   isGravityLoading: boolean
   focusNode: Note | null
   tempCentralizedId: string | null
   viewMode: ViewMode
-  
-  // --- FILTROS ---
+
   activeClusterIds: string[]
   sortOrder: SortOrder
   maxVisibleNotes: number
 
-  // --- ACTIONS ---
   initializeUniverse: () => Promise<void>
   
-  // CORREÇÃO AQUI: A assinatura agora aceita 3 argumentos
   createGalaxy: (name: string, x: number, y: number) => Promise<void>
   
   deleteGalaxy: (galaxyId: string) => Promise<void>
@@ -70,7 +66,54 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   initializeUniverse: async () => {
     if (get().isLoading) return;
 
+    const { isGuest, guestUniverse } = useAuthStore.getState()
+
     set({ isLoading: true, tempCentralizedId: null })
+
+    if (isGuest) {
+        if (guestUniverse?.id) {
+            console.log(`🌌 [TOUR] Buscando dados de: ${guestUniverse.pineconeFilter}`)
+            try {
+                const { data } = await api.get(`/ai/galaxy/tour/${guestUniverse.pineconeFilter}/${guestUniverse.lang}`)
+                
+                const tourNotes: Note[] = data.map((item: any, i: number) => {
+                    
+                    const angle = i * 0.5;
+                    const radius = 100 + (10 * i);
+                    
+                    return {
+                        id: item.highlightId,
+                        title: item.text ? item.text.substring(0, 40) + "..." : "Versículo",
+                        preview: item.text,
+                        tags: ["Sagradas Escrituras"],
+                        createdAt: new Date().toISOString(),
+                        x: Math.cos(angle) * radius,
+                        y: Math.sin(angle) * radius,
+                        z: 1 + Math.random(),
+                        clusterId: "bible-core"
+                    }
+                })
+
+                set({ 
+                    allNotes: tourNotes,
+                    clusters: [{ id: "bible-core", label: "Gênesis", color: "#fbbf24", x: 0, y: 0, isActive: true }],
+                    subClusters: [],
+                    activeClusterIds: ["bible-core"],
+                    isLoading: false 
+                })
+
+            } catch (err) {
+                console.error("Erro ao carregar tour", err)
+                toast.error("Falha ao carregar o universo.")
+                set({ isLoading: false })
+            }
+        } 
+        else {
+            set({ allNotes: [], clusters: [], isLoading: false })
+        }
+        
+        return;
+    }
     
     try {
         console.log("🌌 Carregando Universo...")
@@ -186,13 +229,27 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     }
   },
 
-  // --- CORREÇÃO AQUI NA IMPLEMENTAÇÃO ---
   createGalaxy: async (name: string, x: number, y: number) => {
     if (!name.trim()) return
     set({ isGravityLoading: true })
+
+    if (useAuthStore.getState().isGuest) {
+        // Simulação Local para Guest
+        const newCluster: Cluster = {
+            id: `guest-galaxy-${Date.now()}`,
+            label: name,
+            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
+            x, y, isActive: true
+        }
+        set(state => ({ 
+            clusters: [...state.clusters, newCluster],
+            isGravityLoading: false 
+        }))
+        toast.success(`Galáxia (Visitante) "${name}" criada!`)
+        return;
+    }
     
     try {
-        // Agora usamos o X e Y passados pelo componente (que já calculou uma posição aleatória)
         await api.post('/galaxy/management', {
             name,
             color: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
@@ -204,7 +261,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         get().initializeUniverse()
         
     } catch (e: any) {
-        // Tratamento de erro melhorado
+        
         const msg = e.response?.data?.message || "Falha ao criar galáxia";
         toast.error(msg);
     } finally {

@@ -21,9 +21,10 @@ public class SecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
-            .cors(Customizer.withDefaults()) 
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/actuator/**").permitAll()
+                .pathMatchers("/api/public/**").permitAll()
+                .pathMatchers("/api/ai/galaxy/tour/**").permitAll()
                 .pathMatchers(org.springframework.http.HttpMethod.OPTIONS).permitAll()
                 .anyExchange().authenticated()
             )

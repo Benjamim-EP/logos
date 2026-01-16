@@ -7,7 +7,31 @@
     "profile": "Profil",
     "logout": "Wyloguj się",
     "welcome": "Witaj",
-    "guest": "Odkrywca"
+    "guest": "Odkrywca",
+    "guest_user": "Gość"
+  },
+  "auth": {
+    "login_google": "Kontynuuj z Google",
+    "login_email": "Użyj e-maila i hasła",
+    "register": "Utwórz konto teraz",
+    "welcome_back": "Witaj ponownie",
+    "access_galaxy": "Uzyskaj dostęp do swojej osobistej galaktyki dokumentów.",
+    "tour_mode": "Tryb Gościa (Wycieczka)"
+  },
+  "tour": {
+    "modal_title": "Wybierz Punkt Startowy",
+    "modal_desc": "Eksploruj wstępnie przetworzone wszechświaty wiedzy lub rozpocznij pustą podróż. Konto nie jest wymagane.",
+    "stars_count": "Gwiazd"
+  },
+  "universe": {
+    "bible": {
+      "title": "Pismo Święte (Pełne)",
+      "desc": "Pełny zbiór tekstów świętych. Ponad 31 000 wersów zwektoryzowanych i połączonych semantycznie."
+    },
+    "empty": {
+      "title": "Pusty Wszechświat",
+      "desc": "Zacznij od zera. Twórz własne gwiazdy i połączenia."
+    }
   },
   "common": {
     "loading": "Ładowanie...",
@@ -39,40 +63,32 @@
   },
   "galaxy": {
     "config_view": "Konfiguruj Widok",
-    "quick_nav": "Szybka Nawigacja",
-    "click_travel": "Kliknij punkty, aby podróżować",
     "filters": "Filtry",
     "visible_galaxies": "Widoczne Galaktyki",
-    "sort": "Sortowanie (Priorytet)",
-    "sort_newest": "Najnowsze (Data)",
-    "sort_oldest": "Najstarsze",
-    "sort_relevance": "Trafność Semantyczna",
+    "sort": "Sortowanie",
     "create_btn": "Utwórz Nową Galaktykę",
-    "create_placeholder": "Nazwa Galaktyki (np. Java, Historia)",
+    "create_placeholder": "Nazwa Galaktyki (np. Java)",
     "close_panel": "Zamknij panel"
   },
   "store": {
     "hero_title": "Wszechświat Bazowy",
-    "hero_desc": "Nie zaczynaj od zera. Zdobądź struktury wiedzy przetworzone przez naszą SI i buduj notatki na istniejącej mądrości.",
-    "search_placeholder": "Szukaj wszechświatów (np. Prawo, Filozofia)...",
-    "nodes": "Węzły (Gwiazdy)",
-    "vectors": "Wektory Przeliczone",
+    "hero_desc": "Nie zaczynaj od zera. Zdobądź struktury wiedzy przetworzone przez naszą SI.",
+    "search_placeholder": "Szukaj wszechświatów...",
+    "nodes": "Węzły",
+    "vectors": "Wektory",
     "preview": "Podgląd",
     "add": "Dodaj",
     "free": "Darmowe"
   },
   "research": {
     "title": "Laboratorium Badawcze",
-    "subtitle": "Przesyłanie własnych plików i globalne wyszukiwanie semantyczne.",
+    "subtitle": "Globalne wyszukiwanie semantyczne.",
     "upload_title": "Przesyłanie Wiedzy",
-    "upload_desc": "Przeciągnij techniczne pliki PDF, artykuły lub obrazy w celu natychmiastowego przetwarzania wektorowego.",
-    "drop_zone": "Przeciągnij PDF/Obraz lub kliknij, aby wybrać",
-    "max_size": "Maks. 10MB • PDF, PNG, JPG",
-    "search_area": "Wszystkie Obszary",
-    "search_placeholder": "Szukaj publikacji (np. Obliczenia Kwantowe)...",
-    "results": "Wyniki Wyszukiwania",
+    "upload_desc": "Przeciągnij techniczne pliki PDF.",
+    "search_placeholder": "Szukaj publikacji...",
+    "results": "Wyniki",
     "recent": "Ostatnie Publikacje",
-    "read_pdf": "Czytaj PDF (Źródło)",
+    "read_pdf": "Czytaj PDF",
     "saved": "Zapisano",
     "save": "Zapisz"
   },
@@ -84,10 +100,10 @@
     "stats_summaries": "PODSUMOWANIA AI",
     "stats_connections": "POŁĄCZENIA",
     "radar_title": "Osie Wiedzy",
-    "radar_desc": "Analiza wektorowa Twojego profilu poznawczego",
-    "info_radar": "Twój Radar Wiedzy jest automatycznie rekalibrowany co 30 nowych interakcji.",
+    "radar_desc": "Analiza wektorowa",
+    "info_radar": "Rekalibrowany co 30 interakcji.",
     "next_evolution": "NASTĘPNA EWOLUCJA",
-    "remaining_marks": "pozostałych zaznaczeń do nowego mapowania.",
+    "remaining_marks": "pozostałych zaznaczeń.",
     "network_status": "STATUS SIECI",
     "synced": "Zsynchronizowano przez Confluent"
   }

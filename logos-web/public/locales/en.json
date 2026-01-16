@@ -7,7 +7,31 @@
     "profile": "Profile",
     "logout": "Logout",
     "welcome": "Welcome",
-    "guest": "Explorer"
+    "guest": "Explorer",
+    "guest_user": "Guest User"
+  },
+  "auth": {
+    "login_google": "Continue with Google",
+    "login_email": "Use email and password",
+    "register": "Create account now",
+    "welcome_back": "Welcome back",
+    "access_galaxy": "Access your personal document galaxy.",
+    "tour_mode": "Try Guest Tour"
+  },
+  "tour": {
+    "modal_title": "Choose Your Starting Point",
+    "modal_desc": "Explore pre-processed knowledge universes or start an empty journey. No account required.",
+    "stars_count": "Stars"
+  },
+  "universe": {
+    "bible": {
+      "title": "The Holy Bible (Complete)",
+      "desc": "The complete collection of sacred texts. Over 31,000 verses vectorized and semantically connected."
+    },
+    "empty": {
+      "title": "Empty Universe",
+      "desc": "Start from scratch. Create your own stars and connections."
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -39,40 +63,32 @@
   },
   "galaxy": {
     "config_view": "Configure View",
-    "quick_nav": "Quick Navigation",
-    "click_travel": "Click points to travel",
     "filters": "Filters",
     "visible_galaxies": "Visible Galaxies",
-    "sort": "Sorting (Priority)",
-    "sort_newest": "Newest (Date)",
-    "sort_oldest": "Oldest",
-    "sort_relevance": "Semantic Relevance",
+    "sort": "Sorting",
     "create_btn": "Create New Galaxy",
     "create_placeholder": "Galaxy Name (e.g. Java, History)",
     "close_panel": "Close panel"
   },
   "store": {
     "hero_title": "Base Universe",
-    "hero_desc": "Don't start from scratch. Acquire knowledge structures pre-processed by our AI and build your notes upon existing wisdom.",
-    "search_placeholder": "Search universes (e.g. Law, Philosophy)...",
-    "nodes": "Nodes (Stars)",
-    "vectors": "Pre-calculated Vectors",
+    "hero_desc": "Don't start from scratch. Acquire knowledge structures pre-processed by our AI.",
+    "search_placeholder": "Search universes...",
+    "nodes": "Nodes",
+    "vectors": "Vectors",
     "preview": "Preview",
     "add": "Add",
     "free": "Free"
   },
   "research": {
     "title": "Research Lab",
-    "subtitle": "Ingest your own files and perform global semantic search.",
+    "subtitle": "Global semantic search.",
     "upload_title": "Knowledge Upload",
-    "upload_desc": "Drag technical PDFs, articles, or images for immediate vector processing.",
-    "drop_zone": "Drag your PDF/Image or click to select",
-    "max_size": "Max 10MB • PDF, PNG, JPG",
-    "search_area": "All Areas",
-    "search_placeholder": "Search papers (e.g. Quantum Computing)...",
+    "upload_desc": "Drag technical PDFs or articles.",
+    "search_placeholder": "Search papers...",
     "results": "Search Results",
     "recent": "Recent Publications",
-    "read_pdf": "Read PDF (Source)",
+    "read_pdf": "Read PDF",
     "saved": "Saved",
     "save": "Save"
   },
@@ -84,10 +100,10 @@
     "stats_summaries": "AI SUMMARIES",
     "stats_connections": "CONNECTIONS",
     "radar_title": "Knowledge Axes",
-    "radar_desc": "Vector analysis of your cognitive profile",
-    "info_radar": "Your Knowledge Radar is automatically recalibrated every 30 new interactions.",
+    "radar_desc": "Vector analysis",
+    "info_radar": "Recalibrated every 30 interactions.",
     "next_evolution": "NEXT EVOLUTION",
-    "remaining_marks": "marks remaining for new mapping.",
+    "remaining_marks": "marks remaining.",
     "network_status": "NETWORK STATUS",
     "synced": "Synced via Confluent"
   }

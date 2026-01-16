@@ -2,27 +2,48 @@ import axios from "axios"
 import { useAuthStore } from "@/stores/authStore"
 import i18n from "./i18n"
 
-// Aponta para o API GATEWAY (8000)
-// O Gateway vai rotear:
-// /api/library -> Library Service (8082)
-// /api/ingestion -> Ingestion API (8080)
 const api = axios.create({
   baseURL: "http://localhost:8000/api",
 })
 
-// Interceptor: Injeta o Token JWT em TODAS as requisições
 api.interceptors.request.use((config) => {
-  const user = useAuthStore.getState().user
+  const { user, isGuest, guestUniverse } = useAuthStore.getState()
   
-  if (user?.token) {
+  config.headers['Accept-Language'] = i18n.language || 'en';
+
+  if (isGuest) {
+    config.headers['X-Guest-Mode'] = 'true';
+    
+    if (user?.id) {
+        config.headers['X-User-Id'] = user.id; 
+    }
+
+    if (guestUniverse) {
+        config.headers['X-Target-Universe'] = guestUniverse.pineconeFilter;
+        config.headers['X-Target-Lang'] = guestUniverse.lang;
+    }
+
+  } else if (user?.token) {
     config.headers.Authorization = `Bearer ${user.token}`
   }
-
-  config.headers['Accept-Language'] = i18n.language || 'en';
   
   return config
 }, (error) => {
   return Promise.reject(error)
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+        const { logout, isGuest } = useAuthStore.getState();
+        if (!isGuest) {
+            logout();
+            window.location.href = '/login';
+        }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api
