@@ -11,6 +11,9 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_AUTH_SERVER}
           jwk-set-uri: ${KEYCLOAK_AUTH_SERVER}/protocol/openid-connect/certs
+  threads:
+    virtual:
+      enabled: true
 
   cloud:
     gateway:
