@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useGalaxyStore } from "@/stores/galaxyStore"
 import { motion, AnimatePresence } from "framer-motion"
-import { useTranslation } from "react-i18next" // <--- ADD
+import { useTranslation } from "react-i18next"
 
 export function GalaxyCreator() {
-  const { t } = useTranslation() // <--- ADD
+  const { t } = useTranslation() 
   const { createGalaxy, isGravityLoading } = useGalaxyStore()
   const [term, setTerm] = useState("")
   const [isExpanded, setIsExpanded] = useState(false)
@@ -40,7 +40,7 @@ export function GalaxyCreator() {
                 autoFocus
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder={t('galaxy.create_placeholder')} // <--- TRADUZIDO
+                placeholder={t('galaxy.create_placeholder')} 
                 className="bg-transparent border-0 focus-visible:ring-0 text-white w-64 placeholder:text-gray-500 focus:placeholder:text-gray-700 transition-colors"
                 disabled={isGravityLoading}
             />
@@ -55,13 +55,13 @@ export function GalaxyCreator() {
       {!isExpanded && (
           <Button onClick={() => setIsExpanded(true)} size="lg" className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white/20 h-12 px-6 gap-2 transition-transform hover:scale-105">
             <Sparkles className="w-4 h-4" />
-            {t('galaxy.create_btn')} {/* <--- TRADUZIDO */}
+            {t('galaxy.create_btn')}
           </Button>
       )}
       
       {isExpanded && (
         <button type="button" onClick={() => setIsExpanded(false)} className="text-[10px] text-gray-500 hover:text-white mt-2 uppercase tracking-widest hover:underline transition-all">
-            {t('galaxy.close_panel')} {/* <--- TRADUZIDO */}
+            {t('galaxy.close_panel')}
         </button>
       )}
     </div>

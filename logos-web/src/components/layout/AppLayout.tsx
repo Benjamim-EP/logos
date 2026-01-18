@@ -7,9 +7,11 @@ import { useTranslation } from "react-i18next"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 import { GuestUniverseModal } from "@/features/auth/components/GuestUniverseModal"
+import { useAuth } from "react-oidc-context"
 
 export function AppLayout() {
-  const { logout, user, isGuest, guestUniverse, setGuestUniverse } = useAuthStore()
+   const auth = useAuth()
+  const { logout: storeLogout, user, isGuest, guestUniverse, setGuestUniverse } = useAuthStore()
   const location = useLocation()
   const { t, i18n } = useTranslation() 
 
@@ -49,6 +51,17 @@ export function AppLayout() {
     return '🇺🇸';
   }
 
+  const handleLogout = () => {
+      storeLogout();
+      if (isGuest) {
+          window.location.href = "/login";
+          return;
+      }
+      auth.signoutRedirect({ 
+          post_logout_redirect_uri: window.location.origin + "/login" 
+      });
+  }
+
   return (
     <div className="h-screen w-screen bg-[#050505] text-white flex flex-col overflow-hidden font-sans relative">
       
@@ -83,7 +96,9 @@ export function AppLayout() {
             <p className="text-xs font-bold text-white">{user?.name || t('nav.guest')}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user?.role || "GUEST"}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={logout} className="text-gray-400 hover:text-red-400"><LogOut className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-400 hover:text-red-400">
+            <LogOut className="w-4 h-4" />
+          </Button>
         </div>
       </header>
 
