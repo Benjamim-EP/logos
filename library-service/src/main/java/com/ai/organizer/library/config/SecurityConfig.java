@@ -21,6 +21,7 @@ public class SecurityConfig {
             
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/ai/galaxy/tour/**").permitAll() 
                 .requestMatchers("/actuator/**").permitAll()
                 
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()

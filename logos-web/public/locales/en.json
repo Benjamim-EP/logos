@@ -68,7 +68,10 @@
     "sort": "Sorting",
     "create_btn": "Create New Galaxy",
     "create_placeholder": "Galaxy Name (e.g. Java, History)",
-    "close_panel": "Close panel"
+    "close_panel": "Close panel",
+    "sort_newest": "Newest (Date)",
+    "sort_oldest": "Oldest",
+    "sort_relevance": "Semantic Relevance"
   },
   "store": {
     "hero_title": "Base Universe",

@@ -68,7 +68,10 @@
     "sort": "Sortowanie",
     "create_btn": "Utwórz Nową Galaktykę",
     "create_placeholder": "Nazwa Galaktyki (np. Java)",
-    "close_panel": "Zamknij panel"
+    "close_panel": "Zamknij panel",
+    "sort_newest": "Najnowsze (Data)",
+    "sort_oldest": "Najstarsze",
+    "sort_relevance": "Trafność Semantyczna"
   },
   "store": {
     "hero_title": "Wszechświat Bazowy",

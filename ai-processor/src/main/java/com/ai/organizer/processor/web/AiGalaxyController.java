@@ -30,6 +30,7 @@ public class AiGalaxyController {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingStore<TextSegment> publicEmbeddingStore;
+    public record TourGravityRequest(String term, String universe, String lang) {}
 
     public AiGalaxyController(
             EmbeddingModel embeddingModel,
@@ -39,55 +40,87 @@ public class AiGalaxyController {
         this.embeddingStore = embeddingStore;
         this.publicEmbeddingStore = publicEmbeddingStore;
     }
-
-    @PostMapping("/gravity")
-    public GravityResponse calculateGravity(
-            @RequestBody String term,
-            @RequestHeader(value = "X-User-Id", required = false) String userId
-    ) {
-        log.info("🪐 [DEBUG] Calculando gravidade para: '{}'", term);
+    @PostMapping("/tour/gravity")
+    public GravityResponse calculateTourGravity(@RequestBody TourGravityRequest request) {
+        log.info("🪐 [TOUR GRAVITY] Calculando atração para: '{}' em {}/{}", request.term(), request.universe(), request.lang());
 
         try {
-            Response<Embedding> embeddingResponse = embeddingModel.embed(term);
-            
-            EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+            Response<Embedding> embeddingResponse = embeddingModel.embed(request.term());
+
+            Filter filter = MetadataFilterBuilder
+                    .metadataKey("universe").isEqualTo(request.universe())
+                    .and(MetadataFilterBuilder.metadataKey("lang").isEqualTo(request.lang()));
+
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
                     .queryEmbedding(embeddingResponse.content())
-                    .maxResults(100) 
-                    .minScore(0.35) 
+                    .filter(filter)
+                    .minScore(0.35)
+                    .maxResults(50)
                     .build();
 
-            EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
+            EmbeddingSearchResult<TextSegment> result = publicEmbeddingStore.search(searchRequest);
+            
+            log.info("🧲 Atração detectada: {} estrelas movidas.", result.matches().size());
 
             List<GravityResponse.StarMatch> matches = result.matches().stream()
-                    
-                    .filter(m -> m.embedded() != null && m.embedded().metadata() != null)
-                    .map(this::toMatch)
+                    .map(this::toTourMatch).collect(Collectors.toList());
 
-                    .filter(m -> m.highlightId() != null)
-                    .collect(Collectors.toList());
-
-            log.info("🧲 Sucesso. Retornando {} conexões válidas.", matches.size());
-            
-            return new GravityResponse(term, matches);
+            return new GravityResponse(request.term(), matches);
 
         } catch (Exception e) {
-            log.error("❌ ERRO NO AI PROCESSOR:", e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro na IA: " + e.getMessage());
+            log.error("Erro na gravidade do tour", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro ao calcular gravidade");
         }
     }
 
     private GravityResponse.StarMatch toTourMatch(EmbeddingMatch<TextSegment> match) {
-        String text = "Texto indisponível";
-        if (match.embedded() != null && match.embedded().metadata() != null) {
-            String rawText = match.embedded().metadata().getString("text");
-            String ref = match.embedded().metadata().getString("ref");
-            if (rawText != null) {
-                text = (ref != null) ? ref + " - " + rawText : rawText;
+        String textContent = "Texto indisponível";
+        
+        if (match != null && match.embedded() != null && match.embedded().metadata() != null) {
+            var metaMap = match.embedded().metadata().asMap();
+            
+            // --- DEBUG AGRESSIVO (PARA DESCOBRIR A CHAVE) ---
+            log.info("🚨 [DEBUG PINECONE] ID: {} | CHAVES: {}", match.embeddingId(), metaMap.keySet());
+            log.info("🚨 [DEBUG PINECONE] DADOS COMPLETOS: {}", metaMap);
+            // ------------------------------------------------
+
+            // 1. Tentativa de Força Bruta para achar o texto
+            if (metaMap.containsKey("text")) textContent = metaMap.get("text").toString();
+            else if (metaMap.containsKey("Text")) textContent = metaMap.get("Text").toString();
+            else if (metaMap.containsKey("content")) textContent = metaMap.get("content").toString();
+            else if (metaMap.containsKey("text_segment")) textContent = metaMap.get("text_segment").toString();
+            else if (metaMap.containsKey("verse_text")) textContent = metaMap.get("verse_text").toString();
+            
+            // 2. Monta referência (Gênesis 1:1)
+            String ref = "";
+            if (metaMap.containsKey("ref")) {
+                ref = metaMap.get("ref").toString();
+            } else if (metaMap.containsKey("book") && metaMap.containsKey("chapter") && metaMap.containsKey("verse")) {
+                ref = String.format("%s %s:%s", 
+                    metaMap.get("book"), 
+                    metaMap.get("chapter"), 
+                    metaMap.get("verse")
+                );
+            }
+
+            // 3. Formatação Final
+            if (!ref.isEmpty() && !"Texto indisponível".equals(textContent)) {
+                // Evita duplicar se o texto já começar com "Gênesis 1:1..."
+                if (!textContent.startsWith(ref)) {
+                    textContent = ref + " - " + textContent;
+                }
             }
         }
-        return new GravityResponse.StarMatch(match.embeddingId(), 1.0, text);
+        
+        // 4. Última tentativa: Pegar do corpo do segmento (caso o LangChain tenha movido)
+        if ("Texto indisponível".equals(textContent) && match != null && match.embedded() != null) {
+             if (match.embedded().text() != null && !match.embedded().text().isBlank()) {
+                 textContent = match.embedded().text();
+             }
+        }
+
+        return new GravityResponse.StarMatch(match.embeddingId(), 1.0, textContent);
     }
-    
     @GetMapping("/tour/{universe}/{lang}")
     public List<GravityResponse.StarMatch> getTourUniverse(
             @PathVariable String universe,
@@ -98,7 +131,7 @@ public class AiGalaxyController {
         try {
              float[] dummyVector = new float[1536]; 
             for (int i = 0; i < dummyVector.length; i++) {
-                dummyVector[i] = (float) Math.random(); // Preenche com ruído aleatório
+                dummyVector[i] = (float) Math.random(); 
             }
 
             Filter filter = MetadataFilterBuilder

@@ -75,21 +75,22 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             console.log(`🌌 [TOUR] Buscando dados de: ${guestUniverse.pineconeFilter}`)
             try {
                 const { data } = await api.get(`/ai/galaxy/tour/${guestUniverse.pineconeFilter}/${guestUniverse.lang}`)
+                console.log("DADOS RECEBIDOS DO TOUR:", data);
                 
                 const tourNotes: Note[] = data.map((item: any, i: number) => {
-                    
-                    const angle = i * 0.5;
-                    const radius = 100 + (10 * i);
-                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const u = Math.random() + Math.random();
+                    const r = (u > 1 ? 2 - u : u) * 4000; 
+
                     return {
                         id: item.highlightId,
                         title: item.text ? item.text.substring(0, 40) + "..." : "Versículo",
-                        preview: item.text,
+                        preview: item.text, 
                         tags: ["Sagradas Escrituras"],
                         createdAt: new Date().toISOString(),
-                        x: Math.cos(angle) * radius,
-                        y: Math.sin(angle) * radius,
-                        z: 1 + Math.random(),
+                        x: Math.cos(angle) * r,
+                        y: Math.sin(angle) * r,
+                        z: Math.random() * 1.5 + 0.5,
                         clusterId: "bible-core"
                     }
                 })
@@ -232,20 +233,70 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   createGalaxy: async (name: string, x: number, y: number) => {
     if (!name.trim()) return
     set({ isGravityLoading: true })
+    
+    const { isGuest, guestUniverse } = useAuthStore.getState()
 
-    if (useAuthStore.getState().isGuest) {
-        // Simulação Local para Guest
+    if (isGuest) {
+        const newGalaxyId = `guest-galaxy-${Date.now()}`;
+        
         const newCluster: Cluster = {
-            id: `guest-galaxy-${Date.now()}`,
+            id: newGalaxyId,
             label: name,
-            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16),
+            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), 
             x, y, isActive: true
         }
-        set(state => ({ 
-            clusters: [...state.clusters, newCluster],
-            isGravityLoading: false 
-        }))
-        toast.success(`Galáxia (Visitante) "${name}" criada!`)
+
+        try {
+            const { data } = await api.post('/ai/galaxy/tour/gravity', {
+                term: name,
+                universe: guestUniverse?.pineconeFilter || 'bible',
+                lang: guestUniverse?.lang || 'en'
+            })
+
+            const matches = data.matches;
+            console.log(`🧲 IA encontrou ${matches.length} conexões para "${name}".`);
+            const currentNotes = get().allNotes;
+            
+            const matchMap = new Map(matches.map((m: any) => [m.highlightId, m.score]));
+
+            const updatedNotes = currentNotes.map(note => {
+                const newScore = matchMap.get(note.id);
+                
+                if (newScore && Number(newScore) > 0.82) {
+                    
+                    
+                    return { 
+                        ...note, 
+                        clusterId: newGalaxyId, 
+                        
+                        x: x + (Math.random() - 0.5) * 150, 
+                        y: y + (Math.random() - 0.5) * 150,
+                        z: 3 
+                    } 
+                }
+                return note;
+            })
+            set(state => ({ 
+                clusters: [...state.clusters, newCluster],
+                allNotes: updatedNotes,
+                activeClusterIds: [...state.activeClusterIds, newGalaxyId],
+                isGravityLoading: false 
+            }))
+            
+            const movedCount = updatedNotes.filter(n => n.clusterId === newGalaxyId).length;
+
+            if (movedCount > 0) {
+                toast.success(`${movedCount} versículos foram atraídos por "${name}"!`)
+            } else {
+                toast.info(`Tema "${name}" criado, mas nenhum versículo próximo foi capturado.`)
+            }
+
+        } catch (e) {
+            console.error("Erro na gravidade guest", e)
+            toast.error("Erro ao calcular gravidade.")
+            set({ isGravityLoading: false })
+        }
+        
         return;
     }
     

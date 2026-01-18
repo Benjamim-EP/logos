@@ -68,7 +68,10 @@
     "sort": "Ordenação",
     "create_btn": "Criar Nova Galáxia",
     "create_placeholder": "Nome da Galáxia (ex: Java)",
-    "close_panel": "Fechar painel"
+    "close_panel": "Fechar painel",
+    "sort_newest": "Mais Recentes (Data)",
+    "sort_oldest": "Mais Antigos",
+    "sort_relevance": "Relevância Semântica"
   },
   "store": {
     "hero_title": "Universo Base",

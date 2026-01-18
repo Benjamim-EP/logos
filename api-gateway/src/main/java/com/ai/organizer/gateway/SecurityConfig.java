@@ -24,7 +24,7 @@ public class SecurityConfig {
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/actuator/**").permitAll()
                 .pathMatchers("/api/public/**").permitAll()
-                .pathMatchers("/api/ai/galaxy/tour/**").permitAll()
+                .pathMatchers("/api/ai/galaxy/tour/**").permitAll() 
                 .pathMatchers(org.springframework.http.HttpMethod.OPTIONS).permitAll()
                 .anyExchange().authenticated()
             )

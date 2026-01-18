@@ -73,6 +73,7 @@ public class AiConfig {
                 .projectId("c94c1e6")
                 .index("universes")
                 .nameSpace("")
+                .metadataTextKey("text")
                 .build();
     }
 }
