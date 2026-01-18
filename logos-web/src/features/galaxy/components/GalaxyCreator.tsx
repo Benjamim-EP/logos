@@ -15,8 +15,8 @@ export function GalaxyCreator() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!term.trim()) return
-    const randomX = (Math.random() - 0.5) * 1500;
-    const randomY = (Math.random() - 0.5) * 1500;
+    const randomX = (Math.random() - 0.5) * 3500;
+    const randomY = (Math.random() - 0.5) * 3500;
     await createGalaxy(term, randomX, randomY)
     setTerm("")
   }

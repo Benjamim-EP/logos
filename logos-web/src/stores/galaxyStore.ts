@@ -255,24 +255,42 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
             const matches = data.matches;
             console.log(`🧲 IA encontrou ${matches.length} conexões para "${name}".`);
-            const currentNotes = get().allNotes;
-            
+           const currentNotes = get().allNotes;
             const matchMap = new Map(matches.map((m: any) => [m.highlightId, m.score]));
+
+            const GALAXY_RADIUS = 350; 
+            const REPULSION_RADIUS = 400;
 
             const updatedNotes = currentNotes.map(note => {
                 const newScore = matchMap.get(note.id);
                 
-                if (newScore && Number(newScore) > 0.82) {
-                    
-                    
+                if (newScore) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = (1 - Number(newScore)) * GALAXY_RADIUS; 
+
                     return { 
                         ...note, 
                         clusterId: newGalaxyId, 
-                        
-                        x: x + (Math.random() - 0.5) * 150, 
-                        y: y + (Math.random() - 0.5) * 150,
+                        x: x + (Math.cos(angle) * distance), 
+                        y: y + (Math.sin(angle) * distance),
                         z: 3 
                     } 
+                }
+
+                const dx = note.x - x;
+                const dy = note.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < REPULSION_RADIUS) {
+                    const angle = Math.atan2(dy, dx);
+                    
+                    const pushDistance = REPULSION_RADIUS + (Math.random() * 50);
+
+                    return {
+                        ...note,
+                        x: x + Math.cos(angle) * pushDistance,
+                        y: y + Math.sin(angle) * pushDistance,
+                    }
                 }
                 return note;
             })
