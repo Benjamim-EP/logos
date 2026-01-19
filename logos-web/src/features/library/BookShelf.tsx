@@ -12,13 +12,12 @@ import type { Note } from "@/types/galaxy"
 import { useLibraryBooks } from "@/features/library/hooks/useLibrary"
 import api from "@/lib/api"
 import { toast } from "sonner"
-import { useTranslation } from "react-i18next" // <--- Import Sênior
+import { useTranslation } from "react-i18next"
 
 export function BookShelf() {
   const setViewMode = useGalaxyStore((state) => state.setViewMode)
   const { profile, fetchProfile } = useUserStore()
   
-  // Hook de Internacionalização
   const { t, i18n } = useTranslation()
 
   const [readingBook, setReadingBook] = useState<{ note: Note, url: string } | null>(null)
@@ -32,8 +31,7 @@ export function BookShelf() {
 
   const handleOpenBook = async (book: any) => {
     try {
-        toast.loading(t('common.loading'), { id: "open-book" }) // Traduzido
-
+        toast.loading(t('common.loading'), { id: "open-book" }) 
         const { data } = await api.get(`/library/books/${book.id}/content`)
         
         const noteAdapter: Note = {
@@ -66,7 +64,6 @@ export function BookShelf() {
         headers: { "Content-Type": "multipart/form-data" }
       })
       
-      // Feedback Traduzido
       toast.success(t('toasts.upload_started'), {
         description: t('toasts.upload_desc')
       })
@@ -99,7 +96,6 @@ export function BookShelf() {
   return (
     <div className="h-full w-full bg-[#050505] text-white p-6 md:p-8 overflow-y-auto custom-scrollbar">
       
-      {/* HEADER FIXO */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-white/10 pb-6 sticky top-0 bg-[#050505]/95 backdrop-blur z-10 gap-4">
         
         <div className="flex items-center gap-6 w-full md:w-auto">
@@ -149,7 +145,6 @@ export function BookShelf() {
         </div>
       </div>
 
-      {/* ESTADOS DE CARREGAMENTO */}
       {isLoading && (
         <div className="h-64 flex flex-col items-center justify-center text-gray-500 gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -174,7 +169,6 @@ export function BookShelf() {
         </div>
       )}
 
-      {/* GRID DE LIVROS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 pb-20">
         {books?.map((book: any, i: number) => {
             const hasCover = book.coverUrl && book.coverUrl.length > 10;
@@ -224,7 +218,6 @@ export function BookShelf() {
                     <div className="flex items-center justify-between text-[10px] text-gray-500 mt-1">
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" /> 
-                            {/* FORMATAÇÃO DE DATA SÊNIOR */}
                             {new Date(book.lastRead).toLocaleDateString(i18n.language, {
                                 day: '2-digit',
                                 month: 'short',

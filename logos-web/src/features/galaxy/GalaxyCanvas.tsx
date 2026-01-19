@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import type { Note } from "@/types/galaxy"
+import { t } from "i18next"
 
 interface ExplorerState {
   documentId: string
@@ -121,6 +122,27 @@ export function GalaxyCanvas() {
         </div>
       )}
 
+      <AnimatePresence>
+        {isLoading && (
+            <motion.div 
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center"
+            >
+                <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-t-cyan-500 border-r-purple-500 border-b-transparent border-l-transparent animate-spin" />
+                    <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full animate-pulse" />
+                </div>
+                <h2 className="mt-8 text-xl font-bold text-white tracking-widest uppercase">
+                    Carregando Universo...
+                </h2>
+                <p className="text-sm text-gray-500 mt-2 font-mono">
+                    {guestUniverse?.id ? `Sincronizando com ${guestUniverse.id}` : "Calibrando sensores"}
+                </p>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div 
         className="w-full h-full absolute inset-0"
         initial={{ opacity: 0 }}
@@ -130,17 +152,17 @@ export function GalaxyCanvas() {
         <div className="absolute top-6 left-6 z-40 pointer-events-none">
           <div className="bg-black/40 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl space-y-3 pointer-events-auto min-w-[240px]">
             <h1 className="text-white font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              Logos Galaxy
+               {t('galaxy.hud_title')}
             </h1>
             
             <div className="space-y-1 border-b border-white/5 pb-3">
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <ZoomIn className="w-3 h-3" />
-                <span>Zoom: <span className="text-white font-mono">{zoomLevel.toFixed(2)}x</span></span>
+                <span>{t('galaxy.zoom')}:<span className="text-white font-mono">{zoomLevel.toFixed(2)}x</span></span>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <MousePointer2 className="w-3 h-3" />
-                <span>Visíveis: <span className="text-white font-mono">{visibleNotes.length}</span></span>
+                <span>{t('galaxy.visible')}: <span className="text-white font-mono">{visibleNotes.length}</span></span>
               </div>
             </div>
             

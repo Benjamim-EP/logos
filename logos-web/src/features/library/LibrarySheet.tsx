@@ -4,6 +4,7 @@ import { Library, Filter, TextQuote, Book } from "lucide-react"
 import type { Cluster, Note } from "@/types/galaxy"
 import { VirtualizedNoteList } from "./components/VirtualizedNoteList"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface LibrarySheetProps {
   clusters: Cluster[]
@@ -13,10 +14,11 @@ interface LibrarySheetProps {
 export function LibrarySheet({ clusters, allNotes }: LibrarySheetProps) {
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null)
 
-  // CORREÇÃO DO FILTRO: Verifica se o nome da galáxia está nas tags da nota
   const filteredNotes = selectedCluster
     ? allNotes.filter(note => note.tags?.includes(selectedCluster.label))
     : allNotes
+
+  const { t } = useTranslation()
 
   return (
     <Sheet>
@@ -26,7 +28,7 @@ export function LibrarySheet({ clusters, allNotes }: LibrarySheetProps) {
           className="absolute bottom-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white px-6 py-6 rounded-2xl shadow-2xl"
         >
           <Library className="w-5 h-5 mr-3 text-blue-400" />
-          Explorar Biblioteca ({allNotes.length})
+          {t('library.explore_btn')} ({allNotes.length})
         </Button>
       </SheetTrigger>
       
@@ -45,8 +47,6 @@ export function LibrarySheet({ clusters, allNotes }: LibrarySheetProps) {
               }
             </SheetDescription>
           </SheetHeader>
-
-          {/* Filtros de Galáxia */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Filtrar por Galáxia</h3>
@@ -74,7 +74,6 @@ export function LibrarySheet({ clusters, allNotes }: LibrarySheetProps) {
         </div>
 
         <div className="flex-1 overflow-hidden border-t border-white/5">
-            {/* Lista com os dados filtrados */}
             <VirtualizedNoteList notes={filteredNotes} />
         </div>
         

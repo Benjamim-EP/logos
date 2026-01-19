@@ -81,12 +81,10 @@ export function NoteReaderModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && setSelectedNote(null)}>
-      {/* REDUZIDO: max-w-2xl para um visual mais focado */}
       <DialogContent className="max-w-2xl bg-[#0a0a0a] border-white/10 text-white p-0 overflow-hidden shadow-2xl z-[150] outline-none">
         
         <div className="flex flex-col h-auto max-h-[85vh]">
           
-          {/* HEADER COMPACTO */}
           <div className="p-6 border-b border-white/5 bg-zinc-900/20">
             <div className="flex justify-between items-start mb-4">
                 <div className="flex gap-2">
@@ -122,7 +120,6 @@ export function NoteReaderModal() {
             </div>
           </div>
 
-          {/* CONTEÚDO */}
           <ScrollArea className="flex-1 p-6">
             <div 
                 className="bg-zinc-900/40 border-l-2 p-6 rounded-r-xl leading-relaxed text-zinc-200" 
@@ -155,7 +152,6 @@ export function NoteReaderModal() {
             </div>
           </ScrollArea>
 
-          {/* FOOTER DE AÇÕES */}
           <div className="p-4 border-t border-white/5 bg-[#050505] flex justify-between items-center px-6">
             <Button 
                 variant="ghost" 

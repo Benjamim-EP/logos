@@ -10,19 +10,19 @@ import { FileUploader } from "@/components/ui/file-uploader"
 import { StorageIndicator } from "@/components/common/StorageIndicator"
 import api from "@/lib/api"
 import { toast } from "sonner" 
-import { useTranslation } from "react-i18next" // <--- ADD
+import { useTranslation } from "react-i18next" 
 
-const AREAS = [
-  { value: "all", label: "search_area" }, // <--- Mudamos para chave de tradução
-  { value: "Artificial Intelligence", label: "IA & Machine Learning" },
-  { value: "Medicine", label: "Medicina" },
-  { value: "Law", label: "Direito" },
-  { value: "History", label: "História" },
-  { value: "Engineering", label: "Engenharia" },
+const AREA_KEYS = [
+  { value: "all", labelKey: "research.areas.all" },
+  { value: "Artificial Intelligence", labelKey: "research.areas.ai" },
+  { value: "Medicine", labelKey: "research.areas.medicine" },
+  { value: "Law", labelKey: "research.areas.law" },
+  { value: "History", labelKey: "research.areas.history" },
+  { value: "Engineering", labelKey: "research.areas.engineering" },
 ]
 
 export function ResearchPage() {
-  const { t } = useTranslation() // <--- ADD
+  const { t } = useTranslation()
   const { results, search, isLoading, savePaper } = useResearchStore()
   const { profile, fetchProfile } = useUserStore()
   
@@ -95,12 +95,14 @@ export function ResearchPage() {
         <form onSubmit={handleSearch} className="flex gap-2 p-2 bg-zinc-900/90 border border-white/15 rounded-full shadow-2xl transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
             <Select value={area} onValueChange={setArea}>
                 <SelectTrigger className="w-[180px] rounded-l-full border-0 bg-transparent focus:ring-0 text-gray-300 font-medium hover:text-white pl-6">
-                    <SelectValue placeholder="Área" />
+                    <SelectValue placeholder={t('research.search_area')} />
                 </SelectTrigger>
                 <SelectContent>
-                    {AREAS.map(a => <SelectItem key={a.value} value={a.value}>
-                        {a.value === 'all' ? t('research.search_area') : a.label}
-                    </SelectItem>)}
+                    {AREA_KEYS.map(a => (
+                        <SelectItem key={a.value} value={a.value}>
+                            {t(a.labelKey)}
+                        </SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
             

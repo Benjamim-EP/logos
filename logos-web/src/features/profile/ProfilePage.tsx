@@ -10,10 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts'
-import { useTranslation } from "react-i18next" // <--- ADD
+import { useTranslation } from "react-i18next" 
 
 export function ProfilePage() {
-  const { t } = useTranslation() // <--- ADD
+  const { t } = useTranslation() 
   const setViewMode = useGalaxyStore((state) => state.setViewMode)
   const { user, logout } = useAuthStore()
   const { profile, fetchProfile, updateAvatar, isLoading } = useUserStore()
@@ -32,6 +32,11 @@ export function ProfilePage() {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  }
+
+  const formatRadarSubject = (subject: string) => {
+      const key = subject.toLowerCase();
+      return t(`profile.radar_subjects.${key}`, subject);
   }
 
   const itemVariants = {
@@ -142,7 +147,11 @@ export function ProfilePage() {
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={profile?.radar}>
                                 <PolarGrid stroke="#333" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#888', fontSize: 10, fontWeight: 'bold' }} />
+                                <PolarAngleAxis 
+                                    dataKey="subject" 
+                                    tickFormatter={formatRadarSubject} 
+                                    tick={{ fill: '#888', fontSize: 10, fontWeight: 'bold' }} 
+                                />
                                 <Radar name="Nível" dataKey="A" stroke="#8b5cf6" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.5} />
                             </RadarChart>
                         </ResponsiveContainer>

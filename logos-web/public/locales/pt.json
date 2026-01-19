@@ -44,6 +44,7 @@
     "success": "Sucesso"
   },
   "library": {
+    "explore_btn": "Explorar Biblioteca",
     "title": "Biblioteca Digital",
     "subtitle": "Gerencie seus livros, artigos e documentos.",
     "add_book": "Adicionar Livro",
@@ -62,16 +63,21 @@
     "upload_error_desc": "Verifique o tamanho do arquivo."
   },
   "galaxy": {
+    "hud_title": "Galáxia Logos",
+    "zoom": "Zoom",
+    "visible": "Visíveis",
     "config_view": "Configurar Visualização",
+    "quick_nav": "Navegação Rápida",
+    "click_travel": "Clique nos pontos para viajar",
     "filters": "Filtros",
     "visible_galaxies": "Galáxias Visíveis",
     "sort": "Ordenação",
     "create_btn": "Criar Nova Galáxia",
-    "create_placeholder": "Nome da Galáxia (ex: Java)",
+    "create_placeholder": "Nome da Galáxia (ex: Java, História)",
     "close_panel": "Fechar painel",
-    "sort_newest": "Mais Recentes (Data)",
+    "sort_newest": "Mais Recentes",
     "sort_oldest": "Mais Antigos",
-    "sort_relevance": "Relevância Semântica"
+    "sort_relevance": "Relevância"
   },
   "store": {
     "hero_title": "Universo Base",
@@ -84,6 +90,18 @@
     "free": "Grátis"
   },
   "research": {
+    "areas": {
+        "all": "Todas as Áreas",
+        "ai": "IA & Machine Learning",
+        "medicine": "Medicina",
+        "law": "Direito",
+        "history": "História",
+        "engineering": "Engenharia"
+    },
+    "drop_zone": "Arraste seu PDF/Imagem ou clique para selecionar",
+    "drop_active": "Solte o arquivo aqui...",
+    "max_size": "Máximo",
+    "search_area": "Todas as Áreas",
     "title": "Laboratório de Pesquisa",
     "subtitle": "Busca semântica global.",
     "upload_title": "Upload de Conhecimento",
@@ -96,6 +114,7 @@
     "save": "Salvar"
   },
   "profile": {
+    "logout": "Sair", 
     "back_galaxy": "Voltar para Galáxia",
     "identity": "Identidade Visual",
     "bio_default": "Mapeando o conhecimento...",
@@ -108,6 +127,14 @@
     "next_evolution": "PRÓXIMA EVOLUÇÃO",
     "remaining_marks": "marcações restantes.",
     "network_status": "STATUS DA REDE",
-    "synced": "Sincronizado via Confluent"
+    "synced": "Sincronizado via Confluent",
+    "radar_subjects": {
+      "curiosity": "Curiosidade",
+      "access": "Acesso",
+      "reading": "Leitura",
+      "analysis": "Análise",
+      "synthesis": "Síntese",
+      "connection": "Conexão"
+    }
   }
 }

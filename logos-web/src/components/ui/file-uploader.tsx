@@ -4,6 +4,7 @@ import { UploadCloud, FileText, X, AlertCircle, CheckCircle2, Loader2 } from "lu
 import { motion, AnimatePresence } from "framer-motion"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner" // Notificações
+import { t } from "i18next"
 
 interface FileUploaderProps {
   onUpload: (file: File) => Promise<void>
@@ -108,10 +109,13 @@ export function FileUploader({
             <UploadCloud className={`w-8 h-8 ${isDragActive ? "text-blue-400" : "text-gray-400"}`} />
           </div>
           <p className="text-sm font-medium text-gray-300">
-            {isDragActive ? "Solte o arquivo aqui..." : "Arraste seu PDF/Imagem ou clique para selecionar"}
+            {isDragActive 
+                ? t('research.drop_active') 
+                : t('research.drop_zone')
+            }
           </p>
           <p className="text-xs text-gray-500 mt-2">
-            Máximo {maxSizeMB}MB • PDF, PNG, JPG
+            {t('research.max_size')} {maxSizeMB}MB • PDF, PNG, JPG
           </p>
         </div>
       ) : (

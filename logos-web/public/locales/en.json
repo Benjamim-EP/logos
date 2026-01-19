@@ -44,6 +44,7 @@
     "success": "Success"
   },
   "library": {
+    "explore_btn": "Explore Library",
     "title": "Digital Library",
     "subtitle": "Manage your books, papers, and documents.",
     "add_book": "Add Book",
@@ -62,16 +63,21 @@
     "upload_error_desc": "Check file size."
   },
   "galaxy": {
+    "hud_title": "Logos Galaxy",
+    "zoom": "Zoom",
+    "visible": "Visible",
     "config_view": "Configure View",
+    "quick_nav": "Quick Navigation",
+    "click_travel": "Click points to travel",
     "filters": "Filters",
     "visible_galaxies": "Visible Galaxies",
     "sort": "Sorting",
     "create_btn": "Create New Galaxy",
     "create_placeholder": "Galaxy Name (e.g. Java, History)",
     "close_panel": "Close panel",
-    "sort_newest": "Newest (Date)",
+    "sort_newest": "Newest",
     "sort_oldest": "Oldest",
-    "sort_relevance": "Semantic Relevance"
+    "sort_relevance": "Relevance"
   },
   "store": {
     "hero_title": "Base Universe",
@@ -84,6 +90,18 @@
     "free": "Free"
   },
   "research": {
+     "areas": {
+        "all": "All Areas",
+        "ai": "AI & Machine Learning",
+        "medicine": "Medicine",
+        "law": "Law",
+        "history": "History",
+        "engineering": "Engineering"
+    },
+    "drop_zone": "Drag your PDF/Image or click to select",
+    "drop_active": "Drop file here...",
+    "max_size": "Max",
+    "search_area": "All Areas",
     "title": "Research Lab",
     "subtitle": "Global semantic search.",
     "upload_title": "Knowledge Upload",
@@ -95,7 +113,9 @@
     "saved": "Saved",
     "save": "Save"
   },
+
   "profile": {
+    "logout": "Logout",
     "back_galaxy": "Back to Galaxy",
     "identity": "Visual Identity",
     "bio_default": "Mapping knowledge...",
@@ -108,6 +128,14 @@
     "next_evolution": "NEXT EVOLUTION",
     "remaining_marks": "marks remaining.",
     "network_status": "NETWORK STATUS",
-    "synced": "Synced via Confluent"
+    "synced": "Synced via Confluent",
+    "radar_subjects": {
+      "curiosity": "Curiosity",
+      "access": "Access",
+      "reading": "Reading",
+      "analysis": "Analysis",
+      "synthesis": "Synthesis",
+      "connection": "Connection"
+    }
   }
 }

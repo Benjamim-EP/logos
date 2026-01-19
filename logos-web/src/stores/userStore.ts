@@ -45,9 +45,9 @@ export const useUserStore = create<UserState>((set) => ({
                     storageLimit: 100
                 },
                 radar: [
-                    { subject: "Curiosidade", A: 100 },
-                    { subject: "Acesso", A: 20 },
-                    { subject: "Leitura", A: 50 },
+                  { subject: "curiosity", A: 100 }, 
+                  { subject: "access", A: 20 },
+                  { subject: "reading", A: 50 },
                 ]
             }, 
             isLoading: false 

@@ -44,6 +44,7 @@
     "success": "Sukces"
   },
   "library": {
+    "explore_btn": "Eksploruj Bibliotekę",
     "title": "Biblioteka Cyfrowa",
     "subtitle": "Zarządzaj swoimi książkami i artykułami.",
     "add_book": "Dodaj Książkę",
@@ -62,16 +63,21 @@
     "upload_error_desc": "Sprawdź rozmiar pliku."
   },
   "galaxy": {
+    "hud_title": "Galaktyka Logos",
+    "zoom": "Powiększenie",
+    "visible": "Widoczne",
     "config_view": "Konfiguruj Widok",
+    "quick_nav": "Szybka Nawigacja",
+    "click_travel": "Kliknij punkty, aby podróżować",
     "filters": "Filtry",
     "visible_galaxies": "Widoczne Galaktyki",
     "sort": "Sortowanie",
     "create_btn": "Utwórz Nową Galaktykę",
     "create_placeholder": "Nazwa Galaktyki (np. Java)",
     "close_panel": "Zamknij panel",
-    "sort_newest": "Najnowsze (Data)",
+    "sort_newest": "Najnowsze",
     "sort_oldest": "Najstarsze",
-    "sort_relevance": "Trafność Semantyczna"
+    "sort_relevance": "Trafność"
   },
   "store": {
     "hero_title": "Wszechświat Bazowy",
@@ -84,6 +90,18 @@
     "free": "Darmowe"
   },
   "research": {
+    "areas": {
+        "all": "Wszystkie Obszary",
+        "ai": "SI i Uczenie Maszynowe",
+        "medicine": "Medycyna",
+        "law": "Prawo",
+        "history": "Historia",
+        "engineering": "Inżynieria"
+    },
+    "drop_zone": "Przeciągnij PDF/Obraz lub kliknij, aby wybrać",
+    "drop_active": "Upuść plik tutaj...",
+    "max_size": "Maks.",
+    "search_area": "Wszystkie Obszary",
     "title": "Laboratorium Badawcze",
     "subtitle": "Globalne wyszukiwanie semantyczne.",
     "upload_title": "Przesyłanie Wiedzy",
@@ -96,6 +114,15 @@
     "save": "Zapisz"
   },
   "profile": {
+    "logout": "Wyloguj się",
+    "radar_subjects": {
+      "curiosity": "Ciekawość",
+      "access": "Dostęp",
+      "reading": "Czytanie",
+      "analysis": "Analiza",
+      "synthesis": "Synteza",
+      "connection": "Połączenie"
+    },
     "back_galaxy": "Wróć do Galaktyki",
     "identity": "Tożsamość Wizualna",
     "bio_default": "Mapowanie wiedzy...",
