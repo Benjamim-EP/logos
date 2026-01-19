@@ -71,7 +71,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     set({ isLoading: true, tempCentralizedId: null })
 
     if (isGuest) {
-        if (guestUniverse?.id) {
+        if (guestUniverse?.id && guestUniverse.id !== 'empty') {
             console.log(`🌌 [TOUR] Buscando dados de: ${guestUniverse.pineconeFilter}`)
             try {
                 const { data } = await api.get(`/ai/galaxy/tour/${guestUniverse.pineconeFilter}/${guestUniverse.lang}`)

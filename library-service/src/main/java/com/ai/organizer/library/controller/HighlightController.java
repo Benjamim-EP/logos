@@ -13,6 +13,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 @RestController
 @RequestMapping("/api/library/highlights")
 @RequiredArgsConstructor
@@ -23,63 +25,53 @@ public class HighlightController {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RadarTriggerService radarTriggerService;
 
-    
-    public record CreateHighlightRequest(
-        String fileHash, 
-        String content, 
-        String type, 
-        String position 
-    ) {}
+    public record CreateHighlightRequest(String fileHash, String content, String type, String position) {}
 
     @PostMapping
     public ResponseEntity<Long> createHighlight(
             @RequestBody CreateHighlightRequest request,
-            @AuthenticationPrincipal Jwt jwt
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(name = "X-Guest-Mode", required = false) String isGuestHeader,
+            @RequestHeader(name = "X-User-Id", required = false) String guestUserId
     ) {
-        String userId = jwt.getClaimAsString("preferred_username");
+        boolean isGuest = "true".equalsIgnoreCase(isGuestHeader);
+        String userId = isGuest ? guestUserId : jwt.getClaimAsString("preferred_username");
         
-        
-        UserHighlight hl = new UserHighlight();
-        hl.setFileHash(request.fileHash);
-        hl.setUserId(userId);
-        
-        
-        String safeContent = request.content != null && request.content.length() > 3900 
-                ? request.content.substring(0, 3900) 
-                : request.content;
-                
-        hl.setContent(safeContent);
-        hl.setType(request.type);
-        hl.setPositionJson(request.position);
-        
-        
-        UserHighlight saved = userHighlightRepository.save(hl);
-        log.info("💾 Highlight salvo no SQL. ID: {}", saved.getId());
+        Long highlightId;
 
-        
-        try {
+        if (isGuest) {
+            highlightId = -Math.abs(ThreadLocalRandom.current().nextLong(1000000, 9999999));
+            log.info("👻 Guest Highlight. ID Temporário: {}", highlightId);
+        } else {
+            UserHighlight hl = new UserHighlight();
+            hl.setFileHash(request.fileHash());
+            hl.setUserId(userId);
+            hl.setContent(request.content());
+            hl.setType(request.type());
+            hl.setPositionJson(request.position());
+            
+            UserHighlight saved = userHighlightRepository.save(hl);
+            highlightId = saved.getId();
+            log.info("💾 Highlight salvo no SQL. ID: {}", highlightId);
             
             radarTriggerService.checkAndTrigger(userId);
-            
-            
+        }
+
+        try {
             HighlightEvent event = new HighlightEvent(
-                saved.getId(),
-                saved.getFileHash(),
-                saved.getUserId(),
-                saved.getContent(),
-                saved.getType()
+                highlightId,
+                request.fileHash(),
+                userId,
+                request.content(),
+                request.type()
             );
-            kafkaTemplate.send("highlight.created", saved.getId().toString(), event);
-            
-            log.info("🚀 Eventos de integração disparados com sucesso.");
+            kafkaTemplate.send("highlight.created", String.valueOf(highlightId), event);
 
         } catch (Exception e) {
-           
-            log.error("⚠️ Falha nos eventos secundários (Kafka/Radar): {}", e.getMessage());
+            log.error("⚠️ Falha no envio Kafka: {}", e.getMessage());
         }
         
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(highlightId);
     }
 
     @DeleteMapping("/{id}")

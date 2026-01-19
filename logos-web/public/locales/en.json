@@ -77,7 +77,9 @@
     "close_panel": "Close panel",
     "sort_newest": "Newest",
     "sort_oldest": "Oldest",
-    "sort_relevance": "Relevance"
+    "sort_relevance": "Relevance",
+    "guest_empty_title": "Tabula Rasa",
+    "guest_empty_desc": "The primordial void. Use the button below to create your first galaxy."
   },
   "store": {
     "hero_title": "Base Universe",

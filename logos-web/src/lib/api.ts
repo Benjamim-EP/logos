@@ -12,8 +12,8 @@ api.interceptors.request.use((config) => {
   config.headers['Accept-Language'] = i18n.language || 'en';
 
   if (isGuest) {
+    console.log("👻 [API] Enviando request como Guest");
     config.headers['X-Guest-Mode'] = 'true';
-    
     if (user?.id) {
         config.headers['X-User-Id'] = user.id; 
     }

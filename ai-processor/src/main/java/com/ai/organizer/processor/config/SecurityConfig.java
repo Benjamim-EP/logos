@@ -21,6 +21,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/ai/galaxy/tour/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/library/highlights").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/library/summaries").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/library/summaries/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/library/books/**/highlights").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));

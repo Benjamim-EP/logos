@@ -77,7 +77,9 @@
     "close_panel": "Fechar painel",
     "sort_newest": "Mais Recentes",
     "sort_oldest": "Mais Antigos",
-    "sort_relevance": "Relevância"
+    "sort_relevance": "Relevância",
+    "guest_empty_title": "Tabula Rasa",
+    "guest_empty_desc": "O vazio primordial. Use o botão abaixo para criar sua primeira galáxia."
   },
   "store": {
     "hero_title": "Universo Base",

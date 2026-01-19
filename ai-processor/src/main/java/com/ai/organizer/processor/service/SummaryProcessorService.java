@@ -8,91 +8,94 @@ import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class SummaryProcessorService {
 
     private final BookAssistant aiAssistant;
     private final EmbeddingModel embeddingModel;
-    private final EmbeddingStore<TextSegment> embeddingStore;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    
+    private final EmbeddingStore<TextSegment> userStore;
+    private final EmbeddingStore<TextSegment> guestStore;
+
+    public SummaryProcessorService(
+            BookAssistant aiAssistant,
+            EmbeddingModel embeddingModel,
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
+            @Qualifier("userEmbeddingStore") EmbeddingStore<TextSegment> userStore,
+            @Qualifier("guestEmbeddingStore") EmbeddingStore<TextSegment> guestStore) {
+        this.aiAssistant = aiAssistant;
+        this.embeddingModel = embeddingModel;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.userStore = userStore;
+        this.guestStore = guestStore;
+    }
 
     public void processSummaryRequest(String message) {
         Long summaryId = null;
+        boolean isGuest = false;
+
         try {
-            log.info("📨 Payload Bruto Recebido: {}", message);
-
             JsonNode json = objectMapper.readTree(message);
-
             if (json.isTextual()) {
-                log.info("⚠️ Detectada serialização dupla (TextNode). Realizando segundo parse...");
                 json = objectMapper.readTree(json.asText());
             }
 
-            if (json.has("summaryId")) {
-                summaryId = json.get("summaryId").asLong();
-            } else if (json.has("id")) {
-                summaryId = json.get("id").asLong();
-            } else {
-                throw new IllegalArgumentException("JSON inválido: campo 'summaryId' não encontrado. JSON: " + json.toString());
-            }
+            // Tratamento de ID para Guest (pode vir como negativo ou string numérica grande)
+            summaryId = json.get("summaryId").asLong();
+            String userId = json.path("userId").asText();
+            isGuest = userId.startsWith("guest-");
 
             String fileHash = json.path("fileHash").asText();
             String sourceType = json.path("sourceType").asText();
-            String userId = json.path("userId").asText();
-
-            log.info("🧠 Processando resumo ID: {} | Tipo: {}", summaryId, sourceType);
-
-            String textToSummarize = "";
-
-            if ("PAGE_RANGE".equals(sourceType)) {
-                throw new UnsupportedOperationException("Resumo por página requer update do evento com storagePath.");
-            } else {
-                textToSummarize = json.path("textContent").asText();
-            }
-
-            if (textToSummarize == null || textToSummarize.isEmpty()) {
-                throw new IllegalArgumentException("Texto para resumo está vazio.");
-            }
-
+            String textToSummarize = json.path("textContent").asText();
+            String langCode = json.path("preferredLanguage").asText("en");
+            
             if (textToSummarize.length() > 30000) {
                 textToSummarize = textToSummarize.substring(0, 30000); 
             }
 
-            String langCode = json.path("preferredLanguage").asText("en");
             String fullLanguage = mapLanguage(langCode);
-
-            log.info("🤖 Enviando para OpenAI...");
+            
+            log.info("🤖 Gerando resumo para {} (Guest: {})", userId, isGuest);
             String summaryText = aiAssistant.summarizeInTopics(textToSummarize, fullLanguage);
-
 
             Metadata metadata = Metadata.from("userId", userId)
                     .put("fileHash", fileHash)
                     .put("type", "resume") 
-                    .put("summaryId", String.valueOf(summaryId));
+                    .put("summaryId", String.valueOf(summaryId))
+                    .put("text", summaryText); // Guarda o texto no metadado para leitura rápida
 
             var segment = TextSegment.from(summaryText, metadata);
             var embedding = embeddingModel.embed(segment).content();
-            embeddingStore.add(embedding, segment);
+            
+            EmbeddingStore<TextSegment> targetStore = isGuest ? guestStore : userStore;
+            targetStore.add(embedding, segment);
 
-            sendCompletionEvent(summaryId, summaryText, "COMPLETED");
-            log.info("✅ Resumo concluído e vetorizado!");
+            if (!isGuest) {
+                sendCompletionEvent(summaryId, summaryText, "COMPLETED");
+            }
+            
+            log.info("✅ Resumo concluído e vetorizado no index {}", isGuest ? "guest-data" : "logos");
 
         } catch (Exception e) {
             log.error("❌ Falha ao gerar resumo: {}", e.getMessage());
-            if (summaryId != null) {
+            if (summaryId != null && !isGuest) {
                 sendCompletionEvent(summaryId, "Falha na IA: " + e.getMessage(), "FAILED");
             }
         }
     }
+
     private void sendCompletionEvent(Long id, String text, String status) {
         try {
             SummaryCompletedEvent event = new SummaryCompletedEvent(id, text, status);
@@ -112,5 +115,4 @@ public class SummaryProcessorService {
             default -> "English";
         };
     }
-
 }

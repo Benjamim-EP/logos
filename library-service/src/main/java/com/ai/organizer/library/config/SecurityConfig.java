@@ -23,6 +23,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/ai/galaxy/tour/**").permitAll() 
                 .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/library/highlights").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/library/summaries").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/library/summaries/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/library/books/**/highlights").permitAll()
                 
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 

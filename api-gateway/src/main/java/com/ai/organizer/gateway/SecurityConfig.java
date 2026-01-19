@@ -25,6 +25,8 @@ public class SecurityConfig {
                 .pathMatchers("/actuator/**").permitAll()
                 .pathMatchers("/api/public/**").permitAll()
                 .pathMatchers("/api/ai/galaxy/tour/**").permitAll() 
+                .pathMatchers(org.springframework.http.HttpMethod.POST, "/api/library/highlights").permitAll()
+                 .pathMatchers(org.springframework.http.HttpMethod.POST, "/api/library/summaries").permitAll()
                 .pathMatchers(org.springframework.http.HttpMethod.OPTIONS).permitAll()
                 .anyExchange().authenticated()
             )

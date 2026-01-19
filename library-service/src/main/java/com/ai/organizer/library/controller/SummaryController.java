@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/api/library/summaries")
@@ -30,33 +31,40 @@ public class SummaryController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public UserSummary requestSummary(
             @RequestBody CreateSummaryRequest request,
-            @RequestHeader(name = "Accept-Language", defaultValue = "en") String lang, // <--- 1. Captura o idioma
+            @RequestHeader(name = "Accept-Language", defaultValue = "en") String lang,
+            @RequestHeader(name = "X-Guest-Mode", required = false) String isGuestHeader,
+            @RequestHeader(name = "X-User-Id", required = false) String guestUserId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        String userId = extractUserId(jwt);
-        log.info("🧠 Solicitando resumo ({}) para user: {} [Lang: {}]", request.sourceType(), userId, lang);
-
-        SummarySourceType type = SummarySourceType.valueOf(request.sourceType());
-        String rangeLabel = (type == SummarySourceType.PAGE_RANGE) 
-                ? request.startPage() + "-" + request.endPage() 
-                : null;
-
-        // 1. Salva estado inicial PENDING no banco
-        UserSummary summary = new UserSummary(
-                request.fileHash(),
-                userId,
-                type,
-                rangeLabel
-        );
-        summary.setPositionJson(request.position());
+        boolean isGuest = "true".equalsIgnoreCase(isGuestHeader);
+        String userId = isGuest ? guestUserId : extractUserId(jwt);
         
-        summary = summaryRepository.save(summary);
+        log.info("🧠 Solicitando resumo para: {} (Guest: {})", userId, isGuest);
 
-        
+        Long summaryId;
+        UserSummary responseObj = new UserSummary(); // Objeto dummy para resposta
+
+        if (isGuest) {
+            summaryId = -Math.abs(ThreadLocalRandom.current().nextLong(1000000, 9999999));
+            responseObj.setId(summaryId);
+            responseObj.setStatus("PENDING");
+        } else {
+            // Salva no banco real
+            UserSummary summary = new UserSummary(
+                    request.fileHash(),
+                    userId,
+                    SummarySourceType.valueOf(request.sourceType()),
+                    null
+            );
+            summary.setPositionJson(request.position());
+            summary = summaryRepository.save(summary);
+            summaryId = summary.getId();
+            responseObj = summary;
+        }
+
         try {
-            
             SummaryRequestedEvent event = new SummaryRequestedEvent(
-                    summary.getId(),
+                    summaryId,
                     request.fileHash(),
                     userId,
                     request.sourceType(),
@@ -67,18 +75,13 @@ public class SummaryController {
             );
 
             String jsonEvent = objectMapper.writeValueAsString(event);
-            
-            kafkaTemplate.send("summary.requested", summary.getId().toString(), jsonEvent);
-            log.info("📨 Evento de resumo enviado para Kafka ID: {}", summary.getId());
+            kafkaTemplate.send("summary.requested", String.valueOf(summaryId), jsonEvent);
 
         } catch (Exception e) {
-            log.error("Erro ao enviar evento Kafka", e);
-            summary.setStatus("FAILED");
-            summaryRepository.save(summary);
-            throw new RuntimeException("Erro ao processar solicitação");
+            log.error("Erro Kafka", e);
         }
 
-        return summary;
+        return responseObj;
     }
 
     @DeleteMapping("/{id}")

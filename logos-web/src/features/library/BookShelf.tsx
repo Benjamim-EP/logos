@@ -13,6 +13,7 @@ import { useLibraryBooks } from "@/features/library/hooks/useLibrary"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
+import { useAuthStore } from "@/stores/authStore"
 
 export function BookShelf() {
   const setViewMode = useGalaxyStore((state) => state.setViewMode)
@@ -30,6 +31,14 @@ export function BookShelf() {
   }, [])
 
   const handleOpenBook = async (book: any) => {
+    if (useAuthStore.getState().isGuest) {
+         setReadingBook({ 
+             note: { ...book, tags: [] }, 
+             url: "/sample.pdf"
+         })
+         return;
+    }
+
     try {
         toast.loading(t('common.loading'), { id: "open-book" }) 
         const { data } = await api.get(`/library/books/${book.id}/content`)

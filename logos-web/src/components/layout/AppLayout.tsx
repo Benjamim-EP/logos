@@ -38,7 +38,11 @@ export function AppLayout() {
   }
 
   const handleGuestEmpty = () => {
-    setGuestUniverse(null)
+    setGuestUniverse({ 
+        id: 'empty', 
+        lang: i18n.language, 
+        pineconeFilter: 'none' 
+    })
     setShowGuestModal(false)
     window.location.href = "/universe/guest"
     navigate("/universe/guest")

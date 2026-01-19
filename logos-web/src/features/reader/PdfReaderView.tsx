@@ -29,6 +29,7 @@ import api from "@/lib/api"
 import { toast } from "sonner"
 
 import "react-pdf-highlighter/dist/style.css"
+import { useAuthStore } from "@/stores/authStore"
 
 // Configuração do Worker do PDF.js (Versão estável para esta lib)
 const pdfVersion = "3.11.174" 
@@ -126,6 +127,12 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
   }, [])
 
   const fetchData = async () => {
+    const { isGuest } = useAuthStore.getState();
+      if (isGuest) {
+          setVisualHighlights([]);
+          setSummaries([]);
+          return;
+      }
       try {
           setIsLoadingSummaries(true)
           

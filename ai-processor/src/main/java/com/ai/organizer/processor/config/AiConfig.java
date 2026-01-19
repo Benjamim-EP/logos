@@ -76,4 +76,16 @@ public class AiConfig {
                 .metadataTextKey("text")
                 .build();
     }
+    @Bean(name = "guestEmbeddingStore")
+    public EmbeddingStore<TextSegment> guestEmbeddingStore(
+            @Value("${ai.pinecone.api-key}") String apiKey,
+            @Value("${ai.pinecone.environment:us-east-1}") String environment) {
+        
+        return PineconeEmbeddingStore.builder()
+                .apiKey(apiKey)
+                .environment(environment)
+                .projectId("c94c1e6")
+                .index("guest-data") 
+                .build();
+    }
 }

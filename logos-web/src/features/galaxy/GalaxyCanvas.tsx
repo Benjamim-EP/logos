@@ -15,7 +15,7 @@ import { NoteReaderModal } from "@/features/library/NoteReaderModal"
 import { PdfReaderView } from "@/features/reader/PdfReaderView"
 
 import { Button } from "@/components/ui/button"
-import { Loader2, MousePointer2, ZoomIn, RefreshCw } from "lucide-react"
+import { Loader2, MousePointer2, ZoomIn, RefreshCw, Sparkles, ArrowDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import api from "@/lib/api"
 import { toast } from "sonner"
@@ -68,7 +68,17 @@ export function GalaxyCanvas() {
     const handleOpenRequest = async (e: Event) => {
         const customEvent = e as CustomEvent;
         const { documentId, noteId, position } = customEvent.detail
+        const { isGuest } = useAuthStore.getState();
 
+        if (isGuest) {
+             setExplorerState({
+                documentId: "sample-book",
+                noteId: noteId || "guest-note",
+                url: "/sample.pdf",
+                position: position 
+            })
+            return;
+        }
         if (!documentId) {
             toast.error("Este nó não possui um documento vinculado.")
             return
@@ -76,7 +86,6 @@ export function GalaxyCanvas() {
 
         try {
             toast.loading("Descriptografando documento...", { id: "galaxy-open" })
-            
             const { data } = await api.get(`/library/books/${documentId}/content`)
             
             setExplorerState({
@@ -85,7 +94,6 @@ export function GalaxyCanvas() {
                 url: data.url,
                 position: position 
             })
-            
             toast.dismiss("galaxy-open")
 
         } catch (err) {
@@ -109,15 +117,34 @@ export function GalaxyCanvas() {
       
       {visibleNotes.length === 0 && !isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 pointer-events-none">
-          <div className="pointer-events-auto text-center space-y-4 bg-black/50 p-6 rounded-xl border border-white/10 backdrop-blur-md">
-             <p className="text-gray-400 text-sm">Universo vazio ou filtros muito restritivos.</p>
-             <Button 
-                onClick={() => initializeUniverse()} 
-                variant="outline" 
-                className="border-white/20 text-white hover:bg-white/10 hover:text-blue-400"
-             >
-                <RefreshCw className="mr-2 h-4 w-4" /> Gerar Universo
-             </Button>
+          <div className="pointer-events-auto text-center space-y-4 bg-black/50 p-8 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl max-w-md">
+             
+             {/* CONTEÚDO PARA GUEST */}
+             {useAuthStore.getState().isGuest ? (
+                 <>
+                    <div className="mx-auto w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-2">
+                        <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">{t('galaxy.guest_empty_title')}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">
+                        {t('galaxy.guest_empty_desc')}
+                    </p>
+                    <div className="pt-4 animate-bounce">
+                        <ArrowDown className="w-6 h-6 text-white/20 mx-auto" />
+                    </div>
+                 </>
+             ) : (
+                 <>
+                    <p className="text-gray-400 text-sm">Universo vazio ou filtros muito restritivos.</p>
+                    <Button 
+                        onClick={() => initializeUniverse()} 
+                        variant="outline" 
+                        className="border-white/20 text-white hover:bg-white/10 hover:text-blue-400"
+                    >
+                        <RefreshCw className="mr-2 h-4 w-4" /> Gerar Universo
+                    </Button>
+                 </>
+             )}
           </div>
         </div>
       )}
