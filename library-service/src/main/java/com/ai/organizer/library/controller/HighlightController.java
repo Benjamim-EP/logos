@@ -65,7 +65,15 @@ public class HighlightController {
                 request.content(),
                 request.type()
             );
-            kafkaTemplate.send("highlight.created", String.valueOf(highlightId), event);
+            var future = kafkaTemplate.send("highlight.created", String.valueOf(highlightId), event);
+            
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
+                    log.info("✅ Evento enviado para Kafka com sucesso. Offset: {}", result.getRecordMetadata().offset());
+                } else {
+                    log.error("❌ FALHA AO ENVIAR PARA KAFKA!", ex);
+                }
+            });
 
         } catch (Exception e) {
             log.error("⚠️ Falha no envio Kafka: {}", e.getMessage());

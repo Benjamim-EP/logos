@@ -55,11 +55,13 @@ public class AiProcessorClient {
     public AiGravityResponse getGravityMatches(String term) {
         
         String token = getJwtTokenFromContext();
+        String userId = getUserIdFromContext();
 
         try {
             return restClient.post()
                     .uri("/galaxy/gravity")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token) 
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header("X-User-Id", userId) 
                     .body(term)
                     .retrieve()
                     .body(AiGravityResponse.class);
@@ -83,5 +85,18 @@ public class AiProcessorClient {
         } catch (Exception e) {
             System.err.println("⚠️ Falha ao registrar galáxia no Pinecone: " + e.getMessage());
         }
+    }
+
+    private String getUserIdFromContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication instanceof JwtAuthenticationToken jwtToken) {
+            String userId = jwtToken.getToken().getClaimAsString("preferred_username");
+            if (userId == null) {
+                userId = jwtToken.getToken().getSubject();
+            }
+            return userId;
+        }
+        return "unknown_user";
     }
 }

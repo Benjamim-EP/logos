@@ -207,9 +207,44 @@ public class AiGalaxyController {
     }
     
     @PostMapping("/gravity")
-    public GravityResponse calculateGravity(@RequestBody String term) {
-         // Mantido para compatibilidade, mas o Tour usa o /tour/gravity
-         return new GravityResponse(term, List.of());
+    public GravityResponse calculateGravity(
+            @RequestBody String term,
+            @RequestHeader(value = "X-User-Id", required = false) String userId // <--- Pegar do Header
+    ) {
+        if (userId == null) {
+            log.warn("⚠️ Gravidade solicitada sem User ID. Resultados podem ser imprecisos.");
+        }
+
+        log.info("🪐 Calculando gravidade para Galáxia '{}' (User: {})", term, userId);
+
+        try {
+            Response<Embedding> embeddingResponse = embeddingModel.embed(term);
+            
+            Filter filter = MetadataFilterBuilder.metadataKey("userId").isEqualTo(userId)
+                    .and(MetadataFilterBuilder.metadataKey("type").isEqualTo("highlight")); // Só atrai highlights, não outras galáxias
+
+            EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(embeddingResponse.content())
+                    .filter(filter) 
+                    .maxResults(50) 
+                    .minScore(0.60) 
+                    .build();
+
+           EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
+
+            List<GravityResponse.StarMatch> matches = result.matches().stream()
+                    .filter(m -> m.embedded() != null && m.embedded().metadata() != null)
+                    .map(this::toMatch) 
+                    .collect(Collectors.toList());
+
+            log.info("🧲 Galáxia recém-nascida atraiu {} estrelas existentes.", matches.size());
+            
+            return new GravityResponse(term, matches);
+
+        } catch (Exception e) {
+            log.error("❌ Erro na gravidade", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro na IA");
+        }
     }
 
     @PostMapping("/register")
@@ -223,5 +258,33 @@ public class AiGalaxyController {
 
         TextSegment segment = TextSegment.from(request.name(), metadata);
         embeddingStore.add(embedding, segment);
+    }
+
+    private GravityResponse.StarMatch toMatch(EmbeddingMatch<TextSegment> match) {
+        String starId = match.embeddingId(); // Padrão
+        String textContent = "";
+
+        if (match.embedded() != null) {
+            if (match.embedded().text() != null) {
+                textContent = match.embedded().text();
+            }
+            
+            if (match.embedded().metadata() != null) {
+                var meta = match.embedded().metadata();
+                
+                String hId = meta.getString("highlightId");
+                String sId = meta.getString("summaryId");
+                
+                if (sId != null) starId = "summary-" + sId;
+                else if (hId != null) starId = hId;
+                if (textContent.isEmpty()) {
+                    String metaText = meta.getString("text_segment");
+                    if (metaText == null) metaText = meta.getString("text");
+                    if (metaText != null) textContent = metaText;
+                }
+            }
+        }
+        
+        return new GravityResponse.StarMatch(starId, match.score(), textContent);
     }
 }

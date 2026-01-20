@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "HIGHLIGHTS")
+@Table(name = "USER_HIGHLIGHTS")
 @Data
 public class HighlightEntity {
     @Id

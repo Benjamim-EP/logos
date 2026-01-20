@@ -52,21 +52,29 @@ public class HighlightProcessorService {
 
     @Transactional
     public void processHighlight(HighlightEvent event) {
-        // --- LIMPEZA DE STRING (REGEX) ---
-        // Remove aspas e espaços. Mantém apenas letras, números e hífens.
         String cleanUserId = event.userId().replaceAll("[^a-zA-Z0-9-]", "").toLowerCase();
-        
         boolean isGuest = cleanUserId.startsWith("guest");
 
-        log.info("🧠 Processando Highlight ID: {} | User Limpo: '{}' | Modo Guest: {}", event.highlightId(), cleanUserId, isGuest);
+        log.info("🧠 Processando Highlight ID: {} | User: '{}' | Guest: {}", event.highlightId(), event.userId(), isGuest);
 
         try {
             if (!isGuest) {
-                // Tenta buscar no banco apenas se for usuário real
-                HighlightEntity entity = highlightRepository.findById(event.highlightId())
-                        .orElseThrow(() -> new RuntimeException("Highlight não encontrado no SQL (User Real)"));
+                HighlightEntity entity = null;
+                for (int i = 0; i < 6; i++) { // 6 tentativas de 500ms
+                    var opt = highlightRepository.findById(event.highlightId());
+                    if (opt.isPresent()) {
+                        entity = opt.get();
+                        break;
+                    }
+                    log.warn("⏳ Highlight {} não encontrado. Tentativa {}/6. Aguardando...", event.highlightId(), i + 1);
+                    Thread.sleep(500);
+                }
+
+                if (entity == null) {
+                    throw new RuntimeException("Highlight ID " + event.highlightId() + " não encontrado após retries.");
+                }
                 
-                entity.setStatus(ProcessingStatus.PROCESSED);
+                 entity.setStatus(ProcessingStatus.PROCESSED);
                 highlightRepository.save(entity);
             } else {
                 log.info("👻 Bypass SQL ativado para Guest.");
@@ -80,9 +88,8 @@ public class HighlightProcessorService {
 
         } catch (Exception e) {
             log.error("❌ Falha ao processar highlight", e);
-        }
+          }
     }
-
     private void generateAndSaveVector(HighlightEvent event, boolean isGuest) {
         Metadata metadata = Metadata.from("userId", event.userId())
                 .put("fileHash", event.fileHash())
@@ -93,7 +100,6 @@ public class HighlightProcessorService {
         TextSegment segment = TextSegment.from(event.content(), metadata);
         Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
-        // SELEÇÃO DO STORE
         EmbeddingStore<TextSegment> targetStore = isGuest ? guestStore : userStore;
         String indexName = isGuest ? "GUEST-DATA" : "LOGOS (PROD)";
         
@@ -101,13 +107,11 @@ public class HighlightProcessorService {
 
         String pineconeId = targetStore.add(embeddingResponse.content(), segment);
         
-        // BLOQUEIO FÍSICO
         if (isGuest) {
             log.info("🛑 Guest detectado. Interrompendo fluxo de Shooting Star.");
             return;
         }
 
-        // Se passar daqui, é usuário real
         findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
     }
 
