@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { useAuth } from "react-oidc-context"
 import { useAuthStore } from "@/stores/authStore"
-import { Loader2 } from "lucide-react"
+import { CloudLightning, Loader2 } from "lucide-react"
 
 
 import { AppLayout } from "@/components/layout/AppLayout"
@@ -13,6 +13,7 @@ import { UniverseStorePage } from "@/features/store/UniverseStorePage"
 import { ResearchPage } from "@/features/research/ResearchPage"
 import { BookShelf } from "./features/library/BookShelf"
 import { Toaster } from "./components/ui/sonner"
+import { t } from "i18next"
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -49,9 +50,35 @@ function App() {
 
   if (auth.isLoading && !isGuest) {
     return (
-      <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-        <p className="text-gray-400 text-sm font-mono tracking-widest uppercase">Inicializando Sistemas...</p>
+      <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white relative overflow-hidden">
+        
+        {/* Efeito de Fundo Sutil */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
+
+        <div className="z-10 flex flex-col items-center gap-6 max-w-md text-center p-6">
+            <div className="relative">
+                <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+                <div className="absolute inset-0 blur-lg bg-blue-500/30 animate-pulse" />
+            </div>
+            
+            <div className="space-y-2">
+                <p className="text-lg font-bold tracking-widest uppercase text-white">
+                    {t('common.loading_system')}
+                </p>
+                
+                {/* AVISO DE COLD START */}
+                <div className="flex flex-col items-center gap-2 bg-white/5 border border-white/10 p-4 rounded-lg mt-4 backdrop-blur-md">
+                    <div className="flex items-center gap-2 text-yellow-400">
+                        <CloudLightning className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase">Google Cloud Run</span>
+                    </div>
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                        {t('common.cold_start_warning')}
+                    </p>
+                </div>
+            </div>
+        </div>
       </div>
     )
   }

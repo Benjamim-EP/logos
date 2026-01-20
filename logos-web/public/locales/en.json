@@ -41,7 +41,9 @@
     "back": "Back",
     "delete": "Delete",
     "error": "Error",
-    "success": "Success"
+    "success": "Success",
+    "loading_system": "Initializing Systems...",
+    "cold_start_warning": "Serverless Environment (Cold Start). First access may take up to 1 minute to wake up the infrastructure."
   },
   "library": {
     "explore_btn": "Explore Library",

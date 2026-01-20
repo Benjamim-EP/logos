@@ -41,7 +41,9 @@
     "back": "Wróć",
     "delete": "Usuń",
     "error": "Błąd",
-    "success": "Sukces"
+    "success": "Sukces",
+    "loading_system": "Inicjalizacja Systemów...",
+    "cold_start_warning": "Środowisko Serverless (Cold Start). Pierwsze logowanie może zająć do 1 minuty (wybudzanie infrastruktury)."
   },
   "library": {
     "explore_btn": "Eksploruj Bibliotekę",
