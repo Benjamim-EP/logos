@@ -131,69 +131,6 @@ public class ProcessorService {
         }
     }
 
-    public void processHighlight(HighlightEvent event) {
-        try {
-            if ("TEXT".equalsIgnoreCase(event.type())) {
-                log.info("🔍 Processando Highlight ID: {}", event.highlightId());
-
-                Metadata metadata = Metadata.from("userId", event.userId())
-                        .put("fileHash", event.fileHash())
-                        .put("type", "highlight")
-                        .put("highlightId", String.valueOf(event.highlightId()))
-                        .put("text", event.content());
-
-                TextSegment segment = TextSegment.from(event.content(), metadata);
-                Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
-
-                embeddingStore.addAll(
-                    Collections.singletonList(embeddingResponse.content()),
-                    Collections.singletonList(segment)
-                );
-                
-                log.info("✅ Highlight vetorizado no Pinecone.");
-                findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
-                
-            } else {
-                log.warn("⚠️ Processamento de imagem em highlight ainda não implementado.");
-            }
-        } catch (Exception e) {
-            log.error("❌ Erro ao processar highlight: {}", e.getMessage(), e);
-        }
-    }
-
-    private void findAndLinkGalaxies(Embedding highlightVector, String userId, String highlightId) {
-        log.info("🔎 [SHOOTING STAR] Procurando Galáxias próximas para o Highlight ID: {}", highlightId);
-        try {
-            EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
-                    .queryEmbedding(highlightVector)
-                    .filter(MetadataFilterBuilder.metadataKey("type").isEqualTo("galaxy"))
-                    .minScore(0.35) 
-                    .maxResults(5)
-                    .build();
-
-            var matches = embeddingStore.search(request).matches();
-
-            log.info("   -> Encontradas {} galáxias candidatas no Pinecone.", matches.size());
-
-            for (var match : matches) {
-                if (match.embedded() == null || match.embedded().metadata() == null) continue;
-
-                String galaxyUserId = match.embedded().metadata().getString("userId");
-                String galaxyId = match.embedded().metadata().getString("galaxyId");
-                
-                if (userId.equals(galaxyUserId) && galaxyId != null) {
-                    StarLinkedEvent linkEvent = new StarLinkedEvent(galaxyId, highlightId, match.score());
-                    String json = objectMapper.writeValueAsString(linkEvent);
-                    
-                    kafkaTemplate.send("star.linked", galaxyId, json);
-                    log.info("🔗 LINK DETECTADO: Highlight {} atraído por Galáxia {}", highlightId, galaxyId);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Erro na busca reversa de galáxias", e);
-        }
-    }
-
     public void fallbackOpenAI(IngestionEvent event, Throwable t) {
         log.error("🔥 FALLBACK ATIVADO: OpenAI indisponível. Erro: {}", t.getMessage());
     }

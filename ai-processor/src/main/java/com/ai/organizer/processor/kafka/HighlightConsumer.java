@@ -1,7 +1,7 @@
 package com.ai.organizer.processor.kafka;
 
 import com.ai.organizer.processor.HighlightEvent;
-import com.ai.organizer.processor.service.ProcessorService;
+import com.ai.organizer.processor.service.HighlightProcessorService; // Importe a classe nova
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HighlightConsumer {
 
-    private final ProcessorService processorService;
+    private final HighlightProcessorService highlightProcessorService;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "highlight.created", groupId = "ai-processor-highlights-v2")
@@ -31,7 +31,8 @@ public class HighlightConsumer {
             HighlightEvent event = objectMapper.treeToValue(jsonNode, HighlightEvent.class);
             
             log.info("✅ Highlight ID {} validado. Iniciando vetorização...", event.highlightId());
-            processorService.processHighlight(event);
+            
+            highlightProcessorService.processHighlight(event);
             
         } catch (Exception e) {
             log.error("❌ Erro ao processar highlight JSON: {}", message, e);

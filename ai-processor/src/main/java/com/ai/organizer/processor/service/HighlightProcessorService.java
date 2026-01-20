@@ -14,6 +14,7 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,23 +52,31 @@ public class HighlightProcessorService {
 
     @Transactional
     public void processHighlight(HighlightEvent event) {
-        log.info("🧠 Processando Highlight ID: {} | User: {}", event.highlightId(), event.userId());
-        boolean isGuest = event.userId().startsWith("guest-");
+        // --- LIMPEZA DE STRING (REGEX) ---
+        // Remove aspas e espaços. Mantém apenas letras, números e hífens.
+        String cleanUserId = event.userId().replaceAll("[^a-zA-Z0-9-]", "").toLowerCase();
+        
+        boolean isGuest = cleanUserId.startsWith("guest");
+
+        log.info("🧠 Processando Highlight ID: {} | User Limpo: '{}' | Modo Guest: {}", event.highlightId(), cleanUserId, isGuest);
 
         try {
             if (!isGuest) {
+                // Tenta buscar no banco apenas se for usuário real
                 HighlightEntity entity = highlightRepository.findById(event.highlightId())
-                        .orElseThrow(() -> new RuntimeException("Highlight não encontrado no SQL"));
+                        .orElseThrow(() -> new RuntimeException("Highlight não encontrado no SQL (User Real)"));
                 
                 entity.setStatus(ProcessingStatus.PROCESSED);
                 highlightRepository.save(entity);
+            } else {
+                log.info("👻 Bypass SQL ativado para Guest.");
             }
 
             if ("TEXT".equals(event.type())) {
                 generateAndSaveVector(event, isGuest);
             } 
 
-            log.info("✅ Highlight finalizado. Guest Mode: {}", isGuest);
+            log.info("✅ Highlight finalizado com sucesso.");
 
         } catch (Exception e) {
             log.error("❌ Falha ao processar highlight", e);
@@ -84,37 +93,52 @@ public class HighlightProcessorService {
         TextSegment segment = TextSegment.from(event.content(), metadata);
         Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
 
+        // SELEÇÃO DO STORE
         EmbeddingStore<TextSegment> targetStore = isGuest ? guestStore : userStore;
+        String indexName = isGuest ? "GUEST-DATA" : "LOGOS (PROD)";
+        
+        log.info("💾 Salvando vetor no índice: {}", indexName);
+
         String pineconeId = targetStore.add(embeddingResponse.content(), segment);
         
-        log.info("✅ Vetor salvo no Pinecone ({}) com ID: {}", isGuest ? "guest-data" : "logos", pineconeId);
-        
-        if (!isGuest) {
-            findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
+        // BLOQUEIO FÍSICO
+        if (isGuest) {
+            log.info("🛑 Guest detectado. Interrompendo fluxo de Shooting Star.");
+            return;
         }
+
+        // Se passar daqui, é usuário real
+        findAndLinkGalaxies(embeddingResponse.content(), event.userId(), String.valueOf(event.highlightId()));
     }
 
      private void findAndLinkGalaxies(Embedding highlightVector, String userId, String highlightId) {
+        log.info("🔎 [SHOOTING STAR] Procurando Galáxias para User: {}", userId);
         try {
+            Filter userFilter = MetadataFilterBuilder.metadataKey("userId").isEqualTo(userId);
+            Filter typeFilter = MetadataFilterBuilder.metadataKey("type").isEqualTo("galaxy");
+            Filter compositeFilter = userFilter.and(typeFilter);
+
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
                     .queryEmbedding(highlightVector)
-                    .filter(MetadataFilterBuilder.metadataKey("type").isEqualTo("galaxy"))
+                    .filter(compositeFilter)
                     .minScore(0.35) 
                     .maxResults(5)
                     .build();
 
             var matches = userStore.search(request).matches();
 
+            log.info("   -> Encontradas {} galáxias candidatas.", matches.size());
+
             for (var match : matches) {
                 if (match.embedded() == null || match.embedded().metadata() == null) continue;
 
-                String galaxyUserId = match.embedded().metadata().getString("userId");
                 String galaxyId = match.embedded().metadata().getString("galaxyId");
                 
-                if (userId.equals(galaxyUserId) && galaxyId != null) {
+                if (galaxyId != null) {
                     StarLinkedEvent linkEvent = new StarLinkedEvent(galaxyId, highlightId, match.score());
                     String json = objectMapper.writeValueAsString(linkEvent);
                     kafkaTemplate.send("star.linked", galaxyId, json);
+                    log.info("🔗 Link detectado com Galáxia {}", galaxyId);
                 } 
             }
         } catch (Exception e) {
