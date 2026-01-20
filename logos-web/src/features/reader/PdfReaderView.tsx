@@ -30,6 +30,7 @@ import { toast } from "sonner"
 
 import "react-pdf-highlighter/dist/style.css"
 import { useAuthStore } from "@/stores/authStore"
+import { usePdfStore } from "@/stores/pdfStore"
 
 // Configuração do Worker do PDF.js (Versão estável para esta lib)
 const pdfVersion = "3.11.174" 
@@ -129,7 +130,8 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
   const fetchData = async () => {
     const { isGuest } = useAuthStore.getState();
       if (isGuest) {
-          setVisualHighlights([]);
+          const savedHighlights = usePdfStore.getState().getHighlights(note.id);
+          setVisualHighlights(savedHighlights);
           setSummaries([]);
           return;
       }
@@ -198,8 +200,11 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                 position: positionStr
             })
             
-            const newHighlight = { ...highlight, id: String(newId) }
-            setVisualHighlights(prev => [...prev, newHighlight])
+            const newHighlight = { ...highlight, id: String(newId) };
+            if (useAuthStore.getState().isGuest) {
+                usePdfStore.getState().addHighlight(note.id, newHighlight);
+            }
+            setVisualHighlights(prev => [...prev, newHighlight]);
             toast.success("Trecho salvo")
             window.dispatchEvent(new Event('refresh-galaxy'));
 

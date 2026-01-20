@@ -5,6 +5,7 @@ import com.ai.organizer.processor.web.dto.ContextSearchRequest;
 import com.ai.organizer.processor.web.dto.GravityResponse;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
@@ -26,19 +27,23 @@ public class WorkbenchAiController {
     private final EmbeddingModel embeddingModel;
     private final HighlightRepository highlightRepository;
     
+    // Injeção dos 3 Stores (Logos, Universes, Guest-Data)
     private final EmbeddingStore<TextSegment> userEmbeddingStore;
     private final EmbeddingStore<TextSegment> publicEmbeddingStore;
+    private final EmbeddingStore<TextSegment> guestEmbeddingStore; // <--- NOVO
 
     public WorkbenchAiController(
             EmbeddingModel embeddingModel,
             HighlightRepository highlightRepository,
             @Qualifier("userEmbeddingStore") EmbeddingStore<TextSegment> userEmbeddingStore,
-            @Qualifier("publicEmbeddingStore") EmbeddingStore<TextSegment> publicEmbeddingStore
+            @Qualifier("publicEmbeddingStore") EmbeddingStore<TextSegment> publicEmbeddingStore,
+            @Qualifier("guestEmbeddingStore") EmbeddingStore<TextSegment> guestEmbeddingStore // <--- NOVO
     ) {
         this.embeddingModel = embeddingModel;
         this.highlightRepository = highlightRepository;
         this.userEmbeddingStore = userEmbeddingStore;
         this.publicEmbeddingStore = publicEmbeddingStore;
+        this.guestEmbeddingStore = guestEmbeddingStore;
     }
 
     @PostMapping("/suggest-links")
@@ -47,6 +52,7 @@ public class WorkbenchAiController {
             @RequestHeader(name = "X-Guest-Mode", required = false) String isGuest,
             @RequestHeader(name = "X-Target-Universe", required = false) String targetUniverse,
             @RequestHeader(name = "X-Target-Lang", required = false) String targetLang,
+            @RequestHeader(name = "X-User-Id", required = false) String guestUserId, // ID do visitante
             @RequestHeader(name = "Accept-Language", defaultValue = "en") String browserLang
     ) {
         boolean guestMode = "true".equalsIgnoreCase(isGuest);
@@ -58,14 +64,34 @@ public class WorkbenchAiController {
             EmbeddingStore<TextSegment> targetStore;
             Filter filter;
 
-            if (guestMode && targetUniverse != null) {
-                targetStore = publicEmbeddingStore;
-                String langToFilter = (targetLang != null) ? targetLang : browserLang;
+            if (guestMode) {
+                // --- LÓGICA DE SELEÇÃO DO GUEST ---
+                
+                // Caso 1: Guest está vendo a Bíblia (Universo Público)
+                if (targetUniverse != null && !targetUniverse.isEmpty() && !"none".equals(targetUniverse)) {
+                    targetStore = publicEmbeddingStore;
+                    String langToFilter = (targetLang != null) ? targetLang : browserLang;
 
-                filter = MetadataFilterBuilder.metadataKey("universe").isEqualTo(targetUniverse)
-                        .and(MetadataFilterBuilder.metadataKey("lang").isEqualTo(langToFilter));
+                    filter = MetadataFilterBuilder.metadataKey("universe").isEqualTo(targetUniverse)
+                            .and(MetadataFilterBuilder.metadataKey("lang").isEqualTo(langToFilter));
+                            
+                    log.debug("🔎 Guest: Buscando em Public Store (Bíblia)");
+
+                } else {
+                    // Caso 2: Guest está no Universo Vazio (Dados Pessoais/Temp)
+                    targetStore = guestEmbeddingStore;
+                    
+                    // Usa o ID que veio no header (gerado pelo front: guest-xyz...)
+                    // Se não vier no header, tenta pegar do body, senão falha.
+                    String userIdToUse = (guestUserId != null) ? guestUserId : request.userId();
+                    
+                    filter = MetadataFilterBuilder.metadataKey("userId").isEqualTo(userIdToUse);
+                    
+                    log.debug("🔎 Guest: Buscando em Guest Store (Dados Pessoais) para {}", userIdToUse);
+                }
 
             } else {
+                // --- MODO PADRÃO (USER LOGADO) ---
                 targetStore = userEmbeddingStore;
                 filter = MetadataFilterBuilder.metadataKey("userId").isEqualTo(request.userId());
             }
@@ -98,24 +124,28 @@ public class WorkbenchAiController {
         if (match.embedded() != null && match.embedded().metadata() != null) {
             var metadata = match.embedded().metadata();
             
+            // --- 1. RESOLUÇÃO DO ID ---
             if (isGuestMode) {
+                // No modo Guest (seja Bíblia ou Pessoal), usamos o ID do vetor
                 starId = match.embeddingId();
             } else {
+                // No modo User, decodificamos os prefixos
                 String hId = metadata.getString("highlightId");
                 String sId = metadata.getString("summaryId");
                 String dbId = metadata.getString("dbId");
 
-                if (sId != null) {
-                    starId = "summary-" + sId;
-                } else if (hId != null) {
-                    starId = hId;
-                } else {
-                    starId = dbId;
-                }
+                if (sId != null) starId = "summary-" + sId;
+                else if (hId != null) starId = hId;
+                else starId = dbId;
             }
 
+            // --- 2. RECUPERAÇÃO DO TEXTO ---
             if (isGuestMode) {
+                // MODO TURISTA: Texto vem direto do Metadata (Bíblia ou Guest Data)
+                // Tenta pegar de 'text' (Guest Data) ou variações
                 String rawText = metadata.getString("text");
+                if (rawText == null) rawText = metadata.getString("text_segment");
+                
                 String ref = metadata.getString("ref"); 
                 
                 if (rawText != null) {
@@ -123,6 +153,7 @@ public class WorkbenchAiController {
                 }
 
             } else {
+                // MODO USUÁRIO: Tenta SQL primeiro
                 String hId = metadata.getString("highlightId");
                 
                 if (hId != null) {
@@ -130,13 +161,13 @@ public class WorkbenchAiController {
                         var entity = highlightRepository.findById(Long.valueOf(hId));
                         if (entity.isPresent() && entity.get().getOriginalText() != null) {
                             textContent = entity.get().getOriginalText();
-                            log.trace("✅ Texto ID {} recuperado do Postgres.", hId);
                         }
                     } catch (Exception e) {
-                        log.warn("⚠️ Postgres indisponível para ID {}. Usando fallback.", hId);
+                        log.warn("⚠️ Postgres indisponível. Usando fallback.");
                     }
                 }
 
+                // Fallback Pinecone
                 if (textContent == null) {
                     textContent = metadata.getString("text_segment");
                     if (textContent == null) textContent = metadata.getString("text");
