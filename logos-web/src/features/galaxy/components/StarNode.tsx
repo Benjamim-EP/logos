@@ -143,10 +143,10 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
             </DropdownMenuItem>
         )}
 
-        <DropdownMenuItem onClick={handleCentralize} className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white gap-2 py-2">
+        {/* <DropdownMenuItem onClick={handleCentralize} className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white gap-2 py-2">
             <Crosshair className="w-4 h-4 text-purple-400" />
             <span>Centralizar</span>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
       </DropdownMenuContent>
     </DropdownMenu>
   )
