@@ -58,28 +58,29 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 // Recalcula a posição de todas as estrelas com base nas galáxias existentes
 const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
     
-    // CONFIGURAÇÕES DA FÍSICA
-    const BASE_RADIUS = 600; // Tamanho máximo da nuvem de uma galáxia
-    const GRAVITY_POWER = 3; // Exponencial para "roubar" estrelas (Sharpening)
-    
+    // CONFIGURAÇÕES VISUAIS
+    const MIN_RADIUS = 180; // Zona de exclusão (texto legível)
+    const MAX_ORBIT = 1000; // Raio máximo da órbita
+    const SCATTER_STRENGTH = 0.8; // Aumentado para evitar aglomerados muito densos
+
     return notes.map(note => {
-        // 1. Sem afinidades = Caos
+        // 1. Sem afinidades = Caos (Fundo Estrelado)
         if (!note.affinities || Object.keys(note.affinities).length === 0) {
             const hasHome = clusters.some(c => c.id === note.clusterId);
             if (hasHome) return note; 
             
             const angle = pseudoRandom(note.id) * Math.PI * 2;
-            const dist = 3000 + pseudoRandom(note.id + "d") * 1000;
+            const dist = 2500 + pseudoRandom(note.id + "dist") * 1500;
             return {
                 ...note,
                 x: Math.cos(angle) * dist,
                 y: Math.sin(angle) * dist,
-                z: 1,
+                z: 0.5 + pseudoRandom(note.id + "z") * 0.5,
                 clusterId: 'chaos'
             };
         }
 
-        // 2. Identificar o "Pai Principal"
+        // 2. Identificar atrações
         let bestCluster: Cluster | null = null;
         let maxScore = -1;
         
@@ -87,54 +88,56 @@ const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
         let pullVectorY = 0;
         let totalPullWeight = 0;
 
-        // --- CORREÇÃO AQUI: Usar for...of em vez de forEach ---
         for (const cluster of clusters) {
             const rawScore = note.affinities?.[cluster.id] || 0;
-            if (rawScore <= 0) continue; // continue em vez de return
+            if (rawScore <= 0) continue;
 
-            // Define quem é o dono da órbita
             if (rawScore > maxScore) {
                 maxScore = rawScore;
                 bestCluster = cluster;
             }
 
-            // Calcula influência vetorial
-            const weight = Math.pow(rawScore, GRAVITY_POWER);
+            // Peso exponencial: Score alto puxa MUITO mais forte que score baixo
+            // Isso evita que uma afinidade de 0.1 arraste a estrela para muito longe do pai
+            const weight = Math.pow(rawScore, 3); 
             
             pullVectorX += cluster.x * weight;
             pullVectorY += cluster.y * weight;
             totalPullWeight += weight;
         }
 
-        if (!bestCluster) return note; // O TypeScript agora entende que bestCluster é Cluster
+        if (!bestCluster) return note;
 
-        // 3. CÁLCULO DO RAIO 
-        const tightness = 1 - maxScore; 
-        const radius = BASE_RADIUS * Math.pow(tightness, 0.8); 
+        // 3. CÁLCULO DO CENTRO DE ORBITA
+        // Se a estrela é puxada por várias, o centro dela se desloca.
+        // Se for puxada só por uma, o centro é a própria galáxia.
+        let centerX = bestCluster.x;
+        let centerY = bestCluster.y;
 
-        // 4. CÁLCULO DO ÂNGULO 
-        let angle: number;
-
-        if (totalPullWeight > 0 && maxScore < 0.99) {
-            const idealX = pullVectorX / totalPullWeight;
-            const idealY = pullVectorY / totalPullWeight;
-
-            // Agora bestCluster.y e bestCluster.x funcionam sem erro
-            angle = Math.atan2(idealY - bestCluster.y, idealX - bestCluster.x);
-        } else {
-            angle = pseudoRandom(note.id) * Math.PI * 2;
+        if (totalPullWeight > 0) {
+            centerX = pullVectorX / totalPullWeight;
+            centerY = pullVectorY / totalPullWeight;
         }
 
-        // 5. Jitter Determinístico 
-        const spread = (pseudoRandom(note.id + "spread") - 0.5) * (tightness * 2.0); 
-        const finalAngle = angle + spread;
+        // 4. DISTRIBUIÇÃO ORBITAL (A CORREÇÃO)
+        // Sempre usamos um ângulo aleatório fixo baseado no ID da nota.
+        // Isso garante que elas formem um círculo/nuvem ao redor do 'centerX', e não uma linha.
+        const angle = pseudoRandom(note.id + "angle") * Math.PI * 2;
+
+        // 5. CÁLCULO DO RAIO (Distância do Centro)
+        const similarityGap = 1 - maxScore; // 0.0 (Idêntico) a 1.0 (Diferente)
+        const jitter = (pseudoRandom(note.id + "jitter") - 0.5) * 200; // Variação aleatória
+        
+        // Fórmula: Raio Mínimo + (Distância baseada na relevância) + Ruído
+        const radius = MIN_RADIUS + (similarityGap * MAX_ORBIT) + (jitter * SCATTER_STRENGTH);
 
         return {
             ...note,
-            x: bestCluster.x + Math.cos(finalAngle) * radius,
-            y: bestCluster.y + Math.sin(finalAngle) * radius,
-            z: 1 + (maxScore * 1.5), 
-            clusterId: bestCluster.id // Sem erro aqui também
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
+            // Z-Index (Escala): Notas mais relevantes ficam maiores
+            z: 0.8 + (maxScore * 1.5), 
+            clusterId: bestCluster.id
         };
     });
 };
@@ -168,22 +171,25 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     // =================================================================
     // 🛸 MODO VISITANTE
     // =================================================================
-    if (isGuest) {
+     if (isGuest) {
         let finalNotes: Note[] = [];
         let finalClusters: Cluster[] = [];
-        let activeIds: string[] = [];
+        let activeIds: string[] = ["chaos"]; // Começa apenas com o Caos ativo
 
-        // 1. UNIVERSO PÚBLICO (BÍBLIA)
+        // 1. UNIVERSO PÚBLICO (BÍBLIA OU OUTRO)
         if (guestUniverse?.id && guestUniverse.id !== 'empty') {
             try {
                 const { data } = await api.get(`/ai/galaxy/tour/${guestUniverse.pineconeFilter}/${guestUniverse.lang}`)
                 
-                const bibleClusterId = "bible-core";
+                // REMOVIDO: const bibleClusterId = "bible-core";
                 
                 const tourNotes: Note[] = data.map((item: any, i: number) => {
-                    // Inicialização em Espiral (Estética inicial)
-                    const angle = i * GOLDEN_ANGLE;
-                    const radius = 60 * Math.sqrt(i); 
+                    // ALTERADO: Em vez de espiral organizada, usamos dispersão aleatória (Caos)
+                    // Usamos pseudoRandom para manter a consistência visual se recarregar
+                    const seed = item.highlightId || String(i);
+                    const angle = pseudoRandom(seed) * Math.PI * 2;
+                    // Distância variada entre 800 e 3500 para espalhar bem na tela
+                    const radius = 800 + pseudoRandom(seed + "dist") * 2700; 
 
                     return {
                         id: item.highlightId,
@@ -194,21 +200,15 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                         x: Math.cos(angle) * radius,
                         y: Math.sin(angle) * radius,
                         z: 1,
-                        clusterId: bibleClusterId,
-                        // Define afinidade inicial forte com o núcleo
-                        affinities: { [bibleClusterId]: 1.0 } 
+                        clusterId: 'chaos', // <--- IMPORTANTE: Nascem no Caos
+                        affinities: {}      // <--- IMPORTANTE: Sem gravidade inicial
                     }
                 })
 
                 finalNotes = [...finalNotes, ...tourNotes];
                 
-                // Define label baseado no idioma
-                const label = getInitialTerm(guestUniverse.lang) + (guestUniverse.lang === 'pt' ? ' (Gênesis)' : '');
-
-                finalClusters.push({ 
-                    id: bibleClusterId, label, color: "#fbbf24", x: 0, y: 0, isActive: true 
-                });
-                activeIds.push(bibleClusterId);
+                // REMOVIDO: Não adicionamos o cluster da bíblia em finalClusters
+                // O usuário verá apenas estrelas dispersas
 
             } catch (err) {
                 console.error("Erro tour", err)
@@ -216,35 +216,39 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             }
         }
 
-        // 2. DADOS PESSOAIS (GUEST STARS)
+        // 2. DADOS PESSOAIS (GUEST STARS - Se houver upload)
         try {
             const { data: guestData } = await api.get('/ai/galaxy/guest-stars');
             if (guestData && guestData.length > 0) {
-                const myDataId = "my-data";
-                
-                const personalNotes: Note[] = guestData.map((item: any) => ({
-                    id: item.highlightId,
-                    title: "Meu Highlight",
-                    preview: item.text,
-                    tags: ["Pessoal", "Guest"],
-                    createdAt: new Date().toISOString(),
-                    x: 400 + (Math.random() - 0.5) * 200,
-                    y: -400 + (Math.random() - 0.5) * 200,
-                    z: 2,
-                    clusterId: myDataId,
-                    documentId: "sample-book",
-                    affinities: { [myDataId]: 1.0 }
-                }));
+                // Mantemos "Meus Dados" como um cluster se quiser, 
+                // ou jogamos no caos também. Vamos jogar no caos para consistência.
+                const personalNotes: Note[] = guestData.map((item: any, i: number) => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 500 + Math.random() * 1000;
+                    
+                    return {
+                        id: item.highlightId,
+                        title: "Meu Arquivo",
+                        preview: item.text,
+                        tags: ["Pessoal", "Guest"],
+                        createdAt: new Date().toISOString(),
+                        x: Math.cos(angle) * radius,
+                        y: Math.sin(angle) * radius,
+                        z: 2,
+                        clusterId: 'chaos', // Caos
+                        documentId: "sample-book",
+                        affinities: {} // Sem afinidade
+                    }
+                });
                 
                 finalNotes = [...finalNotes, ...personalNotes];
-                finalClusters.push({ id: myDataId, label: "Meus Dados", color: "#ec4899", x: 400, y: -400, isActive: true });
-                activeIds.push(myDataId);
             }
         } catch (e) {}
 
+        // Atualiza o estado
         set({ 
             allNotes: finalNotes,
-            clusters: finalClusters,
+            clusters: finalClusters, // Lista vazia inicialmente
             subClusters: [],
             activeClusterIds: activeIds,
             isLoading: false 
