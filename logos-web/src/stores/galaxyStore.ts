@@ -8,6 +8,15 @@ import { useAuthStore } from './authStore'
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
 export type SortOrder = 'newest' | 'oldest' | 'relevance'
 
+const pseudoRandom = (seed: string) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return ((h >>> 0) / 4294967296);
+}
+
 interface PhysicsLink {
   galaxyId: string
   highlightId: string
@@ -43,76 +52,94 @@ interface GalaxyState {
     visibleSubClusters: SubCluster[] 
   }
 }
-
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 // --- ENGINE DE FÍSICA VETORIAL (Guest Mode) ---
 // Recalcula a posição de todas as estrelas com base nas galáxias existentes
 const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
-    // Fator de "Nitidez" da gravidade.
-    // Quanto maior, mais "exclusiva" é a atração. 
-    // 1 = Linear (Tudo atrai tudo)
-    // 4 = Exponencial (Só scores altos atraem)
-    const GRAVITY_SHARPNESS = 4; 
-
+    
+    // CONFIGURAÇÕES DA FÍSICA
+    const BASE_RADIUS = 600; // Tamanho máximo da nuvem de uma galáxia
+    const GRAVITY_POWER = 3; // Exponencial para "roubar" estrelas (Sharpening)
+    
     return notes.map(note => {
-        // Se não tem afinidades ou perdeu a casa, vira caos
+        // 1. Sem afinidades = Caos
         if (!note.affinities || Object.keys(note.affinities).length === 0) {
-            const stillHasHome = clusters.some(c => c.id === note.clusterId);
-            if (stillHasHome) return note;
-            return { ...note, clusterId: "chaos", z: 1 };
-        }
-
-        let totalX = 0;
-        let totalY = 0;
-        let totalWeight = 0;
-        
-        let strongestClusterId = "chaos";
-        let maxScore = 0;
-
-        // Somatório Vetorial com Peso Exponencial
-        clusters.forEach(cluster => {
-            const rawScore = note.affinities?.[cluster.id] || 0;
+            const hasHome = clusters.some(c => c.id === note.clusterId);
+            if (hasHome) return note; 
             
-            // Só considera se tiver um mínimo de relevância (Corte de Ruído)
-            if (rawScore > 0.3) {
-                // AQUI ESTÁ O SEGREDO: Eleva a potência para polarizar os grupos
-                const weight = Math.pow(rawScore, GRAVITY_SHARPNESS);
-
-                totalX += cluster.x * weight;
-                totalY += cluster.y * weight;
-                totalWeight += weight;
-
-                if (rawScore > maxScore) {
-                    maxScore = rawScore;
-                    strongestClusterId = cluster.id;
-                }
-            }
-        });
-
-        if (totalWeight < 0.01) {
-             return { ...note, z: 1 }; 
+            const angle = pseudoRandom(note.id) * Math.PI * 2;
+            const dist = 3000 + pseudoRandom(note.id + "d") * 1000;
+            return {
+                ...note,
+                x: Math.cos(angle) * dist,
+                y: Math.sin(angle) * dist,
+                z: 1,
+                clusterId: 'chaos'
+            };
         }
-        const centerX = totalX / totalWeight;
-        const centerY = totalY / totalWeight;
 
-        const closeness = Math.pow(maxScore, 2);
-        const dispersionRadius = 400 * (1 - closeness);
+        // 2. Identificar o "Pai Principal"
+        let bestCluster: Cluster | null = null;
+        let maxScore = -1;
         
-        const angle = Math.random() * Math.PI * 2;
-        const r = dispersionRadius * Math.sqrt(Math.random()); 
+        let pullVectorX = 0;
+        let pullVectorY = 0;
+        let totalPullWeight = 0;
+
+        // --- CORREÇÃO AQUI: Usar for...of em vez de forEach ---
+        for (const cluster of clusters) {
+            const rawScore = note.affinities?.[cluster.id] || 0;
+            if (rawScore <= 0) continue; // continue em vez de return
+
+            // Define quem é o dono da órbita
+            if (rawScore > maxScore) {
+                maxScore = rawScore;
+                bestCluster = cluster;
+            }
+
+            // Calcula influência vetorial
+            const weight = Math.pow(rawScore, GRAVITY_POWER);
+            
+            pullVectorX += cluster.x * weight;
+            pullVectorY += cluster.y * weight;
+            totalPullWeight += weight;
+        }
+
+        if (!bestCluster) return note; // O TypeScript agora entende que bestCluster é Cluster
+
+        // 3. CÁLCULO DO RAIO 
+        const tightness = 1 - maxScore; 
+        const radius = BASE_RADIUS * Math.pow(tightness, 0.8); 
+
+        // 4. CÁLCULO DO ÂNGULO 
+        let angle: number;
+
+        if (totalPullWeight > 0 && maxScore < 0.99) {
+            const idealX = pullVectorX / totalPullWeight;
+            const idealY = pullVectorY / totalPullWeight;
+
+            // Agora bestCluster.y e bestCluster.x funcionam sem erro
+            angle = Math.atan2(idealY - bestCluster.y, idealX - bestCluster.x);
+        } else {
+            angle = pseudoRandom(note.id) * Math.PI * 2;
+        }
+
+        // 5. Jitter Determinístico 
+        const spread = (pseudoRandom(note.id + "spread") - 0.5) * (tightness * 2.0); 
+        const finalAngle = angle + spread;
 
         return {
             ...note,
-            x: centerX + Math.cos(angle) * r,
-            y: centerY + Math.sin(angle) * r,
-            clusterId: strongestClusterId, 
-            z: 1 + (maxScore * 2.5) 
+            x: bestCluster.x + Math.cos(finalAngle) * radius,
+            y: bestCluster.y + Math.sin(finalAngle) * radius,
+            z: 1 + (maxScore * 1.5), 
+            clusterId: bestCluster.id // Sem erro aqui também
         };
     });
 };
 
-// Helper para tradução inicial
+
 const getInitialTerm = (lang: string) => {
     if (lang === 'pl') return 'Bóg';
     if (lang === 'pt') return 'Deus';
@@ -229,7 +256,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     // 👤 MODO USUÁRIO REAL
     // =================================================================
     try {
-        console.log("🌌 Carregando Universo Real...")
         const [starsRes, stateRes] = await Promise.all([
             api.get('/galaxy/stars'),
             api.get('/galaxy/management/state')
@@ -242,13 +268,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             id: String(g.id), label: g.name, color: g.color || '#ffffff', x: g.x || 0, y: g.y || 0, isActive: g.isActive
         }))
 
-        // Recria afinidades baseadas no banco relacional
-        const notes: Note[] = stars.map((star: any) => {
+        let notes: Note[] = stars.map((star: any) => {
              const starId = String(star.id)
              let parsedPosition = null;
              try { if (star.positionJson) parsedPosition = JSON.parse(star.positionJson); } catch (e) { }
 
-             // Calcula afinidades
+             // Reconstrói mapa de afinidades
              const affinities: Record<string, number> = {};
              const myLinks = links.filter((l:any) => l.highlightId === starId);
              
@@ -256,55 +281,22 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                  affinities[l.galaxyId] = l.score;
              });
 
-             // Posição inicial (Será sobrescrita pelo recalculatePhysics se usarmos, mas mantemos a lógica legacy de inicialização)
-             // (Para manter compatibilidade com seu código antigo, vou manter a lógica de inicialização original aqui,
-             // mas você poderia usar o recalculatePhysics aqui também se quisesse unificar)
-             let x = 0; let y = 0; let clusterId = "chaos";
-             
-             if (myLinks.length > 0) {
-                 let vectorX = 0; let vectorY = 0; let totalScore = 0;
-                 let bestScore = 0;
-                 
-                 myLinks.forEach((link: any) => {
-                     const galaxy = clusters.find(c => c.id === link.galaxyId)
-                     if (galaxy) {
-                         vectorX += galaxy.x * link.score;
-                         vectorY += galaxy.y * link.score;
-                         totalScore += link.score;
-                         if(link.score > bestScore) {
-                             bestScore = link.score;
-                             clusterId = galaxy.id;
-                         }
-                     }
-                 })
-                 
-                 if (totalScore > 0) {
-                     const centerX = vectorX / totalScore;
-                     const centerY = vectorY / totalScore;
-                     const dispersion = 200 + (1 - Math.min(totalScore, 0.95)) * 600;
-                     const angle = seededRandom(starId, 0, Math.PI * 2);
-                     x = centerX + (Math.cos(angle) * dispersion);
-                     y = centerY + (Math.sin(angle) * dispersion);
-                 }
-             } else {
-                 const angle = seededRandom(starId, 0, Math.PI * 2);
-                 const r = seededRandom(starId + "r", 2500, 4500); 
-                 x = r * Math.cos(angle); y = r * Math.sin(angle);
-             }
-
              return {
                 id: starId,
                 title: star.documentTitle || "Nota",
                 preview: star.content || "",
                 tags: [star.type],
                 createdAt: star.createdAt,
-                x, y, z: 1,
-                clusterId,
+                x: 0, y: 0, z: 1, // Será calculado
+                clusterId: "chaos", // Será calculado
                 documentId: star.documentId,
                 position: parsedPosition,
-                affinities // Importante estar aqui
+                affinities 
              }
         })
+
+        // Aplica física no load do usuário também
+        notes = recalculatePhysics(notes, clusters);
 
         set({ allNotes: notes, clusters, activeClusterIds: [...clusters.map(c => c.id), "chaos"], isLoading: false })
     } catch (error) {
@@ -340,17 +332,14 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             })
 
             const matches = data.matches; 
-            console.log(`🧲 IA encontrou ${matches.length} conexões para "${name}".`);
             
             // 3. Atualiza as Afinidades nas Notas
             let currentNotes = get().allNotes;
-            
             const newScores = new Map(matches.map((m: any) => [m.highlightId, m.score]));
 
             currentNotes = currentNotes.map(note => {
                 const score = newScores.get(note.id);
                 if (score) {
-                    // Adiciona a nova afinidade ao dicionário existente
                     return {
                         ...note,
                         affinities: {
@@ -362,8 +351,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 return note;
             });
 
-            // 4. RODA A FÍSICA GLOBAL
-            // O segredo: Passamos a lista ATUALIZADA de clusters (com a nova)
+            // 4. RODA A FÍSICA GLOBAL V2
+            // Ao passar a nova lista de clusters, o recalculatePhysics vai ver o novo vetor de atração
+            // e reposicionar apenas as notas que têm afinidade com a nova galáxia.
             const allClusters = [...get().clusters, newCluster];
             const rebalancedNotes = recalculatePhysics(currentNotes, allClusters);
 
@@ -374,8 +364,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 isGravityLoading: false 
             })
             
-            if (matches.length > 0) toast.success(`${matches.length} atraídos!`)
-            else toast.info(`Tema criado.`)
+            if (matches.length > 0) toast.success(`${matches.length} estrelas reagiram!`)
+            else toast.info(`Galáxia criada (sem atrações).`)
 
         } catch (e) {
             console.error(e)
@@ -388,6 +378,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     try {
         await api.post('/galaxy/management', { name, color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), x, y })
         toast.success(`Galáxia "${name}" criada!`)
+        // O initializeUniverse já chama o recalculatePhysics
         get().initializeUniverse()
     } catch (e: any) {
         const msg = e.response?.data?.message || "Falha ao criar galáxia";
@@ -400,16 +391,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   deleteGalaxy: async (galaxyId: string) => {
       const { isGuest } = useAuthStore.getState();
 
-      // --- GUEST DELETE ---
       if (isGuest) {
           set(state => {
-              // 1. Remove a Galáxia da lista
               const remainingClusters = state.clusters.filter(c => c.id !== galaxyId);
               
-              // 2. Roda a Física novamente nas notas
-              // As notas ainda têm a afinidade no objeto 'affinities', mas como o cluster 
-              // não está mais na lista 'remainingClusters', a função 'recalculatePhysics' 
-              // vai ignorar essa afinidade e redistribuir a nota para a próxima melhor galáxia (ou caos).
+              // Ao remover, rodamos a física. As notas que orbitavam essa galáxia 
+              // vão procurar seu "segundo melhor pai" ou cair no caos.
               const rebalancedNotes = recalculatePhysics(state.allNotes, remainingClusters);
 
               toast.success("Galáxia visitante removida.");
@@ -423,7 +410,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
           return;
       }
 
-      // --- USER DELETE ---
       try {
           await api.delete(`/galaxy/management/${galaxyId}`)
           toast.success("Galáxia removida.")
@@ -434,9 +420,13 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
 
   centralizeNode: (note: Note | null) => {
+    // Mantive a lógica de centralização visual temporária, pois é um efeito de UI
     const { allNotes } = get()
     if (!note) {
-        get().initializeUniverse()
+        // Ao sair do foco, voltamos para a posição física real calculada anteriormente
+        // Como não salvamos o estado "pré-zoom", o ideal é re-renderizar o estado atual.
+        // O Zustand mantém o estado, então apenas limpamos o foco.
+        set({ tempCentralizedId: null, focusNode: null })
         return
     }
     const neighbors = getNearestNotes(note, allNotes, 10)
@@ -449,7 +439,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             const targetY = note.y + (Math.random() - 0.5) * 150
             return {
                 ...n,
-                x: n.x + (targetX - n.x) * 0.9,
+                x: n.x + (targetX - n.x) * 0.9, // Move visualmente para perto
                 y: n.y + (targetY - n.y) * 0.9,
                 z: 2, 
                 opacity: 1
