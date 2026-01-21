@@ -49,15 +49,18 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 // --- ENGINE DE FÍSICA VETORIAL (Guest Mode) ---
 // Recalcula a posição de todas as estrelas com base nas galáxias existentes
 const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
+    // Fator de "Nitidez" da gravidade.
+    // Quanto maior, mais "exclusiva" é a atração. 
+    // 1 = Linear (Tudo atrai tudo)
+    // 4 = Exponencial (Só scores altos atraem)
+    const GRAVITY_SHARPNESS = 4; 
+
     return notes.map(note => {
-        // Se a nota não tem afinidades conhecidas, mantém onde está ou vai pro caos
+        // Se não tem afinidades ou perdeu a casa, vira caos
         if (!note.affinities || Object.keys(note.affinities).length === 0) {
-            // Verifica se a galáxia "mãe" atual ainda existe
             const stillHasHome = clusters.some(c => c.id === note.clusterId);
             if (stillHasHome) return note;
-            
-            // Se perdeu a casa, vira poeira estelar (Caos)
-            return { ...note, clusterId: "chaos", z: 1, x: note.x * 1.1, y: note.y * 1.1 };
+            return { ...note, clusterId: "chaos", z: 1 };
         }
 
         let totalX = 0;
@@ -67,54 +70,44 @@ const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
         let strongestClusterId = "chaos";
         let maxScore = 0;
 
-        // Somatório Vetorial Ponderado
+        // Somatório Vetorial com Peso Exponencial
         clusters.forEach(cluster => {
-            const score = note.affinities?.[cluster.id] || 0;
+            const rawScore = note.affinities?.[cluster.id] || 0;
             
-            // Threshold mínimo para atração (evita ruído)
-            if (score > 0.4) {
-                // A posição da galáxia atrai a nota com força proporcional ao score
-                totalX += cluster.x * score;
-                totalY += cluster.y * score;
-                totalWeight += score;
+            // Só considera se tiver um mínimo de relevância (Corte de Ruído)
+            if (rawScore > 0.3) {
+                // AQUI ESTÁ O SEGREDO: Eleva a potência para polarizar os grupos
+                const weight = Math.pow(rawScore, GRAVITY_SHARPNESS);
 
-                // Define a "cor" da nota baseada na atração mais forte
-                if (score > maxScore) {
-                    maxScore = score;
+                totalX += cluster.x * weight;
+                totalY += cluster.y * weight;
+                totalWeight += weight;
+
+                if (rawScore > maxScore) {
+                    maxScore = rawScore;
                     strongestClusterId = cluster.id;
                 }
             }
         });
 
-        // Se a nota ficou órfã (nenhuma galáxia restante tem afinidade forte)
-        if (totalWeight === 0) {
-            return { 
-                ...note, 
-                clusterId: "chaos", 
-                z: 1, 
-                // Espalha um pouco para não ficarem empilhadas
-                x: (Math.random() - 0.5) * 4000, 
-                y: (Math.random() - 0.5) * 4000 
-            };
+        if (totalWeight < 0.01) {
+             return { ...note, z: 1 }; 
         }
-
-        // Centro de Gravidade (Média Ponderada)
         const centerX = totalX / totalWeight;
         const centerY = totalY / totalWeight;
 
-        // Dispersão Natural
-        // Notas com muitos "pais" (totalWeight alto) ficam mais presas ao centro
-        // Notas com pouca afinidade ficam mais soltas (nuvem)
-        const tightness = Math.max(50, 400 - (totalWeight * 80)); 
+        const closeness = Math.pow(maxScore, 2);
+        const dispersionRadius = 400 * (1 - closeness);
+        
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * tightness;
+        const r = dispersionRadius * Math.sqrt(Math.random()); 
 
         return {
             ...note,
-            x: centerX + Math.cos(angle) * dist,
-            y: centerY + Math.sin(angle) * dist,
+            x: centerX + Math.cos(angle) * r,
+            y: centerY + Math.sin(angle) * r,
             clusterId: strongestClusterId, 
-            z: 1 + Math.min(totalWeight, 3) // Cresce se for popular
+            z: 1 + (maxScore * 2.5) 
         };
     });
 };

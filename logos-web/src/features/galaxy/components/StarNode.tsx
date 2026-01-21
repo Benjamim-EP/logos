@@ -24,7 +24,7 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
   const [isHovered, setIsHovered] = useState(false)
 
   // LOD: Otimização de Performance
-  if (zoomLevel < 0.15) return null
+  if (zoomLevel < 0.05) return null
 
   // 1. Detectar se é Resumo (AI Summary)
   // O backend manda "type": "RESUME", que o store mapeia para as tags
@@ -37,7 +37,7 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
     : stringToColor(note.documentId || note.id, 0.8)
   
   // 3. Tamanho (Resumos podem ser levemente maiores)
-  const baseSize = ((isResume ? 7 : 5) * (note.z || 1)) / Math.pow(zoomLevel, 0.3)
+  const baseSize = ((isResume ? 14 : 10) * (note.z || 1)) / Math.pow(zoomLevel, 0.2) 
   
   const showGlow = zoomLevel > 1.5 || isHovered || isResume
 
@@ -104,7 +104,7 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
           />
 
           {/* Tooltip */}
-          {isHovered && zoomLevel > 0.4 && (
+          {isHovered && zoomLevel > 0.15 && (
             <div 
                 className="absolute top-full mt-3 bg-zinc-950/90 border border-white/10 px-3 py-2 rounded-lg text-xs text-white z-[100] pointer-events-none shadow-2xl backdrop-blur-md min-w-[150px] max-w-[250px]"
             >
