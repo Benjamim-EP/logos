@@ -53,6 +53,14 @@ export function AppLayout() {
     localStorage.setItem('i18nextLng', lng);
   };
 
+  const getNavButtonClass = (active: boolean) => {
+    return `rounded-full px-4 transition-all duration-300 ${
+      active 
+        ? 'bg-white/10 text-white hover:bg-white/20' // Ativo: Fundo visível, hover leve
+        : 'text-zinc-400 hover:text-white hover:bg-white/5' // Inativo: Fundo transparente, hover escuro
+    }`
+  }
+
   const getFlag = () => {
     if (i18n.language === 'pl') return '🇵🇱';
     if (i18n.language === 'pt') return '🇧🇷';
@@ -82,12 +90,39 @@ export function AppLayout() {
             <span className="font-bold text-xl tracking-widest text-white font-sans">LOGOS</span>
         </Link>
 
+        {/* --- CORREÇÃO AQUI NA NAV --- */}
         <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5 shadow-lg">
-          <Link to={userUniverseLink}><Button variant="ghost" size="sm" className={`rounded-full px-4 ${isGalaxyActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}><LayoutGrid className="w-4 h-4 mr-2" /> {t('nav.galaxy')}</Button></Link>
-          <Link to="/library"><Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/library') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}><Library className="w-4 h-4 mr-2" /> {t('nav.library')}</Button></Link>
-          <Link to="/store"><Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/store') ? 'bg-white/10 text-white' : 'text-gray-400'}`}><ShoppingBag className="w-4 h-4 mr-2" /> {t('nav.store')}</Button></Link>
-          <Link to="/research"><Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/research') ? 'bg-white/10 text-white' : 'text-gray-400'}`}><Microscope className="w-4 h-4 mr-2" /> {t('nav.research')}</Button></Link>
-          <Link to="/profile"><Button variant="ghost" size="sm" className={`rounded-full px-4 ${isActive('/profile') ? 'bg-white/10 text-white' : 'text-gray-400'}`}><User className="w-4 h-4 mr-2" /> {t('nav.profile')}</Button></Link>
+          
+          <Link to={userUniverseLink}>
+            <Button variant="ghost" size="sm" className={getNavButtonClass(isGalaxyActive)}>
+              <LayoutGrid className="w-4 h-4 mr-2" /> {t('nav.galaxy')}
+            </Button>
+          </Link>
+          
+          <Link to="/library">
+            <Button variant="ghost" size="sm" className={getNavButtonClass(isActive('/library'))}>
+              <Library className="w-4 h-4 mr-2" /> {t('nav.library')}
+            </Button>
+          </Link>
+          
+          <Link to="/store">
+            <Button variant="ghost" size="sm" className={getNavButtonClass(isActive('/store'))}>
+              <ShoppingBag className="w-4 h-4 mr-2" /> {t('nav.store')}
+            </Button>
+          </Link>
+          
+          <Link to="/research">
+            <Button variant="ghost" size="sm" className={getNavButtonClass(isActive('/research'))}>
+              <Microscope className="w-4 h-4 mr-2" /> {t('nav.research')}
+            </Button>
+          </Link>
+          
+          <Link to="/profile">
+            <Button variant="ghost" size="sm" className={getNavButtonClass(isActive('/profile'))}>
+              <User className="w-4 h-4 mr-2" /> {t('nav.profile')}
+            </Button>
+          </Link>
+
         </nav>
 
         <div className="flex items-center gap-4">

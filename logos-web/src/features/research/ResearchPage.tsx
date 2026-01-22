@@ -154,17 +154,23 @@ export function ResearchPage() {
                         onClick={() => paper.pdfUrl && window.open(paper.pdfUrl, '_blank')}
                         disabled={!paper.pdfUrl}
                         size="sm"
-                        className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-xs"
+                        // MUDANÇA 1: Botão Ler PDF mais discreto e elegante
+                        className="w-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 transition-colors text-xs"
                     >
                         <FileText className="w-3.5 h-3.5 mr-2" /> {t('research.read_pdf')}
                     </Button>
 
                     <Button 
-                        variant={paper.isSaved ? "secondary" : "outline"}
+                        // MUDANÇA 2: Lógica de variante e classes visuais
+                        variant={paper.isSaved ? "secondary" : "default"}
                         onClick={() => !paper.isSaved && savePaper(paper)}
                         disabled={paper.isSaved}
                         size="sm"
-                        className={`w-full text-xs ${paper.isSaved ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'border-white/10 hover:border-white/30 text-gray-400'}`}
+                        className={`w-full text-xs border transition-all duration-300 ${
+                            paper.isSaved 
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20 opacity-80' // Estilo Salvo
+                                : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500/50 shadow-[0_0_15px_rgba(37,99,235,0.3)]' // Estilo Ação (Neon Blue)
+                        }`}
                     >
                         {paper.isSaved ? (
                             <><Check className="w-3.5 h-3.5 mr-2" /> {t('research.saved')}</>

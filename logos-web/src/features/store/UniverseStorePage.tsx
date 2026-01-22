@@ -69,10 +69,16 @@ export function UniverseStorePage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="w-full border-white/10 hover:bg-white/5">
+                <Button 
+                    variant="outline" 
+                    className="w-full bg-transparent border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 hover:border-white/20 transition-all"
+                >
                   <Eye className="w-4 h-4 mr-2" /> {t('store.preview')}
                 </Button>
-                <Button className="w-full bg-white text-black hover:bg-gray-200">
+
+                <Button 
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border border-white/10 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                >
                   <Download className="w-4 h-4 mr-2" /> {t('store.add')}
                 </Button>
               </div>
