@@ -4,6 +4,7 @@ package com.ai.organizer.library.controller;
 
 import com.ai.organizer.library.domain.UserGalaxy;
 import com.ai.organizer.library.dto.CreateGalaxyRequest;
+import com.ai.organizer.library.dto.GalaxyCreationResponse;
 import com.ai.organizer.library.dto.GalaxyStateDTO;
 import com.ai.organizer.library.service.GalaxyService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class GalaxyManagementController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserGalaxy createGalaxy(
+    public GalaxyCreationResponse createGalaxy(
             @RequestBody CreateGalaxyRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {

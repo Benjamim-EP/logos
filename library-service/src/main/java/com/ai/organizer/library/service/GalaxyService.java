@@ -26,7 +26,7 @@ public class GalaxyService {
     private final AiProcessorClient aiClient;
 
     @Transactional
-    public UserGalaxy createGalaxy(String userId, CreateGalaxyRequest request) {
+    public com.ai.organizer.library.dto.GalaxyCreationResponse createGalaxy(String userId, CreateGalaxyRequest request) {
         log.info("🌌 Criando galáxia semântica: '{}' para o usuário: {}", request.name(), userId);
 
         if (galaxyRepository.existsByUserIdAndNameIgnoreCase(userId, request.name())) {
@@ -42,15 +42,15 @@ public class GalaxyService {
         );
         final UserGalaxy savedGalaxy = galaxyRepository.save(galaxyToSave);
 
-        try {
+       try {
             aiClient.registerGalaxy(String.valueOf(savedGalaxy.getId()), savedGalaxy.getName(), userId);
-            log.info("📡 Galáxia registrada no Pinecone para busca reversa.");
         } catch (Exception e) {
-            log.error("⚠️ Falha ao registrar galáxia no Pinecone (Shooting Stars podem falhar): {}", e.getMessage());
+            log.error("⚠️ Falha ao registrar galáxia no Pinecone", e);
         }
 
         AiGravityResponse aiResponse = aiClient.getGravityMatches(request.name());
-        
+        List<com.ai.organizer.library.dto.GalaxyCreationResponse.LinkDTO> createdLinks = new java.util.ArrayList<>();
+
         if (aiResponse != null && aiResponse.matches() != null) {
             List<StarGalaxyLink> links = aiResponse.matches().stream()
                 .filter(m -> m.highlightId() != null)
@@ -60,15 +60,16 @@ public class GalaxyService {
             for (StarGalaxyLink link : links) {
                 try {
                     linkRepository.save(link);
+                    // Adiciona na lista de retorno
+                    createdLinks.add(new com.ai.organizer.library.dto.GalaxyCreationResponse.LinkDTO(link.getStarId(), link.getScore()));
                 } catch (Exception e) {
-                    log.warn("⚠️ Link já existente ignorado: Galáxia {} -> Estrela {}", savedGalaxy.getId(), link.getStarId());
+                    log.warn("⚠️ Link ignorado", e);
                 }
             }
-            
-            log.info("🧲 Galáxia '{}' processada com {} conexões potenciais.", savedGalaxy.getName(), links.size());
         }
 
-        return savedGalaxy;
+        // Retorna o objeto composto
+        return new com.ai.organizer.library.dto.GalaxyCreationResponse(savedGalaxy, createdLinks);
     }
 
     @Transactional

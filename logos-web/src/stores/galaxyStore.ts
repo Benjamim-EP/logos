@@ -52,7 +52,6 @@ interface GalaxyState {
     visibleSubClusters: SubCluster[] 
   }
 }
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 // --- ENGINE DE FÍSICA VETORIAL (Guest Mode) ---
 // Recalcula a posição de todas as estrelas com base nas galáxias existentes
@@ -142,12 +141,6 @@ const recalculatePhysics = (notes: Note[], clusters: Cluster[]): Note[] => {
     });
 };
 
-
-const getInitialTerm = (lang: string) => {
-    if (lang === 'pl') return 'Bóg';
-    if (lang === 'pt') return 'Deus';
-    return 'God';
-}
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   allNotes: [],
@@ -255,10 +248,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         })
         return;
     }
-    
-    // =================================================================
-    // 👤 MODO USUÁRIO REAL
-    // =================================================================
     try {
         const [starsRes, stateRes] = await Promise.all([
             api.get('/galaxy/stars'),
@@ -277,7 +266,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
              let parsedPosition = null;
              try { if (star.positionJson) parsedPosition = JSON.parse(star.positionJson); } catch (e) { }
 
-             // Reconstrói mapa de afinidades
              const affinities: Record<string, number> = {};
              const myLinks = links.filter((l:any) => l.highlightId === starId);
              
@@ -291,15 +279,14 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 preview: star.content || "",
                 tags: [star.type],
                 createdAt: star.createdAt,
-                x: 0, y: 0, z: 1, // Será calculado
-                clusterId: "chaos", // Será calculado
+                x: 0, y: 0, z: 1,
+                clusterId: "chaos", 
                 documentId: star.documentId,
                 position: parsedPosition,
                 affinities 
              }
         })
 
-        // Aplica física no load do usuário também
         notes = recalculatePhysics(notes, clusters);
 
         set({ allNotes: notes, clusters, activeClusterIds: [...clusters.map(c => c.id), "chaos"], isLoading: false })
@@ -315,11 +302,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     
     const { isGuest, guestUniverse } = useAuthStore.getState()
 
-    // --- GUEST CREATE ---
     if (isGuest) {
         const newGalaxyId = `guest-galaxy-${Date.now()}`;
         
-        // 1. Cria a nova Galáxia
         const newCluster: Cluster = {
             id: newGalaxyId,
             label: name,
@@ -328,51 +313,43 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         }
 
         try {
-            // 2. Busca afinidades na IA
             const { data } = await api.post('/ai/galaxy/tour/gravity', {
                 term: name,
                 universe: guestUniverse?.pineconeFilter || 'bible',
                 lang: guestUniverse?.lang || 'en'
             })
 
-            const matches = data.matches; // [{ highlightId, score, text }, ...]
+            const matches = data.matches;
             
-            // --- LÓGICA DE RECICLAGEM (SWAP) ---
             
             let currentNotes = [...get().allNotes];
             const currentIds = new Set(currentNotes.map(n => n.id));
 
-            // A. Identifica quais matches NÃO estão na tela
             const missingMatches = matches.filter((m: any) => !currentIds.has(m.highlightId));
 
-            // B. Identifica estrelas do Caos (Candidatas a remoção)
-            // São estrelas que não têm afinidade com nenhuma galáxia ativa
             const chaosIndices = currentNotes
                 .map((n, index) => ({ ...n, originalIndex: index }))
                 .filter(n => !n.affinities || Object.keys(n.affinities).length === 0)
                 .map(n => n.originalIndex);
 
-            // C. Substitui (Recicla) as estrelas do Caos pelas Novas
             let chaosPointer = 0;
             
             missingMatches.forEach((match: any) => {
                 if (chaosPointer < chaosIndices.length) {
                     const indexToSwap = chaosIndices[chaosPointer];
                     
-                    // Substitui a estrela inútil pela nova estrela relevante
+                    
                     currentNotes[indexToSwap] = {
-                        ...currentNotes[indexToSwap], // Mantém x,y temporariamente para animar a transição
+                        ...currentNotes[indexToSwap], 
                         id: match.highlightId,
                         title: match.text ? (match.text.substring(0, 30) + "...") : "Trecho",
                         preview: match.text,
-                        tags: ["Recuperado"], // Tag visual para debug (opcional)
-                        affinities: { [newGalaxyId]: match.score } // Já nasce amando a nova galáxia
+                        tags: ["Recuperado"], 
+                        affinities: { [newGalaxyId]: match.score }
                     };
                     
                     chaosPointer++;
                 } else {
-                    // Se não tem mais estrelas do caos para reciclar, adiciona nova (aumenta o pool)
-                    // Opcional: Se quiser manter estrito em 200, remova este else.
                     currentNotes.push({
                         id: match.highlightId,
                         title: match.text ? (match.text.substring(0, 30) + "...") : "Trecho",
@@ -388,8 +365,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 }
             });
 
-            // 3. Atualiza as Afinidades nas Notas JÁ Existentes (que também deram match)
-            const newScores = new Map(matches.map((m: any) => [m.highlightId, m.score]));
+             const newScores = new Map(matches.map((m: any) => [m.highlightId, m.score]));
 
             currentNotes = currentNotes.map(note => {
                 const score = newScores.get(note.id);
@@ -405,7 +381,6 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 return note;
             });
 
-            // 4. RODA A FÍSICA
             const allClusters = [...get().clusters, newCluster];
             const rebalancedNotes = recalculatePhysics(currentNotes, allClusters);
 
@@ -426,17 +401,65 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         return;
     }
     
-    // --- USER REAL ---
     try {
-        await api.post('/galaxy/management', { name, color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), x, y })
-        toast.success(`Galáxia "${name}" criada!`)
-        // O initializeUniverse já chama o recalculatePhysics
-        get().initializeUniverse()
+        const { data } = await api.post('/galaxy/management', { 
+            name, 
+            color: '#'+(Math.random()*0xFFFFFF<<0).toString(16), 
+            x, 
+            y 
+        })
+
+        const newGalaxy = data.galaxy;
+        const newLinks = data.links;  
+
+        const newCluster: Cluster = {
+            id: String(newGalaxy.id),
+            label: newGalaxy.name,
+            color: newGalaxy.color,
+            x: newGalaxy.x,
+            y: newGalaxy.y,
+            isActive: true
+        };
+
+        const updatedClusters = [...get().clusters, newCluster];
+        const activeIds = [...get().activeClusterIds, newCluster.id];
+
+        let updatedNotes = [...get().allNotes];
+        const linksMap = new Map(newLinks.map((l: any) => [l.starId, l.score]));
+
+        updatedNotes = updatedNotes.map(note => {
+            const score = linksMap.get(note.id);
+            if (score) {
+                return {
+                    ...note,
+                    affinities: {
+                        ...note.affinities,
+                        [newCluster.id]: Number(score)
+                    }
+                };
+            }
+            return note;
+        });
+        const rebalancedNotes = recalculatePhysics(updatedNotes, updatedClusters);
+
+        set({ 
+            clusters: updatedClusters,
+            allNotes: rebalancedNotes,
+            activeClusterIds: activeIds,
+            isGravityLoading: false 
+        });
+
+        if (newLinks.length > 0) {
+            toast.success(`Galáxia "${name}" criada com ${newLinks.length} conexões!`);
+        } else {
+            toast.success(`Galáxia "${name}" criada.`);
+        }
+
     } catch (e: any) {
+        console.error(e);
         const msg = e.response?.data?.message || "Falha ao criar galáxia";
         toast.error(msg);
-    } finally {
-        set({ isGravityLoading: false })
+        set({ isGravityLoading: false });
     }
   },
 

@@ -6,18 +6,58 @@ import { useGalaxyStore } from "@/stores/galaxyStore"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
 
+
+const MIN_GALAXY_DISTANCE = 1200; 
+const UNIVERSE_BOUNDS = 4000;
+
 export function GalaxyCreator() {
   const { t } = useTranslation() 
-  const { createGalaxy, isGravityLoading } = useGalaxyStore()
+  const { createGalaxy, isGravityLoading, clusters } = useGalaxyStore() 
   const [term, setTerm] = useState("")
   const [isExpanded, setIsExpanded] = useState(false)
+
+
+  const findSafePosition = () => {
+    let bestX = 0;
+    let bestY = 0;
+    let valid = false;
+    let attempts = 0;
+    
+    while (!valid && attempts < 50) {
+        const candidateX = (Math.random() - 0.5) * UNIVERSE_BOUNDS;
+        const candidateY = (Math.random() - 0.5) * UNIVERSE_BOUNDS;
+
+        const hasCollision = clusters.some(cluster => {
+            const dx = cluster.x - candidateX;
+            const dy = cluster.y - candidateY;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            return distance < MIN_GALAXY_DISTANCE;
+        });
+
+        if (!hasCollision) {
+            bestX = candidateX;
+            bestY = candidateY;
+            valid = true;
+        }
+        attempts++;
+    }
+
+    if (!valid) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = (UNIVERSE_BOUNDS / 2) + 1000 + (Math.random() * 1000); 
+        bestX = Math.cos(angle) * dist;
+        bestY = Math.sin(angle) * dist;
+    }
+
+    return { x: bestX, y: bestY };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!term.trim()) return
-    const randomX = (Math.random() - 0.5) * 3500;
-    const randomY = (Math.random() - 0.5) * 3500;
-    await createGalaxy(term, randomX, randomY)
+    const { x, y } = findSafePosition();
+
+    await createGalaxy(term, x, y)
     setTerm("")
   }
 
