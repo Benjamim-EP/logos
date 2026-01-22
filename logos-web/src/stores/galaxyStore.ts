@@ -335,10 +335,60 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 lang: guestUniverse?.lang || 'en'
             })
 
-            const matches = data.matches; 
+            const matches = data.matches; // [{ highlightId, score, text }, ...]
             
-            // 3. Atualiza as Afinidades nas Notas
-            let currentNotes = get().allNotes;
+            // --- LÓGICA DE RECICLAGEM (SWAP) ---
+            
+            let currentNotes = [...get().allNotes];
+            const currentIds = new Set(currentNotes.map(n => n.id));
+
+            // A. Identifica quais matches NÃO estão na tela
+            const missingMatches = matches.filter((m: any) => !currentIds.has(m.highlightId));
+
+            // B. Identifica estrelas do Caos (Candidatas a remoção)
+            // São estrelas que não têm afinidade com nenhuma galáxia ativa
+            const chaosIndices = currentNotes
+                .map((n, index) => ({ ...n, originalIndex: index }))
+                .filter(n => !n.affinities || Object.keys(n.affinities).length === 0)
+                .map(n => n.originalIndex);
+
+            // C. Substitui (Recicla) as estrelas do Caos pelas Novas
+            let chaosPointer = 0;
+            
+            missingMatches.forEach((match: any) => {
+                if (chaosPointer < chaosIndices.length) {
+                    const indexToSwap = chaosIndices[chaosPointer];
+                    
+                    // Substitui a estrela inútil pela nova estrela relevante
+                    currentNotes[indexToSwap] = {
+                        ...currentNotes[indexToSwap], // Mantém x,y temporariamente para animar a transição
+                        id: match.highlightId,
+                        title: match.text ? (match.text.substring(0, 30) + "...") : "Trecho",
+                        preview: match.text,
+                        tags: ["Recuperado"], // Tag visual para debug (opcional)
+                        affinities: { [newGalaxyId]: match.score } // Já nasce amando a nova galáxia
+                    };
+                    
+                    chaosPointer++;
+                } else {
+                    // Se não tem mais estrelas do caos para reciclar, adiciona nova (aumenta o pool)
+                    // Opcional: Se quiser manter estrito em 200, remova este else.
+                    currentNotes.push({
+                        id: match.highlightId,
+                        title: match.text ? (match.text.substring(0, 30) + "...") : "Trecho",
+                        preview: match.text,
+                        tags: ["Novo"],
+                        createdAt: new Date().toISOString(),
+                        x: x + (Math.random() - 0.5) * 500, // Nasce perto da galáxia
+                        y: y + (Math.random() - 0.5) * 500,
+                        z: 1,
+                        clusterId: newGalaxyId,
+                        affinities: { [newGalaxyId]: match.score }
+                    });
+                }
+            });
+
+            // 3. Atualiza as Afinidades nas Notas JÁ Existentes (que também deram match)
             const newScores = new Map(matches.map((m: any) => [m.highlightId, m.score]));
 
             currentNotes = currentNotes.map(note => {
@@ -355,9 +405,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 return note;
             });
 
-            // 4. RODA A FÍSICA GLOBAL V2
-            // Ao passar a nova lista de clusters, o recalculatePhysics vai ver o novo vetor de atração
-            // e reposicionar apenas as notas que têm afinidade com a nova galáxia.
+            // 4. RODA A FÍSICA
             const allClusters = [...get().clusters, newCluster];
             const rebalancedNotes = recalculatePhysics(currentNotes, allClusters);
 
@@ -368,7 +416,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
                 isGravityLoading: false 
             })
             
-            if (matches.length > 0) toast.success(`${matches.length} estrelas reagiram!`)
+            if (matches.length > 0) toast.success(`${matches.length} estrelas atraídas!`)
             else toast.info(`Galáxia criada (sem atrações).`)
 
         } catch (e) {

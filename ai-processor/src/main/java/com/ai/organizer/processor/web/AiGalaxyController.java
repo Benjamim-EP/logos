@@ -113,7 +113,7 @@ public class AiGalaxyController {
             log.info("🧲 Termo '{}' atraiu {} estrelas (Score > 0.60).", request.term(), result.matches().size());
 
             List<GravityResponse.StarMatch> matches = result.matches().stream()
-                    .map(m -> new GravityResponse.StarMatch(m.embeddingId(), m.score(), null))
+                    .map(this::toTourMatch)
                     .collect(Collectors.toList());
 
             return new GravityResponse(request.term(), matches);
