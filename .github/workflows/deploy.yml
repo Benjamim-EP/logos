@@ -1,48 +1,71 @@
-- name: Start Docker Compose via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      env:
-        KEYCLOAK_AUTH_SERVER: ${{ secrets.KEYCLOAK_AUTH_SERVER }}
-        DB_URL: ${{ secrets.DB_URL }}
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_PASS: ${{ secrets.DB_PASS }}
-        REDIS_HOST: ${{ secrets.REDIS_HOST }}
-        REDIS_PORT: ${{ secrets.REDIS_PORT }}
-        REDIS_PASS: ${{ secrets.REDIS_PASS }}
-        KAFKA_BOOTSTRAP: ${{ secrets.KAFKA_BOOTSTRAP }}
-        KAFKA_USER: ${{ secrets.KAFKA_USER }}
-        KAFKA_PASS: ${{ secrets.KAFKA_PASS }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-        PINECONE_HOST: ${{ secrets.PINECONE_HOST }}
-        PINECONE_ENV: ${{ secrets.PINECONE_ENV }}
-        GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
-        GCP_CREDENTIALS_JSON: ${{ secrets.GCP_CREDENTIALS_JSON }}
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        envs: KEYCLOAK_AUTH_SERVER,DB_URL,DB_USER,DB_PASS,REDIS_HOST,REDIS_PORT,REDIS_PASS,KAFKA_BOOTSTRAP,KAFKA_USER,KAFKA_PASS,OPENAI_API_KEY,PINECONE_API_KEY,PINECONE_HOST,PINECONE_ENV,GCP_BUCKET_NAME,GCP_CREDENTIALS_JSON
-        script: |
-          cd ~/logos-backend
-          
-          # Criando o .env com todas as variáveis
-          echo "KEYCLOAK_AUTH_SERVER=$KEYCLOAK_AUTH_SERVER" > .env
-          echo "DB_URL=$DB_URL" >> .env
-          echo "DB_USER=$DB_USER" >> .env
-          echo "DB_PASS=$DB_PASS" >> .env
-          echo "REDIS_HOST=$REDIS_HOST" >> .env
-          echo "REDIS_PORT=$REDIS_PORT" >> .env
-          echo "REDIS_PASS=$REDIS_PASS" >> .env
-          echo "KAFKA_BOOTSTRAP=$KAFKA_BOOTSTRAP" >> .env
-          echo "KAFKA_USER=$KAFKA_USER" >> .env
-          echo "KAFKA_PASS=$KAFKA_PASS" >> .env
-          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
-          echo "PINECONE_API_KEY=$PINECONE_API_KEY" >> .env
-          echo "PINECONE_HOST=$PINECONE_HOST" >> .env
-          echo "PINECONE_ENV=$PINECONE_ENV" >> .env
-          echo "GCP_BUCKET_NAME=$GCP_BUCKET_NAME" >> .env
-          echo "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json" >> .env
-          echo "GCP_CREDENTIALS_JSON='$GCP_CREDENTIALS_JSON'" >> .env
+name: Deploy Backend to AWS EC2
 
-          docker compose -f docker-compose.prod.yml up -d --build
-          docker image prune -f
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ".,!node_modules"
+          target: "~/logos-backend"
+          rm: true
+
+      - name: Start Docker Compose via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          KEYCLOAK_AUTH_SERVER: ${{ secrets.KEYCLOAK_AUTH_SERVER }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_PASS: ${{ secrets.REDIS_PASS }}
+          KAFKA_BOOTSTRAP: ${{ secrets.KAFKA_BOOTSTRAP }}
+          KAFKA_USER: ${{ secrets.KAFKA_USER }}
+          KAFKA_PASS: ${{ secrets.KAFKA_PASS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_HOST: ${{ secrets.PINECONE_HOST }}
+          PINECONE_ENV: ${{ secrets.PINECONE_ENV }}
+          GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
+          GCP_CREDENTIALS_JSON: ${{ secrets.GCP_CREDENTIALS_JSON }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: KEYCLOAK_AUTH_SERVER,DB_URL,DB_USER,DB_PASS,REDIS_HOST,REDIS_PORT,REDIS_PASS,KAFKA_BOOTSTRAP,KAFKA_USER,KAFKA_PASS,OPENAI_API_KEY,PINECONE_API_KEY,PINECONE_HOST,PINECONE_ENV,GCP_BUCKET_NAME,GCP_CREDENTIALS_JSON
+          script: |
+            cd ~/logos-backend
+            
+            echo "KEYCLOAK_AUTH_SERVER=$KEYCLOAK_AUTH_SERVER" > .env
+            echo "DB_URL=$DB_URL" >> .env
+            echo "DB_USER=$DB_USER" >> .env
+            echo "DB_PASS=$DB_PASS" >> .env
+            echo "REDIS_HOST=$REDIS_HOST" >> .env
+            echo "REDIS_PORT=$REDIS_PORT" >> .env
+            echo "REDIS_PASS=$REDIS_PASS" >> .env
+            echo "KAFKA_BOOTSTRAP=$KAFKA_BOOTSTRAP" >> .env
+            echo "KAFKA_USER=$KAFKA_USER" >> .env
+            echo "KAFKA_PASS=$KAFKA_PASS" >> .env
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+            echo "PINECONE_API_KEY=$PINECONE_API_KEY" >> .env
+            echo "PINECONE_HOST=$PINECONE_HOST" >> .env
+            echo "PINECONE_ENV=$PINECONE_ENV" >> .env
+            echo "GCP_BUCKET_NAME=$GCP_BUCKET_NAME" >> .env
+            echo "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json" >> .env
+            echo "GCP_CREDENTIALS_JSON='$GCP_CREDENTIALS_JSON'" >> .env
+
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
