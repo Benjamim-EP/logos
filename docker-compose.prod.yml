@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # --- O Porteiro Externo (Nginx) ---
+  nginx:
+    image: nginx:alpine
+    container_name: logos-nginx
+    restart: always
+    ports:
+      - "80:80"  # Porta 80 da EC2 aberta para o mundo
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-gateway
+
+  # --- API Gateway (Java) ---
+  api-gateway:
+    build: ./api-gateway
+    container_name: logos-gateway
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - KEYCLOAK_AUTH_SERVER=${KEYCLOAK_AUTH_SERVER}
+      # URLs internas do Docker
+      - LIBRARY_SERVICE_URL=http://library-service:8082
+      - INGESTION_API_URL=http://ingestion-service:8080
+      - AI_PROCESSOR_URL=http://ai-processor:8081
+    depends_on:
+      - library-service
+      - ai-processor
+
+  # --- Library Service (Java) ---
+  library-service:
+    build: ./library-service
+    container_name: logos-library
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=${DB_URL}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP} # Java usa Bootstrap
+      - KAFKA_USER=${KAFKA_USER}
+      - KAFKA_PASS=${KAFKA_PASS}
+      - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
+      - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
+
+  # --- Ingestion Service (Go) ---
+  ingestion-service:
+    build: ./ingestion-service
+    container_name: logos-ingestion
+    restart: always
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - KAFKA_BROKER=${KAFKA_BOOTSTRAP} # Go no seu código usa "KAFKA_BROKER"
+      - KAFKA_USER=${KAFKA_USER}
+      - KAFKA_PASS=${KAFKA_PASS}
+      - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
+      - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
+
+  # --- AI Processor (Java) ---
+  ai-processor:
+    build: ./ai-processor
+    container_name: logos-ai
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=${DB_URL}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP}
+      - KAFKA_USER=${KAFKA_USER}
+      - KAFKA_PASS=${KAFKA_PASS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENV=${PINECONE_ENV}
+      - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
+      - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASS=${REDIS_PASS}
