@@ -10,6 +10,8 @@ import com.ai.organizer.library.repository.StarGalaxyLinkRepository;
 import com.ai.organizer.library.repository.UserGalaxyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ public class GalaxyService {
     private final UserGalaxyRepository galaxyRepository;
     private final StarGalaxyLinkRepository linkRepository;
     private final AiProcessorClient aiClient;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Transactional
     public com.ai.organizer.library.dto.GalaxyCreationResponse createGalaxy(String userId, CreateGalaxyRequest request) {
@@ -84,8 +87,16 @@ public class GalaxyService {
         linkRepository.deleteByGalaxyId(galaxyId);
 
         galaxyRepository.delete(galaxy);
-  
-        log.info("🗑️ Galáxia {} dissolvida e estrelas liberadas.", galaxyId);
+
+        try {
+            String message = "GALAXY:" + galaxyId;
+            kafkaTemplate.send("data.deleted", message);
+            log.info("🗑️ Evento de limpeza enviado para: {}", message);
+        } catch (Exception e) {
+            log.error("⚠️ Falha ao enviar evento de deleção para o Kafka", e);
+        }
+
+        log.info("🗑️ Galáxia {} dissolvida do Postgres.", galaxyId);
     }
 
     @Transactional(readOnly = true)
