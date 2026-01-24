@@ -18,17 +18,23 @@ import java.time.Duration;
 
 @Configuration
 public class AiConfig {
+
+    // Carrega as variáveis do Docker Compose (Relaxed Binding do Spring)
+    @Value("${ai.openai.api-key}")
+    private String openAiApiKey;
+
+    @Value("${ai.pinecone.api-key}")
+    private String pineconeApiKey;
+
+    @Value("${ai.pinecone.environment}")
+    private String pineconeEnv;
+
     @Bean
-    public ChatLanguageModel chatLanguageModel(
-            @Value("${ai.openai.api-key}") String apiKey,
-            @Value("${ai.openai.model-name:gpt-4o-mini}") String modelName) {
-        
+    public ChatLanguageModel chatLanguageModel() {
         return OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .modelName(modelName)
+                .apiKey(openAiApiKey)
+                .modelName("gpt-4o-mini")
                 .timeout(Duration.ofSeconds(60))
-                .logRequests(true)
-                .logResponses(true)
                 .build();
     }
 
@@ -40,52 +46,42 @@ public class AiConfig {
     }
 
     @Bean
-    public EmbeddingModel embeddingModel(@Value("${ai.openai.api-key}") String apiKey) {
+    public EmbeddingModel embeddingModel() {
         return OpenAiEmbeddingModel.builder()
-                .apiKey(apiKey)
+                .apiKey(openAiApiKey)
                 .modelName("text-embedding-3-small")
                 .build();
     }
 
     @Bean(name = "userEmbeddingStore")
     @Primary 
-    public EmbeddingStore<TextSegment> userEmbeddingStore(
-            @Value("${ai.pinecone.api-key}") String apiKey,
-            @Value("${ai.pinecone.environment:us-east-1}") String environment,
-            @Value("${ai.pinecone.index-name:logos}") String indexName) { 
-        
+    public EmbeddingStore<TextSegment> userEmbeddingStore() { 
         return PineconeEmbeddingStore.builder()
-                .apiKey(apiKey)
-                .environment(environment)
-                .projectId("c94c1e6")
-                .index(indexName)
+                .apiKey(pineconeApiKey)
+                .environment(pineconeEnv)
+                .projectId("c94c1e6") // ID do seu projeto no print do Pinecone
+                .index("logos")       // Nome exato do seu índice no print
                 .build();
     }
 
     @Bean(name = "publicEmbeddingStore")
-    public EmbeddingStore<TextSegment> publicEmbeddingStore(
-            @Value("${ai.pinecone.api-key}") String apiKey,
-            @Value("${ai.pinecone.environment:us-east-1}") String environment) {
-        
+    public EmbeddingStore<TextSegment> publicEmbeddingStore() {
         return PineconeEmbeddingStore.builder()
-                .apiKey(apiKey)
-                .environment(environment)
+                .apiKey(pineconeApiKey)
+                .environment(pineconeEnv)
                 .projectId("c94c1e6")
-                .index("universes")
-                .nameSpace("")
+                .index("universes")   // Nome exato no print
                 .metadataTextKey("text")
                 .build();
     }
+
     @Bean(name = "guestEmbeddingStore")
-    public EmbeddingStore<TextSegment> guestEmbeddingStore(
-            @Value("${ai.pinecone.api-key}") String apiKey,
-            @Value("${ai.pinecone.environment:us-east-1}") String environment) {
-        
+    public EmbeddingStore<TextSegment> guestEmbeddingStore() {
         return PineconeEmbeddingStore.builder()
-                .apiKey(apiKey)
-                .environment(environment)
+                .apiKey(pineconeApiKey)
+                .environment(pineconeEnv)
                 .projectId("c94c1e6")
-                .index("guest-data") 
+                .index("guest-data")  // Nome exato no print
                 .build();
     }
 }
