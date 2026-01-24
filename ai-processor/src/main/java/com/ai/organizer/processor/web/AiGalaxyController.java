@@ -132,35 +132,40 @@ public class AiGalaxyController {
         log.info("🌌 [TOUR] Carregando universo: '{}' | Idioma: '{}'", universe, lang);
 
         try {
-             float[] dummyVector = new float[1536]; 
-            for (int i = 0; i < dummyVector.length; i++) {
-                dummyVector[i] = (float) Math.random(); 
-            }
+            // MUDANÇA 1: Vetor zerado em vez de aleatório (mais estável para busca por metadados)
+            float[] zeroVector = new float[1536]; 
 
+            // MUDANÇA 2: Garantir que o filtro combine com o seu print do Pinecone
+            // Note que usamos o 'lang' que vem da URL. Se no Pinecone estiver 'en' e você pedir 'pt', dará 0.
             Filter filter = MetadataFilterBuilder
                     .metadataKey("universe").isEqualTo(universe)
                     .and(MetadataFilterBuilder.metadataKey("lang").isEqualTo(lang));
 
-            log.info("🔎 Buscando no Pinecone [Index: universes]...");
-            Embedding embedding = embeddingModel.embed(universe).content();
+            log.info("🔎 Buscando no Pinecone [Index: universes] com filtro: universe={} AND lang={}", universe, lang);
 
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
-                .queryEmbedding(embedding)
-                .filter(filter)
-                .maxResults(200)
-                .minScore(0.20) // baixo, mas sem ser lixo
-                .build();
+                    .queryEmbedding(dev.langchain4j.data.embedding.Embedding.from(zeroVector))
+                    .filter(filter) 
+                    .maxResults(100) // Reduzi para 100 para ser mais rápido no carregamento inicial
+                    .minScore(0.0)   // Aceita qualquer proximidade
+                    .build();
 
             EmbeddingSearchResult<TextSegment> result = publicEmbeddingStore.search(request);
             
-            log.info("✅ Pinecone retornou {} itens.", result.matches().size());
+            log.info("✅ Pinecone retornou {} itens para o Tour.", result.matches().size());
+
+            // LOG DE DEBUG: Ver o primeiro item se houver
+            if (!result.matches().isEmpty()) {
+                var first = result.matches().get(0);
+                log.info("📦 Exemplo de metadados do primeiro item: {}", first.embedded().metadata().asMap());
+            }
 
             return result.matches().stream()
                     .map(this::toTourMatch)
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("❌ Erro ao carregar tour. Verifique a conexão ou chaves.", e);
+            log.error("❌ Erro fatal ao carregar tour no Pinecone:", e);
             return List.of();
         }
     }

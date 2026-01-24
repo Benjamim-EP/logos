@@ -70,8 +70,8 @@ public class AiConfig {
                 .apiKey(pineconeApiKey)
                 .environment(pineconeEnv)
                 .projectId("c94c1e6")
-                .index("universes")   // Nome exato no print
                 .metadataTextKey("text")
+                .index("universes")
                 .build();
     }
 
