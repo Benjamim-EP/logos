@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: ".,!node_modules"
           target: "~/logos-backend"
-          rm: true
+          rm: true # Isso limpa a pasta, por isso precisamos recriar os scripts abaixo
 
       - name: Start Docker Compose via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -47,36 +47,67 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: KEYCLOAK_AUTH_SERVER,DB_URL,DB_USER,DB_PASS,REDIS_HOST,REDIS_PORT,REDIS_PASS,KAFKA_BOOTSTRAP,KAFKA_USER,KAFKA_PASS,OPENAI_API_KEY,PINECONE_API_KEY,PINECONE_HOST,PINECONE_ENV,GCP_BUCKET_NAME,GCP_CREDENTIALS_JSON
           script: |
-                    cd ~/logos-backend
-                    
-                    # 1. Limpa o arquivo antigo para não dar conflito
-                    rm -f .env
-                    touch .env
+            cd ~/logos-backend
+            
+            # --- 1. CRIAR ARQUIVOS ENTRYPOINT.SH (JAVA) ---
+            echo "🔧 Criando scripts de inicialização Java..."
+            JAVA_SCRIPT='#!/bin/sh
+            if [ -n "$GCP_CREDENTIALS_JSON" ]; then
+                echo "🔐 Criando arquivo de credenciais GCP..."
+                echo "$GCP_CREDENTIALS_JSON" > /app/credentials.json
+            fi
+            echo "🚀 Iniciando aplicação Spring Boot..."
+            exec java -Djava.security.egd=file:/dev/./urandom -jar app.jar'
 
-                    # 2. Escreve as variáveis de forma segura usando printf
-                    printf "KEYCLOAK_AUTH_SERVER=%s\n" "$KEYCLOAK_AUTH_SERVER" >> .env
-                    printf "DB_URL=%s\n" "$DB_URL" >> .env
-                    printf "DB_USER=%s\n" "$DB_USER" >> .env
-                    printf "DB_PASS=%s\n" "$DB_PASS" >> .env
-                    printf "REDIS_HOST=%s\n" "$REDIS_HOST" >> .env
-                    printf "REDIS_PORT=%s\n" "$REDIS_PORT" >> .env
-                    printf "REDIS_PASS=%s\n" "$REDIS_PASS" >> .env
-                    printf "KAFKA_BOOTSTRAP=%s\n" "$KAFKA_BOOTSTRAP" >> .env
-                    printf "KAFKA_USER=%s\n" "$KAFKA_USER" >> .env
-                    printf "KAFKA_PASS=%s\n" "$KAFKA_PASS" >> .env
-                    printf "OPENAI_API_KEY=%s\n" "$OPENAI_API_KEY" >> .env
-                    printf "PINECONE_API_KEY=%s\n" "$PINECONE_API_KEY" >> .env
-                    printf "PINECONE_HOST=%s\n" "$PINECONE_HOST" >> .env
-                    printf "PINECONE_ENV=%s\n" "$PINECONE_ENV" >> .env
-                    printf "GCP_BUCKET_NAME=%s\n" "$GCP_BUCKET_NAME" >> .env
-                    
-                    # Hardcoded: Local onde o entrypoint.sh vai criar o arquivo físico
-                    printf "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json\n" >> .env
-                    
-                    # 3. O JSON Crítico (Aspas simples em volta para o Docker entender que é uma string única)
-                    printf "GCP_CREDENTIALS_JSON='%s'\n" "$GCP_CREDENTIALS_JSON" >> .env
+            echo "$JAVA_SCRIPT" > api-gateway/entrypoint.sh
+            chmod +x api-gateway/entrypoint.sh
+            
+            echo "$JAVA_SCRIPT" > library-service/entrypoint.sh
+            chmod +x library-service/entrypoint.sh
+            
+            echo "$JAVA_SCRIPT" > ai-processor/entrypoint.sh
+            chmod +x ai-processor/entrypoint.sh
 
-                    # 4. Deploy
-                    docker compose -f docker-compose.prod.yml down --remove-orphans
-                    docker compose -f docker-compose.prod.yml up -d --build
-                    docker image prune -f
+            # --- 2. CRIAR ARQUIVO ENTRYPOINT.SH (GO) ---
+            echo "🔧 Criando script de inicialização Go..."
+            GO_SCRIPT='#!/bin/sh
+            if [ -n "$GCP_CREDENTIALS_JSON" ]; then
+                echo "🔐 [Go] Criando arquivo credentials.json..."
+                echo "$GCP_CREDENTIALS_JSON" > /app/credentials.json
+                export GOOGLE_APPLICATION_CREDENTIALS="/app/credentials.json"
+            fi
+            echo "🚀 Iniciando Ingestion Service (Go)..."
+            ./ingestion-app'
+
+            echo "$GO_SCRIPT" > ingestion-service/entrypoint.sh
+            chmod +x ingestion-service/entrypoint.sh
+
+            # --- 3. CONFIGURAR .ENV ---
+            echo "🔧 Configurando variáveis de ambiente..."
+            rm -f .env
+            touch .env
+            printf "KEYCLOAK_AUTH_SERVER=%s\n" "$KEYCLOAK_AUTH_SERVER" >> .env
+            printf "DB_URL=%s\n" "$DB_URL" >> .env
+            printf "DB_USER=%s\n" "$DB_USER" >> .env
+            printf "DB_PASS=%s\n" "$DB_PASS" >> .env
+            printf "REDIS_HOST=%s\n" "$REDIS_HOST" >> .env
+            printf "REDIS_PORT=%s\n" "$REDIS_PORT" >> .env
+            printf "REDIS_PASS=%s\n" "$REDIS_PASS" >> .env
+            printf "KAFKA_BOOTSTRAP=%s\n" "$KAFKA_BOOTSTRAP" >> .env
+            printf "KAFKA_USER=%s\n" "$KAFKA_USER" >> .env
+            printf "KAFKA_PASS=%s\n" "$KAFKA_PASS" >> .env
+            printf "OPENAI_API_KEY=%s\n" "$OPENAI_API_KEY" >> .env
+            printf "PINECONE_API_KEY=%s\n" "$PINECONE_API_KEY" >> .env
+            printf "PINECONE_HOST=%s\n" "$PINECONE_HOST" >> .env
+            printf "PINECONE_ENV=%s\n" "$PINECONE_ENV" >> .env
+            printf "GCP_BUCKET_NAME=%s\n" "$GCP_BUCKET_NAME" >> .env
+            printf "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json\n" >> .env
+            
+            # JSON Seguro
+            printf "GCP_CREDENTIALS_JSON='%s'\n" "$GCP_CREDENTIALS_JSON" >> .env
+
+            # --- 4. SUBIR OS CONTAINERS ---
+            echo "🚀 Iniciando Docker Compose..."
+            docker compose -f docker-compose.prod.yml down --remove-orphans
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
