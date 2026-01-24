@@ -45,6 +45,7 @@ services:
       - KAFKA_PASS=${KAFKA_PASS}
       - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
       - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
+      - GCP_CREDENTIALS_LOCATION=${GCP_CREDENTIALS_LOCATION}
 
   # --- Ingestion Service (Go) ---
   ingestion-service:
@@ -81,3 +82,4 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASS=${REDIS_PASS}
+      - GCP_CREDENTIALS_LOCATION=${GCP_CREDENTIALS_LOCATION}
