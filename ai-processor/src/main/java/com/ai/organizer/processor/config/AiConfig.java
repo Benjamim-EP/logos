@@ -13,11 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+
 import java.time.Duration;
 
 @Configuration
 public class AiConfig {
 
+    // Carrega as variáveis do Docker Compose (Relaxed Binding do Spring)
     @Value("${ai.openai.api-key}")
     private String openAiApiKey;
 
@@ -56,9 +58,9 @@ public class AiConfig {
     public EmbeddingStore<TextSegment> userEmbeddingStore() { 
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv) // Usa a variável do Docker
-                .projectId("c94c1e6")     // Seu ID fixo
-                .index("logos")
+                .environment(pineconeEnv)
+                .projectId("c94c1e6") // ID do seu projeto no print do Pinecone
+                .index("logos")       // Nome exato do seu índice no print
                 .build();
     }
 
@@ -66,9 +68,9 @@ public class AiConfig {
     public EmbeddingStore<TextSegment> publicEmbeddingStore() {
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv) // FALTAVA ISSO
-                .projectId("c94c1e6")     // FALTAVA ISSO
-                .index("universes")
+                .environment(pineconeEnv)
+                .projectId("c94c1e6")
+                .index("universes")   // Nome exato no print
                 .metadataTextKey("text")
                 .build();
     }
@@ -77,9 +79,9 @@ public class AiConfig {
     public EmbeddingStore<TextSegment> guestEmbeddingStore() {
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv) // FALTAVA ISSO
-                .projectId("c94c1e6")     // FALTAVA ISSO
-                .index("guest-data")
+                .environment(pineconeEnv)
+                .projectId("c94c1e6")
+                .index("guest-data")  // Nome exato no print
                 .build();
     }
 }
