@@ -40,9 +40,10 @@ services:
       - DB_URL=${DB_URL}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
-      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP}
-      - KAFKA_USER=${KAFKA_USER}
-      - KAFKA_PASS=${KAFKA_PASS}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP}
+      - SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL=SASL_SSL
+      - SPRING_KAFKA_PROPERTIES_SASL_MECHANISM=PLAIN
+      - SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG=org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_USER}' password='${KAFKA_PASS}';
       - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
       - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
       - GCP_CREDENTIALS_LOCATION=${GCP_CREDENTIALS_LOCATION}
@@ -55,13 +56,11 @@ services:
     environment:
       - GIN_MODE=release
       - PORT=8080
-      - KAFKA_BROKER=${KAFKA_BOOTSTRAP} # Go no seu código usa "KAFKA_BROKER"
+      - KAFKA_BROKER=${KAFKA_BOOTSTRAP} 
       - KAFKA_USER=${KAFKA_USER}
       - KAFKA_PASS=${KAFKA_PASS}
       - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
       - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
-
-  # --- AI Processor (Java) ---
   ai-processor:
     build: ./ai-processor
     container_name: logos-ai
@@ -81,6 +80,9 @@ services:
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASS}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP}
+      - SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL=SASL_SSL
+      - SPRING_KAFKA_PROPERTIES_SASL_MECHANISM=PLAIN
+      - SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG=org.apache.kafka.common.security.plain.PlainLoginModule required username='${KAFKA_USER}' password='${KAFKA_PASS}';
       - SPRING_CLOUD_GCP_CREDENTIALS_LOCATION=file:/tmp/credentials.json
       - GCP_STORAGE_BUCKET_NAME=${GCP_BUCKET_NAME}
       - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
