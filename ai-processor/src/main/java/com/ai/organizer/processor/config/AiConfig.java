@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-
 import java.time.Duration;
 
 @Configuration
@@ -25,9 +24,8 @@ public class AiConfig {
     @Value("${ai.pinecone.api-key}")
     private String pineconeApiKey;
 
-    // Usaremos essa base apenas para o índice 'logos'
-    @Value("${ai.pinecone.base-url}")
-    private String pineconeBaseUrl; 
+    @Value("${ai.pinecone.environment}")
+    private String pineconeEnv;
 
     @Bean
     public ChatLanguageModel chatLanguageModel() {
@@ -58,28 +56,30 @@ public class AiConfig {
     public EmbeddingStore<TextSegment> userEmbeddingStore() { 
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment("us-east-1")
-                .projectId("c94c1e6")
+                .environment(pineconeEnv) // Usa a variável do Docker
+                .projectId("c94c1e6")     // Seu ID fixo
                 .index("logos")
                 .build();
     }
 
     @Bean(name = "publicEmbeddingStore")
     public EmbeddingStore<TextSegment> publicEmbeddingStore() {
-        // VAMOS FORÇAR O HOST DIRETO DO SEU PRINT PARA TESTAR
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .index("universes") // URL exata do print
+                .environment(pineconeEnv) // FALTAVA ISSO
+                .projectId("c94c1e6")     // FALTAVA ISSO
+                .index("universes")
                 .metadataTextKey("text")
                 .build();
     }
 
     @Bean(name = "guestEmbeddingStore")
     public EmbeddingStore<TextSegment> guestEmbeddingStore() {
-        // VAMOS FORÇAR O HOST DIRETO DO SEU PRINT PARA TESTAR
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .index("guest-data") // URL exata do print
+                .environment(pineconeEnv) // FALTAVA ISSO
+                .projectId("c94c1e6")     // FALTAVA ISSO
+                .index("guest-data")
                 .build();
     }
 }

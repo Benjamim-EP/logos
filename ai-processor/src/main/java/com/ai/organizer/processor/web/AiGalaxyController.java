@@ -145,7 +145,7 @@ public class AiGalaxyController {
 
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
                     .queryEmbedding(dev.langchain4j.data.embedding.Embedding.from(dummyVector))
-                    //.filter(filter) 
+                    .filter(filter) 
                     .maxResults(200)
                     .minScore(0.0)
                     .build();
