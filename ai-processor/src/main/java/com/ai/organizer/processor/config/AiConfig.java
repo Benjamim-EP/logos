@@ -19,15 +19,15 @@ import java.time.Duration;
 @Configuration
 public class AiConfig {
 
-    // Carrega as variáveis do Docker Compose (Relaxed Binding do Spring)
     @Value("${ai.openai.api-key}")
     private String openAiApiKey;
 
     @Value("${ai.pinecone.api-key}")
     private String pineconeApiKey;
 
-    @Value("${ai.pinecone.environment}")
-    private String pineconeEnv;
+    // Usaremos essa base apenas para o índice 'logos'
+    @Value("${ai.pinecone.base-url}")
+    private String pineconeBaseUrl; 
 
     @Bean
     public ChatLanguageModel chatLanguageModel() {
@@ -58,30 +58,28 @@ public class AiConfig {
     public EmbeddingStore<TextSegment> userEmbeddingStore() { 
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv)
-                .projectId("c94c1e6") // ID do seu projeto no print do Pinecone
-                .index("logos")       // Nome exato do seu índice no print
+                .environment("us-east-1")
+                .projectId("c94c1e6")
+                .index("logos")
                 .build();
     }
 
     @Bean(name = "publicEmbeddingStore")
     public EmbeddingStore<TextSegment> publicEmbeddingStore() {
+        // VAMOS FORÇAR O HOST DIRETO DO SEU PRINT PARA TESTAR
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv)
-                .projectId("c94c1e6")
-                .index("universes")   // Nome exato no print
+                .index("universes") // URL exata do print
                 .metadataTextKey("text")
                 .build();
     }
 
     @Bean(name = "guestEmbeddingStore")
     public EmbeddingStore<TextSegment> guestEmbeddingStore() {
+        // VAMOS FORÇAR O HOST DIRETO DO SEU PRINT PARA TESTAR
         return PineconeEmbeddingStore.builder()
                 .apiKey(pineconeApiKey)
-                .environment(pineconeEnv)
-                .projectId("c94c1e6")
-                .index("guest-data")  // Nome exato no print
+                .index("guest-data") // URL exata do print
                 .build();
     }
 }
