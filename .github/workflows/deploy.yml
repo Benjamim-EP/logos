@@ -49,13 +49,12 @@ jobs:
           script: |
             cd ~/logos-backend
             
-            # --- CORREÇÃO DO GO (CRÍTICO) ---
+            # --- CORREÇÃO DO GO ---
             echo "🔧 Corrigindo versão no go.mod..."
-            # Força a versão 1.22 independente do que veio do git
             sed -i 's/go 1.25.5/go 1.22/g' ingestion-service/go.mod
             sed -i 's/go 1.25/go 1.22/g' ingestion-service/go.mod
 
-            echo "🔧 Recriando Dockerfile do Go (Blindado)..."
+            echo "🔧 Recriando Dockerfile do Go..."
             cat <<EOF > ingestion-service/Dockerfile
             FROM golang:alpine AS build
             WORKDIR /app
@@ -77,22 +76,21 @@ jobs:
             EOF
 
             # --- 1. CRIAR ARQUIVOS ENTRYPOINT.SH (JAVA) ---
+            # MUDANÇA: Agora escrevemos em /tmp/credentials.json para evitar erro de permissão
             echo "🔧 Criando scripts de inicialização Java..."
             JAVA_SCRIPT='#!/bin/sh
             
             echo "🔧 Iniciando Entrypoint..."
             
             if [ -n "$GCP_CREDENTIALS_JSON" ]; then
-                echo "🔐 Criando arquivo de credenciais GCP em /app/credentials.json..."
-                # Remove aspas simples que podem ter vindo do env
+                echo "🔐 Criando arquivo de credenciais GCP em /tmp/credentials.json..."
                 CLEAN_JSON=$(echo "$GCP_CREDENTIALS_JSON" | sed "s/^\x27//;s/\x27$//")
-                echo "$CLEAN_JSON" > /app/credentials.json
+                echo "$CLEAN_JSON" > /tmp/credentials.json
                 
-                # Verifica se criou
-                if [ -f "/app/credentials.json" ]; then
-                    echo "✅ Arquivo criado com sucesso! Tamanho: $(wc -c < /app/credentials.json) bytes"
+                if [ -f "/tmp/credentials.json" ]; then
+                    echo "✅ Arquivo criado com sucesso! Tamanho: $(wc -c < /tmp/credentials.json) bytes"
                 else
-                    echo "❌ FALHA CRÍTICA: O arquivo credentials.json não foi criado!"
+                    echo "❌ FALHA CRÍTICA: O arquivo não foi criado em /tmp!"
                     exit 1
                 fi
             else
@@ -112,12 +110,13 @@ jobs:
             chmod +x ai-processor/entrypoint.sh
 
             # --- 2. CRIAR ARQUIVO ENTRYPOINT.SH (GO) ---
+            # MUDANÇA: Go também vai ler do /tmp
             echo "🔧 Criando script de inicialização Go..."
             GO_SCRIPT='#!/bin/sh
             if [ -n "$GCP_CREDENTIALS_JSON" ]; then
                 echo "🔐 [Go] Criando arquivo credentials.json..."
-                echo "$GCP_CREDENTIALS_JSON" > /app/credentials.json
-                export GOOGLE_APPLICATION_CREDENTIALS="/app/credentials.json"
+                echo "$GCP_CREDENTIALS_JSON" > /tmp/credentials.json
+                export GOOGLE_APPLICATION_CREDENTIALS="/tmp/credentials.json"
             fi
             echo "🚀 Iniciando Ingestion Service (Go)..."
             ./ingestion-app'
@@ -144,9 +143,10 @@ jobs:
             printf "PINECONE_HOST=%s\n" "$PINECONE_HOST" >> .env
             printf "PINECONE_ENV=%s\n" "$PINECONE_ENV" >> .env
             printf "GCP_BUCKET_NAME=%s\n" "$GCP_BUCKET_NAME" >> .env
-            printf "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json\n" >> .env
             
-            # JSON Seguro
+            # MUDANÇA: Apontamos o Spring Boot para ler do /tmp
+            printf "GCP_CREDENTIALS_LOCATION=file:/tmp/credentials.json\n" >> .env
+            
             printf "GCP_CREDENTIALS_JSON='%s'\n" "$GCP_CREDENTIALS_JSON" >> .env
 
             # --- 4. SUBIR OS CONTAINERS ---
