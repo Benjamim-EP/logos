@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: ".,!node_modules"
           target: "~/logos-backend"
-          rm: true # Isso limpa a pasta, por isso precisamos recriar os scripts abaixo
+          rm: true
 
       - name: Start Docker Compose via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -49,6 +49,33 @@ jobs:
           script: |
             cd ~/logos-backend
             
+            # --- CORREÇÃO DO GO (CRÍTICO) ---
+            echo "🔧 Corrigindo versão no go.mod..."
+            # Força a versão 1.22 independente do que veio do git
+            sed -i 's/go 1.25.5/go 1.22/g' ingestion-service/go.mod
+            sed -i 's/go 1.25/go 1.22/g' ingestion-service/go.mod
+
+            echo "🔧 Recriando Dockerfile do Go (Blindado)..."
+            cat <<EOF > ingestion-service/Dockerfile
+            FROM golang:alpine AS build
+            WORKDIR /app
+            RUN apk add --no-cache git
+            COPY go.mod go.sum ./
+            RUN go mod download
+            COPY . .
+            RUN go mod tidy
+            RUN CGO_ENABLED=0 GOOS=linux go build -o ingestion-app main.go
+
+            FROM alpine:latest
+            WORKDIR /app
+            RUN apk --no-cache add ca-certificates bash
+            COPY --from=build /app/ingestion-app .
+            COPY entrypoint.sh .
+            RUN chmod +x entrypoint.sh
+            EXPOSE 8080
+            ENTRYPOINT ["./entrypoint.sh"]
+            EOF
+
             # --- 1. CRIAR ARQUIVOS ENTRYPOINT.SH (JAVA) ---
             echo "🔧 Criando scripts de inicialização Java..."
             JAVA_SCRIPT='#!/bin/sh
