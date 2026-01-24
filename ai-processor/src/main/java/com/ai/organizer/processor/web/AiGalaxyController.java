@@ -142,13 +142,14 @@ public class AiGalaxyController {
                     .and(MetadataFilterBuilder.metadataKey("lang").isEqualTo(lang));
 
             log.info("🔎 Buscando no Pinecone [Index: universes]...");
+            Embedding embedding = embeddingModel.embed(universe).content();
 
             EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
-                    .queryEmbedding(dev.langchain4j.data.embedding.Embedding.from(dummyVector))
-                    .filter(filter) 
-                    .maxResults(200)
-                    .minScore(0.0)
-                    .build();
+                .queryEmbedding(embedding)
+                .filter(filter)
+                .maxResults(200)
+                .minScore(0.20) // baixo, mas sem ser lixo
+                .build();
 
             EmbeddingSearchResult<TextSegment> result = publicEmbeddingStore.search(request);
             
