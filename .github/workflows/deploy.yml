@@ -76,21 +76,21 @@ jobs:
             EOF
 
             # --- 1. CRIAR ARQUIVOS ENTRYPOINT.SH (JAVA) ---
-            # MUDANÇA: Agora escrevemos em /tmp/credentials.json para evitar erro de permissão
+            # MUDANÇA: Decodifica Base64 diretamente para o arquivo
             echo "🔧 Criando scripts de inicialização Java..."
             JAVA_SCRIPT='#!/bin/sh
             
-            echo "🔧 Iniciando Entrypoint..."
+            echo "🔧 Iniciando Entrypoint Java..."
             
             if [ -n "$GCP_CREDENTIALS_JSON" ]; then
-                echo "🔐 Criando arquivo de credenciais GCP em /tmp/credentials.json..."
-                CLEAN_JSON=$(echo "$GCP_CREDENTIALS_JSON" | sed "s/^\x27//;s/\x27$//")
-                echo "$CLEAN_JSON" > /tmp/credentials.json
+                echo "🔐 Decodificando credenciais GCP (Base64) para /tmp/credentials.json..."
+                # Remove espaços em branco e decodifica
+                echo "$GCP_CREDENTIALS_JSON" | tr -d " " | base64 -d > /tmp/credentials.json
                 
-                if [ -f "/tmp/credentials.json" ]; then
+                if [ -s "/tmp/credentials.json" ]; then
                     echo "✅ Arquivo criado com sucesso! Tamanho: $(wc -c < /tmp/credentials.json) bytes"
                 else
-                    echo "❌ FALHA CRÍTICA: O arquivo não foi criado em /tmp!"
+                    echo "❌ FALHA CRÍTICA: O arquivo de credenciais está vazio ou corrompido!"
                     exit 1
                 fi
             else
@@ -110,12 +110,11 @@ jobs:
             chmod +x ai-processor/entrypoint.sh
 
             # --- 2. CRIAR ARQUIVO ENTRYPOINT.SH (GO) ---
-            # MUDANÇA: Go também vai ler do /tmp
             echo "🔧 Criando script de inicialização Go..."
             GO_SCRIPT='#!/bin/sh
             if [ -n "$GCP_CREDENTIALS_JSON" ]; then
-                echo "🔐 [Go] Criando arquivo credentials.json..."
-                echo "$GCP_CREDENTIALS_JSON" > /tmp/credentials.json
+                echo "🔐 [Go] Decodificando credentials.json..."
+                echo "$GCP_CREDENTIALS_JSON" | tr -d " " | base64 -d > /tmp/credentials.json
                 export GOOGLE_APPLICATION_CREDENTIALS="/tmp/credentials.json"
             fi
             echo "🚀 Iniciando Ingestion Service (Go)..."
@@ -144,10 +143,11 @@ jobs:
             printf "PINECONE_ENV=%s\n" "$PINECONE_ENV" >> .env
             printf "GCP_BUCKET_NAME=%s\n" "$GCP_BUCKET_NAME" >> .env
             
-            # MUDANÇA: Apontamos o Spring Boot para ler do /tmp
+            # Aponta o Spring Boot para ler do /tmp onde o entrypoint criou o arquivo
             printf "GCP_CREDENTIALS_LOCATION=file:/tmp/credentials.json\n" >> .env
             
-            printf "GCP_CREDENTIALS_JSON='%s'\n" "$GCP_CREDENTIALS_JSON" >> .env
+            # Aqui passamos o Base64 sem aspas simples para evitar quebras, pois Base64 não tem espaços
+            echo "GCP_CREDENTIALS_JSON=$GCP_CREDENTIALS_JSON" >> .env
 
             # --- 4. SUBIR OS CONTAINERS ---
             echo "🚀 Iniciando Docker Compose..."
