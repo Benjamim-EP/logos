@@ -70,8 +70,9 @@ public class AiConfig {
                 .apiKey(pineconeApiKey)
                 .environment(pineconeEnv)
                 .projectId("c94c1e6")
-                .metadataTextKey("text")
                 .index("universes")
+                .nameSpace("")
+                .metadataTextKey("text")
                 .build();
     }
 
