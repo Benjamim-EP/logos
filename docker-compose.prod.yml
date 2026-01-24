@@ -36,10 +36,11 @@ services:
     restart: always
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - KEYCLOAK_AUTH_SERVER=${KEYCLOAK_AUTH_SERVER}
       - DB_URL=${DB_URL}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
-      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP} # Java usa Bootstrap
+      - KAFKA_BOOTSTRAP=${KAFKA_BOOTSTRAP}
       - KAFKA_USER=${KAFKA_USER}
       - KAFKA_PASS=${KAFKA_PASS}
       - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}

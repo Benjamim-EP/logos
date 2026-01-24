@@ -47,25 +47,36 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: KEYCLOAK_AUTH_SERVER,DB_URL,DB_USER,DB_PASS,REDIS_HOST,REDIS_PORT,REDIS_PASS,KAFKA_BOOTSTRAP,KAFKA_USER,KAFKA_PASS,OPENAI_API_KEY,PINECONE_API_KEY,PINECONE_HOST,PINECONE_ENV,GCP_BUCKET_NAME,GCP_CREDENTIALS_JSON
           script: |
-            cd ~/logos-backend
-            
-            echo "KEYCLOAK_AUTH_SERVER=$KEYCLOAK_AUTH_SERVER" > .env
-            echo "DB_URL=$DB_URL" >> .env
-            echo "DB_USER=$DB_USER" >> .env
-            echo "DB_PASS=$DB_PASS" >> .env
-            echo "REDIS_HOST=$REDIS_HOST" >> .env
-            echo "REDIS_PORT=$REDIS_PORT" >> .env
-            echo "REDIS_PASS=$REDIS_PASS" >> .env
-            echo "KAFKA_BOOTSTRAP=$KAFKA_BOOTSTRAP" >> .env
-            echo "KAFKA_USER=$KAFKA_USER" >> .env
-            echo "KAFKA_PASS=$KAFKA_PASS" >> .env
-            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
-            echo "PINECONE_API_KEY=$PINECONE_API_KEY" >> .env
-            echo "PINECONE_HOST=$PINECONE_HOST" >> .env
-            echo "PINECONE_ENV=$PINECONE_ENV" >> .env
-            echo "GCP_BUCKET_NAME=$GCP_BUCKET_NAME" >> .env
-            echo "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json" >> .env
-            echo "GCP_CREDENTIALS_JSON='$GCP_CREDENTIALS_JSON'" >> .env
+                    cd ~/logos-backend
+                    
+                    # 1. Limpa o arquivo antigo para não dar conflito
+                    rm -f .env
+                    touch .env
 
-            docker compose -f docker-compose.prod.yml up -d --build
-            docker image prune -f
+                    # 2. Escreve as variáveis de forma segura usando printf
+                    printf "KEYCLOAK_AUTH_SERVER=%s\n" "$KEYCLOAK_AUTH_SERVER" >> .env
+                    printf "DB_URL=%s\n" "$DB_URL" >> .env
+                    printf "DB_USER=%s\n" "$DB_USER" >> .env
+                    printf "DB_PASS=%s\n" "$DB_PASS" >> .env
+                    printf "REDIS_HOST=%s\n" "$REDIS_HOST" >> .env
+                    printf "REDIS_PORT=%s\n" "$REDIS_PORT" >> .env
+                    printf "REDIS_PASS=%s\n" "$REDIS_PASS" >> .env
+                    printf "KAFKA_BOOTSTRAP=%s\n" "$KAFKA_BOOTSTRAP" >> .env
+                    printf "KAFKA_USER=%s\n" "$KAFKA_USER" >> .env
+                    printf "KAFKA_PASS=%s\n" "$KAFKA_PASS" >> .env
+                    printf "OPENAI_API_KEY=%s\n" "$OPENAI_API_KEY" >> .env
+                    printf "PINECONE_API_KEY=%s\n" "$PINECONE_API_KEY" >> .env
+                    printf "PINECONE_HOST=%s\n" "$PINECONE_HOST" >> .env
+                    printf "PINECONE_ENV=%s\n" "$PINECONE_ENV" >> .env
+                    printf "GCP_BUCKET_NAME=%s\n" "$GCP_BUCKET_NAME" >> .env
+                    
+                    # Hardcoded: Local onde o entrypoint.sh vai criar o arquivo físico
+                    printf "GCP_CREDENTIALS_LOCATION=file:/app/credentials.json\n" >> .env
+                    
+                    # 3. O JSON Crítico (Aspas simples em volta para o Docker entender que é uma string única)
+                    printf "GCP_CREDENTIALS_JSON='%s'\n" "$GCP_CREDENTIALS_JSON" >> .env
+
+                    # 4. Deploy
+                    docker compose -f docker-compose.prod.yml down --remove-orphans
+                    docker compose -f docker-compose.prod.yml up -d --build
+                    docker image prune -f
