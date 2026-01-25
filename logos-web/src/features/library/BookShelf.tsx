@@ -128,7 +128,7 @@ export function BookShelf() {
             <Button 
                 variant="outline" 
                 onClick={() => setViewMode('galaxy')}
-                className="border-white/20 text-gray-200 hover:text-white hover:bg-white/10 transition-colors gap-2"
+                className="border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 transition-all gap-2"
             >
                 <ArrowLeft className="w-4 h-4" />
                 {t('common.back')}

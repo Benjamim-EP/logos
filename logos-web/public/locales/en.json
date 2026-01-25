@@ -16,7 +16,10 @@
     "register": "Create account now",
     "welcome_back": "Welcome back",
     "access_galaxy": "Access your personal document galaxy.",
-    "tour_mode": "Try Guest Tour"
+    "tour_mode": "Try Guest Tour",
+    "landing_title": "Organize your knowledge with Artificial Intelligence.",
+    "landing_subtitle": "A distributed Cloud-Native architecture for ingestion, processing, and semantic data connection.",
+    "landing_version": "v2.0.0 • Powered by AWS EC2 & Neon"
   },
   "tour": {
     "modal_title": "Choose Your Starting Point",

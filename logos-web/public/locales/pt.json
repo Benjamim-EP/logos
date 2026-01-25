@@ -16,7 +16,10 @@
     "register": "Criar conta agora",
     "welcome_back": "Bem-vindo de volta",
     "access_galaxy": "Acesse sua galáxia pessoal de documentos.",
-    "tour_mode": "Modo Visitante (Tour)"
+    "tour_mode": "Modo Visitante (Tour)",
+    "landing_title": "Organize seu conhecimento com Inteligência Artificial.",
+    "landing_subtitle": "Uma arquitetura Cloud-Native distribuída para ingestão, processamento e conexão semântica de dados.",
+    "landing_version": "v2.0.0 • Rodando em AWS EC2 & Neon"
   },
   "tour": {
     "modal_title": "Escolha seu Ponto de Partida",

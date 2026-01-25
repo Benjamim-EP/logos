@@ -16,7 +16,10 @@
     "register": "Utwórz konto teraz",
     "welcome_back": "Witaj ponownie",
     "access_galaxy": "Uzyskaj dostęp do swojej osobistej galaktyki dokumentów.",
-    "tour_mode": "Tryb Gościa (Wycieczka)"
+    "tour_mode": "Tryb Gościa (Wycieczka)",
+    "landing_title": "Organizuj swoją wiedzę za pomocą Sztucznej Inteligencji.",
+    "landing_subtitle": "Rozproszona architektura Cloud-Native do ingestii, przetwarzania i semantycznego łączenia danych.",
+    "landing_version": "v2.0.0 • Napędzane przez AWS EC2 & Neon"
   },
   "tour": {
     "modal_title": "Wybierz Punkt Startowy",

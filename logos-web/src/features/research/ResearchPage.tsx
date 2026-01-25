@@ -72,25 +72,6 @@ export function ResearchPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mb-16">
-        <div className="bg-gradient-to-b from-white/5 to-transparent p-[1px] rounded-2xl">
-            <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-1 shadow-2xl">
-                <div className="bg-zinc-900/50 rounded-xl p-8 border border-white/5 flex flex-col items-center text-center">
-                    <div className="p-3 bg-purple-500/10 rounded-full mb-4">
-                        <UploadCloud className="w-8 h-8 text-purple-400" />
-                    </div>
-                    <h2 className="text-xl font-bold mb-2 text-white">{t('research.upload_title')}</h2>
-                    <p className="text-sm text-gray-400 mb-6 max-w-md">
-                        {t('research.upload_desc')}
-                    </p>
-                    <div className="w-full max-w-lg">
-                        <FileUploader onUpload={handleFileUpload} />
-                    </div>
-                </div>
-            </div>
-        </div>
-      </div>
-
       <div className="max-w-4xl mx-auto mb-12 sticky top-0 z-30 pt-4 bg-[#050505]/95 backdrop-blur">
         <form onSubmit={handleSearch} className="flex gap-2 p-2 bg-zinc-900/90 border border-white/15 rounded-full shadow-2xl transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
             <Select value={area} onValueChange={setArea}>

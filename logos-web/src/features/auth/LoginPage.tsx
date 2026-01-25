@@ -62,13 +62,13 @@ export function LoginPage() {
         </div>
         <div className="space-y-6">
           <h1 className="text-5xl font-bold leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
-            Organize seu conhecimento com Inteligência Artificial.
+            {t('auth.landing_title')}
           </h1>
           <p className="text-lg text-gray-400 max-w-md leading-relaxed">
-            Uma arquitetura Cloud-Native distribuída para ingestão, processamento e conexão semântica de dados.
+            {t('auth.landing_subtitle')}
           </p>
         </div>
-        <div className="text-xs text-gray-600 font-mono">v2.0.0 • Powered by Google Cloud Run & Neon</div>
+        <div className="text-xs text-gray-600 font-mono">{t('auth.landing_version')}</div>
       </div>
 
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative z-20">
