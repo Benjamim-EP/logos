@@ -56,3 +56,7 @@ spring:
 gcp:
   storage:
     bucket-name: ${GCP_BUCKET_NAME}
+
+ai:
+  processor:
+    url: ${AI_PROCESSOR_URL:http://localhost:8081}

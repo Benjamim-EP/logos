@@ -48,6 +48,7 @@ services:
       - GCP_BUCKET_NAME=${GCP_BUCKET_NAME}
       - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON}
       - GCP_CREDENTIALS_LOCATION=${GCP_CREDENTIALS_LOCATION}
+      - AI_PROCESSOR_URL=http://ai-processor:8081
 
   # --- Ingestion Service (Go) ---
   ingestion-service:

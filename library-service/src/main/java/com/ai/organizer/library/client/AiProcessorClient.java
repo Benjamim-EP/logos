@@ -1,10 +1,10 @@
 package com.ai.organizer.library.client;
 
 import com.ai.organizer.library.client.dto.AiGravityResponse;
-
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
@@ -18,9 +18,9 @@ public class AiProcessorClient {
 
     private final RestClient restClient;
 
-    public AiProcessorClient(RestClient.Builder builder) {
-        
-        this.restClient = builder.baseUrl("http://localhost:8081/api/ai").build();
+    public AiProcessorClient(RestClient.Builder builder, 
+                            @Value("${ai.processor.url:http://localhost:8081}") String aiUrl) {
+        this.restClient = builder.baseUrl(aiUrl + "/api/ai").build();
     }
 
     public List<AiGravityResponse.StarMatch> getWorkbenchSuggestions(String text, String fileHash, String userId) {
