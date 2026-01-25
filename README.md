@@ -2,7 +2,11 @@
 
 **LOGOS** is a cutting-edge **Semantic Knowledge Management Platform** that transforms static documents into a visual, interactive universe of interconnected ideas. Using AI-driven vector embeddings and an event-driven architecture, LOGOS "understands" your data, creating automatic relationships between stars (fragments of knowledge) and galaxies (user-defined study areas).
 
-[![YouTube Demo](https://img.shields.io/badge/YouTube-Video%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=-rA5L2lUE6s)
+<p align="center">
+  <img src="docs/assets/demo-preview.gif" alt="Logos Galaxy Animation" width="100%">
+</p>
+
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Video%20Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=ZNQsIpoDVjs)
 [![Architecture](https://img.shields.io/badge/Architecture-Event--Driven-blue?style=for-the-badge)](https://www.confluent.io/)
 [![Stack](https://img.shields.io/badge/Stack-Multi--Cloud-orange?style=for-the-badge)](#-tech-stack)
 
@@ -12,7 +16,7 @@
 
 Click the image below to watch the full system walkthrough and see the Galaxy Canvas in action:
 
-[![LOGOS Galaxy Demo](https://img.youtube.com/vi/62ZVHBboLGM/0.jpg)](https://www.youtube.com/watch?v=62ZVHBboLGM)
+[![LOGOS Galaxy Demo](https://img.youtube.com/vi/ZNQsIpoDVjs/0.jpg)](https://www.youtube.com/watch?v=ZNQsIpoDVjs)
 
 ---
 
