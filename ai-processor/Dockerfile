@@ -13,6 +13,7 @@ RUN mvn clean package -DskipTests
 # --- Estágio 2: Runtime (Execução) ---
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+RUN apk add --no-cache fontconfig ttf-dejavu libpng libjpeg-turbo ghostscript
 
 # Instala dependências básicas se necessário (ex: fontes para PDFBox, curl para healthcheck)
 RUN apk add --no-cache fontconfig ttf-dejavu curl
