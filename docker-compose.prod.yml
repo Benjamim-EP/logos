@@ -8,6 +8,7 @@ services:
     restart: always
     ports:
       - "80:80"  # Porta 80 da EC2 aberta para o mundo
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
