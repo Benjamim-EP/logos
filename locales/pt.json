@@ -1,0 +1,147 @@
+{
+  "nav": {
+    "galaxy": "Galáxia",
+    "library": "Biblioteca",
+    "store": "Loja",
+    "research": "Pesquisa",
+    "profile": "Perfil",
+    "logout": "Encerrar Sessão",
+    "welcome": "Bem-vindo",
+    "guest": "Explorador",
+    "guest_user": "Usuário Visitante"
+  },
+  "auth": {
+    "login_google": "Continuar com Google",
+    "login_email": "Usar e-mail e senha",
+    "register": "Criar conta agora",
+    "welcome_back": "Bem-vindo de volta",
+    "access_galaxy": "Acesse sua galáxia pessoal de documentos.",
+    "tour_mode": "Modo Visitante (Tour)",
+    "landing_title": "Organize seu conhecimento com Inteligência Artificial.",
+    "landing_subtitle": "Uma arquitetura Cloud-Native distribuída para ingestão, processamento e conexão semântica de dados.",
+    "landing_version": "v2.0.0 • Rodando em AWS EC2 & Neon"
+  },
+  "tour": {
+    "modal_title": "Escolha seu Ponto de Partida",
+    "modal_desc": "Explore universos de conhecimento pré-processados ou comece uma jornada vazia. Sem cadastro necessário.",
+    "stars_count": "Estrelas"
+  },
+  "universe": {
+    "bible": {
+      "title": "Bíblia Sagrada Completa",
+      "desc": "A coleção completa dos textos sagrados. Mais de 31.000 versículos vetorizados e conectados semanticamente."
+    },
+    "empty": {
+      "title": "Universo Vazio",
+      "desc": "Comece do zero. Crie suas próprias estrelas e conexões."
+    }
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "delete": "Excluir",
+    "error": "Erro",
+    "success": "Sucesso",
+    "loading_system": "Inicializando Sistemas...",
+    "cold_start_warning": "Ambiente Serverless (Cold Start). O primeiro acesso pode levar até 1 minuto para acordar a infraestrutura."
+  },
+  "library": {
+    "explore_btn": "Explorar Biblioteca",
+    "title": "Biblioteca Digital",
+    "subtitle": "Gerencie seus livros, artigos e documentos.",
+    "add_book": "Adicionar Livro",
+    "empty_state": "Sua biblioteca está vazia.",
+    "empty_action": "Clique aqui para adicionar seu primeiro documento.",
+    "syncing": "Sincronizando com o Núcleo...",
+    "error_loading": "Erro ao carregar biblioteca.",
+    "upload_title": "Upload de Documento",
+    "read_original": "Ler Original",
+    "storage": "Armazenamento"
+  },
+  "toasts": {
+    "upload_started": "Upload iniciado!",
+    "upload_desc": "Processando capa e vetores em segundo plano...",
+    "upload_error": "Falha no envio",
+    "upload_error_desc": "Verifique o tamanho do arquivo."
+  },
+  "galaxy": {
+    "hud_title": "Galáxia Logos",
+    "zoom": "Zoom",
+    "visible": "Visíveis",
+    "config_view": "Configurar Visualização",
+    "quick_nav": "Navegação Rápida",
+    "click_travel": "Clique nos pontos para viajar",
+    "filters": "Filtros",
+    "visible_galaxies": "Galáxias Visíveis",
+    "sort": "Ordenação",
+    "create_btn": "Criar Nova Galáxia",
+    "create_placeholder": "Nome da Galáxia (ex: Java, História)",
+    "close_panel": "Fechar painel",
+    "sort_newest": "Mais Recentes",
+    "sort_oldest": "Mais Antigos",
+    "sort_relevance": "Relevância",
+    "guest_empty_title": "Tabula Rasa",
+    "guest_empty_desc": "O vazio primordial. Use o botão abaixo para criar sua primeira galáxia."
+  },
+  "store": {
+    "hero_title": "Universo Base",
+    "hero_desc": "Não comece do zero. Adquira estruturas de conhecimento pré-processadas.",
+    "search_placeholder": "Buscar universos...",
+    "nodes": "Nós",
+    "vectors": "Vetores",
+    "preview": "Prévia",
+    "add": "Adicionar",
+    "free": "Grátis"
+  },
+  "research": {
+    "areas": {
+        "all": "Todas as Áreas",
+        "ai": "IA & Machine Learning",
+        "medicine": "Medicina",
+        "law": "Direito",
+        "history": "História",
+        "engineering": "Engenharia"
+    },
+    "drop_zone": "Arraste seu PDF/Imagem ou clique para selecionar",
+    "drop_active": "Solte o arquivo aqui...",
+    "max_size": "Máximo",
+    "search_area": "Todas as Áreas",
+    "title": "Laboratório de Pesquisa",
+    "subtitle": "Busca semântica global.",
+    "upload_title": "Upload de Conhecimento",
+    "upload_desc": "Arraste PDFs técnicos ou artigos.",
+    "search_placeholder": "Pesquisar papers...",
+    "results": "Resultados",
+    "recent": "Publicações Recentes",
+    "read_pdf": "Ler PDF",
+    "saved": "Salvo",
+    "save": "Salvar"
+  },
+  "profile": {
+    "logout": "Sair", 
+    "back_galaxy": "Voltar para Galáxia",
+    "identity": "Identidade Visual",
+    "bio_default": "Mapeando o conhecimento...",
+    "stats_highlights": "MARCAÇÕES",
+    "stats_summaries": "RESUMOS IA",
+    "stats_connections": "CONEXÕES",
+    "radar_title": "Eixos de Conhecimento",
+    "radar_desc": "Análise vetorial",
+    "info_radar": "Recalibrado a cada 30 interações.",
+    "next_evolution": "PRÓXIMA EVOLUÇÃO",
+    "remaining_marks": "marcações restantes.",
+    "network_status": "STATUS DA REDE",
+    "synced": "Sincronizado via Confluent",
+    "radar_subjects": {
+      "curiosity": "Curiosidade",
+      "access": "Acesso",
+      "reading": "Leitura",
+      "analysis": "Análise",
+      "synthesis": "Síntese",
+      "connection": "Conexão"
+    }
+  }
+}

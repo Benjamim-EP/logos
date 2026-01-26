@@ -1,0 +1,110 @@
+{
+  "nav": {
+    "galaxy": "Galáxia",
+    "library": "Biblioteca",
+    "store": "Loja",
+    "research": "Pesquisa",
+    "profile": "Perfil",
+    "logout": "Encerrar Sessão",
+    "welcome": "Bem-vindo",
+    "guest": "Explorador",
+    "guest_user": "Usuário Visitante"
+  },
+  "auth": {
+    "login_google": "Continuar com Google",
+    "login_email": "Usar e-mail e senha",
+    "register": "Criar conta agora",
+    "welcome_back": "Bem-vindo de volta",
+    "access_galaxy": "Acesse sua galáxia pessoal de documentos.",
+    "tour_mode": "Modo Visitante (Tour)"
+  },
+  "tour": {
+    "modal_title": "Escolha seu Ponto de Partida",
+    "modal_desc": "Explore universos de conhecimento pré-processados ou comece uma jornada vazia. Sem cadastro necessário.",
+    "stars_count": "Estrelas"
+  },
+  "universe": {
+    "bible": {
+      "title": "Bíblia Sagrada Completa",
+      "desc": "A coleção completa dos textos sagrados. Mais de 31.000 versículos vetorizados e conectados semanticamente."
+    },
+    "empty": {
+      "title": "Universo Vazio",
+      "desc": "Comece do zero. Crie suas próprias estrelas e conexões."
+    }
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "delete": "Excluir",
+    "error": "Erro",
+    "success": "Sucesso"
+  },
+  "library": {
+    "title": "Biblioteca Digital",
+    "subtitle": "Gerencie seus livros, artigos e documentos.",
+    "add_book": "Adicionar Livro",
+    "empty_state": "Sua biblioteca está vazia.",
+    "empty_action": "Clique aqui para adicionar seu primeiro documento.",
+    "syncing": "Sincronizando com o Núcleo...",
+    "error_loading": "Erro ao carregar biblioteca.",
+    "upload_title": "Upload de Documento",
+    "read_original": "Ler Original",
+    "storage": "Armazenamento"
+  },
+  "toasts": {
+    "upload_started": "Upload iniciado!",
+    "upload_desc": "Processando capa e vetores em segundo plano...",
+    "upload_error": "Falha no envio",
+    "upload_error_desc": "Verifique o tamanho do arquivo."
+  },
+  "galaxy": {
+    "config_view": "Configurar Visualização",
+    "filters": "Filtros",
+    "visible_galaxies": "Galáxias Visíveis",
+    "sort": "Ordenação",
+    "create_btn": "Criar Nova Galáxia",
+    "create_placeholder": "Nome da Galáxia (ex: Java)",
+    "close_panel": "Fechar painel"
+  },
+  "store": {
+    "hero_title": "Universo Base",
+    "hero_desc": "Não comece do zero. Adquira estruturas de conhecimento pré-processadas.",
+    "search_placeholder": "Buscar universos...",
+    "nodes": "Nós",
+    "vectors": "Vetores",
+    "preview": "Prévia",
+    "add": "Adicionar",
+    "free": "Grátis"
+  },
+  "research": {
+    "title": "Laboratório de Pesquisa",
+    "subtitle": "Busca semântica global.",
+    "upload_title": "Upload de Conhecimento",
+    "upload_desc": "Arraste PDFs técnicos ou artigos.",
+    "search_placeholder": "Pesquisar papers...",
+    "results": "Resultados",
+    "recent": "Publicações Recentes",
+    "read_pdf": "Ler PDF",
+    "saved": "Salvo",
+    "save": "Salvar"
+  },
+  "profile": {
+    "back_galaxy": "Voltar para Galáxia",
+    "identity": "Identidade Visual",
+    "bio_default": "Mapeando o conhecimento...",
+    "stats_highlights": "MARCAÇÕES",
+    "stats_summaries": "RESUMOS IA",
+    "stats_connections": "CONEXÕES",
+    "radar_title": "Eixos de Conhecimento",
+    "radar_desc": "Análise vetorial",
+    "info_radar": "Recalibrado a cada 30 interações.",
+    "next_evolution": "PRÓXIMA EVOLUÇÃO",
+    "remaining_marks": "marcações restantes.",
+    "network_status": "STATUS DA REDE",
+    "synced": "Sincronizado via Confluent"
+  }
+}
