@@ -28,6 +28,7 @@ jobs:
       - name: Build
         working-directory: ./logos-web
         run: npm run build # Aqui ele vai gerar o dist/ e o 404.html (se você mudou o package.json)
+        
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4

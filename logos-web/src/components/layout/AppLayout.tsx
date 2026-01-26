@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Outlet, Link, useLocation} from "react-router-dom"
+import { Outlet, Link, useLocation,useNavigate } from "react-router-dom"
 import { ShoppingBag, User, LayoutGrid, LogOut, Microscope, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/authStore"
@@ -14,6 +14,7 @@ export function AppLayout() {
   const { logout: storeLogout, user, isGuest, guestUniverse, setGuestUniverse } = useAuthStore()
   const location = useLocation()
   const { t, i18n } = useTranslation() 
+  const navigate = useNavigate()
 
   const isGalaxyActive = location.pathname.startsWith('/universe')
   const isActive = (path: string) => location.pathname === path
@@ -31,8 +32,7 @@ export function AppLayout() {
   const handleGuestSelect = (universeId: string, lang: string, pineconeFilter: string) => {
     setGuestUniverse({ id: universeId, lang, pineconeFilter })
     setShowGuestModal(false)
-      const target = `${import.meta.env.BASE_URL}universe/guest`.replace(/\/+/g, '/');
-     window.location.href = target;
+    navigate("/universe/guest")
   }
 
   const handleGuestEmpty = () => {
@@ -42,8 +42,7 @@ export function AppLayout() {
         pineconeFilter: 'none' 
     })
     setShowGuestModal(false)
-    const target = `${import.meta.env.BASE_URL}universe/guest`.replace(/\/+/g, '/');
-    window.location.href = target;
+    navigate("/universe/guest")
   }
 
   const changeLanguage = (lng: string) => {
