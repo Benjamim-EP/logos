@@ -39,7 +39,7 @@ api.interceptors.response.use(
         const { logout, isGuest } = useAuthStore.getState();
         if (!isGuest) {
             logout();
-            window.location.href = '/login';
+            window.location.href = import.meta.env.BASE_URL + 'login';
         }
     }
     return Promise.reject(error);

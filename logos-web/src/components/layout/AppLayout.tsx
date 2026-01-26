@@ -33,7 +33,7 @@ export function AppLayout() {
   const handleGuestSelect = (universeId: string, lang: string, pineconeFilter: string) => {
     setGuestUniverse({ id: universeId, lang, pineconeFilter })
     setShowGuestModal(false)
-    window.location.href = "/universe/guest" 
+     window.location.href = import.meta.env.BASE_URL + "universe/guest" 
     navigate("/universe/guest")
   }
 
@@ -70,11 +70,11 @@ export function AppLayout() {
   const handleLogout = () => {
       storeLogout();
       if (isGuest) {
-          window.location.href = "/login";
+          window.location.href = import.meta.env.BASE_URL + "login";
           return;
       }
       auth.signoutRedirect({ 
-          post_logout_redirect_uri: window.location.origin + "/login" 
+          post_logout_redirect_uri: window.location.origin + import.meta.env.BASE_URL + "/login" 
       });
   }
 

@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 const oidcConfig = {
   authority: "https://logos-auth-665606141998.us-central1.run.app/realms/logos-realm",
   client_id: "logos-app",
-  redirect_uri: window.location.origin + "/",
+  redirect_uri: window.location.origin + import.meta.env.BASE_URL,
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname)
   }
