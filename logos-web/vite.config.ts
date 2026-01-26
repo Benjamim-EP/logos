@@ -5,6 +5,7 @@ import path from "path" // <--- Importante
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: "/logos/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"), // <--- O Vite precisa disso
