@@ -1,7 +1,7 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent,DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { BrainCircuit, Plus, X } from "lucide-react"
+import { BrainCircuit, Plus} from "lucide-react"
 import { useWorkbenchStore } from "@/stores/workbenchStore"
 
 export function SuggestionsModal() {

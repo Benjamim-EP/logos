@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Library, Filter, TextQuote, Book } from "lucide-react"
+import { Library, Book } from "lucide-react"
 import type { Cluster, Note } from "@/types/galaxy"
 import { VirtualizedNoteList } from "./components/VirtualizedNoteList"
 import { useState } from "react"

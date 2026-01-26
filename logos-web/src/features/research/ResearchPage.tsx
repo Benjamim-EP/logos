@@ -1,15 +1,12 @@
 import { useState, useEffect } from "react"
-import { useResearchStore, type ResearchPaper } from "@/stores/researchStore"
+import { useResearchStore} from "@/stores/researchStore"
 import { useUserStore } from "@/stores/userStore"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search, Save, Check, FileText, ExternalLink, Loader2, UploadCloud } from "lucide-react"
-import { FileUploader } from "@/components/ui/file-uploader"
+import { Search, Save, Check, FileText, Loader2} from "lucide-react"
 import { StorageIndicator } from "@/components/common/StorageIndicator"
-import api from "@/lib/api"
-import { toast } from "sonner" 
 import { useTranslation } from "react-i18next" 
 
 const AREA_KEYS = [
@@ -42,17 +39,6 @@ export function ResearchPage() {
     search(query, area)
   }
 
-  const handleFileUpload = async (file: File) => {
-    const formData = new FormData()
-    formData.append("file", file)
-    try {
-      await api.post("/ingestion", formData, { headers: { "Content-Type": "multipart/form-data" } })
-      toast.success(t('toasts.upload_started'), { description: t('toasts.upload_desc') })
-      setTimeout(() => fetchProfile(), 2000)
-    } catch (error) {
-      toast.error(t('toasts.upload_error'))
-    }
-  }
 
   return (
     <div className="h-full w-full bg-[#050505] text-white p-6 md:p-12 overflow-y-auto custom-scrollbar">

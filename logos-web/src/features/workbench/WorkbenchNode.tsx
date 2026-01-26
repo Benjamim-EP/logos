@@ -1,6 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { FileText, Sparkles, ExternalLink, X, BrainCircuit } from 'lucide-react'
-import { useWorkbenchStore, type WorkbenchNodeData } from '@/stores/workbenchStore'
+import { useWorkbenchStore} from '@/stores/workbenchStore'
 import { toast } from 'sonner'
 
 // Definição da estrutura dos dados do Nó

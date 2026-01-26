@@ -9,9 +9,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import { BookOpen, Crosshair, Sparkles } from "lucide-react"
+import { BookOpen,Sparkles } from "lucide-react"
 import { stringToColor } from "@/lib/colors"
-import { useGalaxyStore } from "@/stores/galaxyStore"
 
 interface StarNodeProps {
   note: Note
@@ -19,7 +18,6 @@ interface StarNodeProps {
 }
 
 export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNodeProps) {
-  const { centralizeNode } = useGalaxyStore()
   const [isOpen, setIsOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
@@ -50,10 +48,6 @@ export const StarNode = React.memo(function StarNode({ note, zoomLevel }: StarNo
             position: note.position 
         } 
     }))
-  }
-
-  const handleCentralize = () => {
-    centralizeNode(note)
   }
 
   return (

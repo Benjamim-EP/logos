@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { Atom, ShoppingBag, User, LayoutGrid, LogOut, Microscope, Library } from "lucide-react"
+import { ShoppingBag, User, LayoutGrid, LogOut, Microscope, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/authStore"
 import { useTranslation } from "react-i18next"

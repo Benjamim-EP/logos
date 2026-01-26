@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 import { useDropzone, type FileRejection } from "react-dropzone"
-import { UploadCloud, FileText, X, AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { UploadCloud, FileText, X, CheckCircle2, Loader2 } from "lucide-react"
+import { motion,} from "framer-motion"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner" // Notificações
 import { t } from "i18next"

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   X, ZoomIn, ZoomOut, Loader2, MessageSquare, 
-  List, ChevronRight, Trash2, Sparkles, RefreshCw, 
+  List,Trash2, Sparkles,
   MousePointer2, TextCursor, Columns, ArrowRightToLine
 } from "lucide-react"
 
@@ -235,15 +235,6 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
     }
   }
 
-  const handleDeleteSummary = async (summaryId: number) => {
-      try {
-          await api.delete(`/library/summaries/${summaryId}`)
-          toast.success("Resumo apagado")
-          fetchData()
-          window.dispatchEvent(new Event('refresh-galaxy'));
-      } catch (e) { toast.error("Erro ao apagar") }
-  }
-
   const handleDeleteHighlight = async (h: IHighlight) => {
       try {
           await api.delete(`/library/highlights/${h.id}`)
@@ -260,9 +251,6 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
     const content = type === 'highlight' ? item.content.text : item.generatedText;
     const dbId = type === 'highlight' ? item.id : item.id;
     
-    // O item.position já é o objeto {boundingRect, rects, pageNumber}
-    // Precisamos passá-lo para o nó
-    const positionPdf = item.position; 
 
     const newNode = {
         id: `${type}-${dbId}-${Date.now()}`, 

@@ -2,8 +2,7 @@ import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "react-i18next"
-import { Book, Sparkles, ArrowRight, Globe } from "lucide-react"
-import { motion } from "framer-motion"
+import {  Sparkles} from "lucide-react"
 import api from "@/lib/api"
 
 interface PublicUniverse {

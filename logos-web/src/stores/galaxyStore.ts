@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { Cluster, Note, SubCluster } from '@/types/galaxy'
 import api from "@/lib/api"
 import { toast } from "sonner"
-import { getNearestNotes, seededRandom } from "@/lib/math"
+import { getNearestNotes} from "@/lib/math"
 import { useAuthStore } from './authStore'
 
 export type ViewMode = 'galaxy' | 'shelf' | 'profile'
@@ -15,12 +15,6 @@ const pseudoRandom = (seed: string) => {
         h = Math.imul(h, 0x01000193);
     }
     return ((h >>> 0) / 4294967296);
-}
-
-interface PhysicsLink {
-  galaxyId: string
-  highlightId: string
-  score: number
 }
 
 interface GalaxyState {
@@ -215,7 +209,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
             if (guestData && guestData.length > 0) {
                 // Mantemos "Meus Dados" como um cluster se quiser, 
                 // ou jogamos no caos também. Vamos jogar no caos para consistência.
-                const personalNotes: Note[] = guestData.map((item: any, i: number) => {
+                const personalNotes: Note[] = guestData.map((item: any) => {
                     const angle = Math.random() * Math.PI * 2;
                     const radius = 500 + Math.random() * 1000;
                     
