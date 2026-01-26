@@ -39,7 +39,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://16.58.117.143")); 
+         configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173",                // Desenvolvimento Local
+            "http://16.58.117.143",                 // IP Antigo (Legado)
+            "https://16.58.117.143.sslip.io",       // Novo Domínio SSL
+            "https://benjamim-ep.github.io"         // <--- SEU GITHUB PAGES (Ajuste o usuário se for diferente)
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

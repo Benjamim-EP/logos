@@ -2,7 +2,9 @@ import axios from "axios"
 import { useAuthStore } from "@/stores/authStore"
 import i18n from "./i18n"
 
-const api = axios.create({ baseURL: "http://16.58.117.143/api" })
+const api = axios.create({ 
+  baseURL: "https://16.58.117.143.sslip.io/api" 
+})
 
 api.interceptors.request.use((config) => {
   const { user, isGuest, guestUniverse } = useAuthStore.getState()
