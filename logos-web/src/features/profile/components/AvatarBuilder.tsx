@@ -32,7 +32,7 @@ interface AvatarBuilderProps {
 export function AvatarBuilder({ initialSeed = "user", initialStyle = "bottts-neutral", onSave }: AvatarBuilderProps) {
   const [seed, setSeed] = useState(initialSeed)
   const [style, setStyle] = useState(initialStyle)
-  const [backgroundColor, setBackgroundColor] = useState("transparent")
+  const [backgroundColor] = useState("transparent")
   const [isLoading, setIsLoading] = useState(false)
 
   // Gera a URL da DiceBear

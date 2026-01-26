@@ -431,6 +431,12 @@ export function PdfReaderView({ note, pdfUrl, initialPosition, onClose }: PdfRea
                     {/* RESUMOS */}
                     {activeTab === "summaries" && (
                         <div className="space-y-4">
+                            {isLoadingSummaries && (
+                                <div className="flex flex-col items-center justify-center py-10 text-zinc-500 gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin text-cyan-500" />
+                                    <span className="text-[10px] uppercase font-bold tracking-widest">Sincronizando Resumos...</span>
+                                </div>
+                            )}
                             {summaries.map((s: any) => (
                                 <div key={s.id} className="bg-gradient-to-br from-cyan-900/10 to-transparent border border-cyan-500/20 rounded-lg p-4 group relative hover:border-cyan-500/40">
                                     <div className="flex justify-between items-center mb-3">
