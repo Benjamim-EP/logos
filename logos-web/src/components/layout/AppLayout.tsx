@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
+import { Outlet, Link, useLocation} from "react-router-dom"
 import { ShoppingBag, User, LayoutGrid, LogOut, Microscope, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/authStore"
@@ -14,8 +14,6 @@ export function AppLayout() {
   const { logout: storeLogout, user, isGuest, guestUniverse, setGuestUniverse } = useAuthStore()
   const location = useLocation()
   const { t, i18n } = useTranslation() 
-
-   const navigate = useNavigate()
 
   const isGalaxyActive = location.pathname.startsWith('/universe')
   const isActive = (path: string) => location.pathname === path
