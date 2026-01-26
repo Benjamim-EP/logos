@@ -39,7 +39,9 @@ api.interceptors.response.use(
         const { logout, isGuest } = useAuthStore.getState();
         if (!isGuest) {
             logout();
-            window.location.href = import.meta.env.BASE_URL + 'login';
+            // CORREÇÃO: Redireciona para o caminho correto do build
+            const loginPath = `${import.meta.env.BASE_URL}login`.replace(/\/+/g, '/');
+            window.location.href = loginPath;
         }
     }
     return Promise.reject(error);

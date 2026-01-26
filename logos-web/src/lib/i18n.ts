@@ -17,10 +17,9 @@ i18n
       escapeValue: false,
     },
     backend: {
-      // Usamos o baseUrl para garantir que ele sempre comece da raiz do projeto
-      // Isso resolve o problema das rotas profundas /universe/guest
-      loadPath: `${baseUrl}locales/{{lng}}.json`, 
-      queryStringParams: { v: '1.0.4' }
+      // CORREÇÃO: Garante que o path sempre comece da raiz do projeto (/ ou /logos/)
+      loadPath: `${import.meta.env.BASE_URL}locales/{{lng}}.json`.replace(/\/+/g, '/'),
+      queryStringParams: { v: '1.0.5' }
     },
     react: {
       useSuspense: true 

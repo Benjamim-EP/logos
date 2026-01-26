@@ -33,8 +33,8 @@ export function AppLayout() {
   const handleGuestSelect = (universeId: string, lang: string, pineconeFilter: string) => {
     setGuestUniverse({ id: universeId, lang, pineconeFilter })
     setShowGuestModal(false)
-     window.location.href = import.meta.env.BASE_URL + "universe/guest" 
-    navigate("/universe/guest")
+      const target = `${import.meta.env.BASE_URL}universe/guest`.replace(/\/+/g, '/');
+     window.location.href = target;
   }
 
   const handleGuestEmpty = () => {
@@ -44,8 +44,8 @@ export function AppLayout() {
         pineconeFilter: 'none' 
     })
     setShowGuestModal(false)
-    window.location.href = "/universe/guest"
-    navigate("/universe/guest")
+    const target = `${import.meta.env.BASE_URL}universe/guest`.replace(/\/+/g, '/');
+    window.location.href = target;
   }
 
   const changeLanguage = (lng: string) => {
@@ -69,12 +69,14 @@ export function AppLayout() {
 
   const handleLogout = () => {
       storeLogout();
+      const loginPath = `${import.meta.env.BASE_URL}login`.replace(/\/+/g, '/');
       if (isGuest) {
-          window.location.href = import.meta.env.BASE_URL + "login";
+          window.location.href = loginPath;
           return;
       }
       auth.signoutRedirect({ 
-          post_logout_redirect_uri: window.location.origin + import.meta.env.BASE_URL + "/login" 
+          // CORREÇÃO: Garante que o URI de redirecionamento do Keycloak esteja correto
+          post_logout_redirect_uri: window.location.origin + loginPath
       });
   }
 
