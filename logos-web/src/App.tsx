@@ -21,6 +21,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const basename = import.meta.env.MODE === 'production' ? '/logos' : '';
   const auth = useAuth()
   const setAuthData = useAuthStore((state) => state.setAuthData)
   const isGuest = useAuthStore((state) => state.isGuest) 
@@ -84,7 +85,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
